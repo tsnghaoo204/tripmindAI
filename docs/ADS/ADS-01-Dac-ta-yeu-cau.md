@@ -202,6 +202,57 @@ Bước 7 là điểm phê duyệt bắt buộc — `QĐ-01`. Không có đườ
 
 ---
 
+### 4.11 FR-10xx — Giai đoạn đang đi *(v2.0)*
+
+| Mã | Yêu cầu |
+|---|---|
+| FR-1001 | Chuyến đi có ba giai đoạn suy từ ngày: chưa đi · đang đi · đã xong |
+| FR-1002 | Người dùng đặt tay giai đoạn được; giao diện **phải ghi rõ là đặt tay** |
+| FR-1003 | Đánh dấu từng hoạt động: chưa làm · đang làm · đã xong · đã bỏ |
+| FR-1004 | Bỏ một hoạt động phải ghi lý do; **bỏ khác với xoá** |
+| FR-1005 | Nhiều nhất một hoạt động đang làm trong một chuyến |
+| FR-1006 | Ghi giờ thực tế **cạnh** giờ dự kiến, không thay thế |
+| FR-1007 | Tính lệch lịch, phân biệt "đã trễ" (đã xong muộn) với "đang trễ" (chưa xong) |
+| FR-1008 | Hệ thống **không tự dời giờ**; trợ lý dựng đề xuất, người dùng duyệt |
+| FR-1009 | Không đề xuất sửa hoạt động đã xong hoặc đã bỏ |
+| FR-1010 | Dải "Hôm nay": đang làm gì, kế tiếp là gì, còn bao lâu |
+| FR-1011 | Ghi nhật ký một dòng cảm nhận cho từng hoạt động **hoặc cho cả ngày** |
+| FR-1012 | Đính ảnh vào nhật ký; ảnh được nén trước khi lưu |
+| FR-1013 | Không lưu được ảnh thì **nói thẳng**, không nhận rồi làm mất |
+| FR-1014 | Nhập chi tiêu bằng giọng nói ở nơi trình duyệt hỗ trợ; không hỗ trợ thì ẩn nút |
+
+### 4.12 FR-11xx — Sau chuyến *(v2.0)*
+
+| Mã | Yêu cầu |
+|---|---|
+| FR-1101 | Tab "Nhìn lại" chỉ mở được khi chuyến đã kết thúc |
+| FR-1102 | Tổng kết: làm bao nhiêu, bỏ bao nhiêu và vì sao, đi bao xa, chi bao nhiêu |
+| FR-1103 | So ước tính với thực tế **theo từng hạng mục** |
+| FR-1104 | Hạng mục thiếu một trong hai vế → "chưa đủ dữ liệu", **không** hiện 0% hay vô cực |
+| FR-1105 | Hoạt động đã bỏ không tính vào phần ước tính đem so |
+| FR-1106 | Thói quen ước lượng của người dùng qua **≥2 chuyến** đã kết thúc |
+| FR-1107 | Hệ số ước sai **chỉ để gợi ý**, không cộng vào tổng ước tính |
+| FR-1108 | Quyết toán chia tiền theo từng loại tiền tệ, rút gọn thành ít lượt chuyển nhất |
+| FR-1109 | Người đi cùng **không cần có tài khoản** |
+| FR-1110 | Chia lẻ không được làm mất tiền: phần dư rải cho vài người đầu |
+
+### 4.13 FR-12xx — Hoàn tác và giải trình *(v2.0)*
+
+| Mã | Yêu cầu |
+|---|---|
+| FR-1201 | Hoàn tác một đề xuất đã áp dụng, trong cửa sổ 10 phút |
+| FR-1202 | Năm điều kiểm khi hoàn tác — `ADS-30` §10a.1 |
+| FR-1203 | Hoạt động đã bị sửa tay thì hoàn tác **giữ nguyên**, không đè |
+| FR-1204 | Báo rõ thao tác nào không lùi được và vì sao |
+| FR-1205 | Hộp xác nhận liệt kê **đúng** những việc sắp xảy ra |
+| FR-1206 | Nói rõ địa điểm đã ghi vào CSDL **không** bị rút lại |
+| FR-1207 | Đề xuất đã hoàn tác không áp dụng lại được |
+| FR-1208 | Mỗi hoạt động do AI tạo truy được về đề xuất sinh ra nó |
+| FR-1209 | Xem được: công cụ nào chạy, ứng viên nào bị loại và vì sao |
+| FR-1210 | Không truy được nguồn thì **nói là không biết**, không dựng lời giải thích |
+| FR-1211 | Đặt ràng buộc cứng cho chuyến đi |
+| FR-1212 | Phương án không giữ được ràng buộc phải **ghi rõ**, không âm thầm bỏ qua |
+
 ## 5. Yêu cầu phi chức năng
 
 | Mã | Yêu cầu | Mức |
@@ -222,6 +273,20 @@ Bước 7 là điểm phê duyệt bắt buộc — `QĐ-01`. Không có đườ
 ---
 
 ## 6. Ranh giới
+
+### 6.0 Đã đưa vào phạm vi ở v2.0
+
+Ba thứ bản v1.0 xếp ngoài phạm vi, nay đã làm — vì chúng không kéo theo cái giá mà v1.0
+lo ngại:
+
+| Việc | Vì sao làm được mà không đổi mô hình quyền |
+|---|---|
+| Chia tiền nhiều người | Người đi cùng là **tên trong chuyến**, không phải tài khoản. Chuyến vẫn thuộc đúng một chủ — `DI-1` giữ nguyên |
+| Ảnh | Chỉ lưu cục bộ theo người dùng, không chia sẻ, không CDN công khai |
+| Dùng trong lúc đang đi | Không cần GPS, không cần thông báo đẩy — chỉ là vài cột trạng thái và một cách hiển thị khác |
+
+Vẫn **chưa** làm: mời người khác vào cùng một chuyến, chia sẻ công khai, thanh toán, đặt vé.
+Ba cái đó mới thực sự đổi mô hình quyền.
 
 ### 6.1 Năm thứ hệ thống không làm
 

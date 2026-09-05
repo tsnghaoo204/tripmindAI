@@ -1,6 +1,11 @@
 # ADS-21 — Tích hợp trợ lý AI và gọi công cụ
 
-**TripMind** · v1.0 · 03/09/2026
+**TripMind** · v2.0 · 05/09/2026
+
+> **Bản v2.0: chín công cụ → mười bốn, một loại đề xuất → hai.** Nguyên tắc gốc không đổi
+> một chữ nào: mô hình không chạm được vào dữ liệu thật. Nó chỉ ghi được vào bảng đề xuất,
+> và mọi thứ vào cơ sở dữ liệu đều đi qua một cú bấm của người dùng. Cái thay đổi là **có
+> thêm việc để đề xuất**: ghi chi tiêu, gợi ý địa điểm, dời lịch khi trễ giờ.
 
 Tài liệu này mô tả trợ lý nói chuyện với mô hình ngôn ngữ ra sao, gọi công cụ thế nào, và vì sao nó không được phép tự sửa dữ liệu. Đây là phần khác biệt cốt lõi của hệ thống.
 
@@ -56,26 +61,42 @@ Dịch vụ nghiệp vụ **không bao giờ tự chọn mô hình**. Chúng kha
 
 ### 2.1 Chín công cụ
 
-**Tám công cụ đọc** — chạy tự do, không đổi dữ liệu:
+**Mười một công cụ đọc** — chạy tự do, không đổi dữ liệu:
 
 | Công cụ | Gọi dịch vụ | Trả về |
 |---|---|---|
-| `get_current_trip` | `TripService` | Điểm đến, khoảng ngày, số người, ngân sách |
-| `get_itinerary` | `ItineraryService` | Ngày và hoạt động, có thể lọc theo một ngày |
-| `get_user_preferences` | `UserService` | Sở thích và phong cách đi |
+| `get_current_trip` | `TripService` | Điểm đến, khoảng ngày, số người, ngân sách, **giai đoạn** |
+| `get_itinerary` | `ItineraryService` | Ngày và hoạt động **kèm trạng thái thực hiện**, lọc được theo ngày |
+| `get_user_preferences` | `UserService` | Sở thích, phong cách đi, **ràng buộc cứng** |
 | `get_saved_places` | `PlaceService` | Địa điểm người dùng đã lưu |
+| `get_participants` | `TripService` | Ai đi cùng chuyến này — cần cho việc chia tiền |
 | `calculate_trip_budget` | `BudgetService` | Ngân sách, ước tính, thực tế, còn lại |
 | `get_weather` | `WeatherService` | Số liệu **kèm nhãn nguồn** — `BR-510` |
-| `search_places` | `PlaceService` | Tối đa 5 địa điểm — `BR-504` |
+| `search_places` | `PlaceService` | Tối đa 5 địa điểm — `BR-504`. **Đi ra ngoài, không đọc `places`** |
 | `calculate_distance` | `DistanceService` | Khoảng cách và thời gian di chuyển |
+| `rank_candidates` | `PlaceService` | Chấm điểm ứng viên bằng **mã**, không phải bằng mô hình |
+| `parse_expense` | `ExpenseParser` | Bóc câu tiếng Việt ra số tiền, hạng mục, ngày, người trả |
 
-**Một công cụ ghi** — và nó **không ghi vào lịch trình**:
+**Ba công cụ ghi** — và không cái nào ghi vào dữ liệu thật:
 
 | Công cụ | Gọi dịch vụ | Ghi vào |
 |---|---|---|
-| `propose_itinerary_changes` | `ProposalService` | **Chỉ `ai_proposals`** — `QĐ-01` |
+| `propose_itinerary_changes` | `ProposalService` | **Chỉ `ai_proposals`** (`kind='ITINERARY'`) — `QĐ-01` |
+| `propose_expense` | `ProposalService` | **Chỉ `ai_proposals`** (`kind='EXPENSE'`) |
+| `propose_places` | `ProposalService` | Danh sách ứng viên đính vào tin nhắn, **không** vào `places` |
 
 > Đề cương ban đầu liệt kê `add_activity`, `remove_activity`, `update_activity` là công cụ chạy trực tiếp. Thiết kế này **thay cả ba bằng một công cụ đề xuất duy nhất**. Không có công cụ nào chạm được vào bảng `activities`.
+
+**Ba điều quan trọng về nhóm công cụ ghi ở v2.0:**
+
+1. Cả ba đều chỉ ghi vào `ai_proposals` hoặc vào tin nhắn. **Không cái nào chạm được vào
+   `activities`, `expenses` hay `places`.** Nguyên tắc `QĐ-01` được giữ nguyên, chỉ mở rộng
+   phạm vi thứ có thể đề xuất.
+2. `search_places` **không đọc bảng `places`**. Nó gọi ra ngoài, và kết quả chỉ vào bộ đệm
+   một giờ. Muốn có dòng trong cơ sở dữ liệu thì người dùng phải bấm chọn — `ADS-20` §1.3.
+3. `parse_expense` và `rank_candidates` chạy bằng **mã**, không giao cho mô hình. Bóc số
+   tiền và chấm điểm là hai việc có lời giải xác định; mô hình đoán thì kết quả không tái
+   lập được — cùng lý do với `QĐ-09`.
 
 ### 2.2 Lược đồ công cụ — cái mô hình thấy
 
@@ -210,6 +231,17 @@ Thiếu `tool_calls_json` ở dòng 3 hoặc `tool_call_id` ở dòng 4 thì nh�
 
 ## 4. Đề xuất và áp dụng
 
+### 4.0 Hai loại đề xuất
+
+| `kind` | Sinh ra khi | Áp dụng thì ghi vào |
+|---|---|---|
+| `ITINERARY` | Đổi lịch vì mưa, dời giờ vì trễ, chọn một phương án tối ưu | `activities` (và `places` nếu đề xuất mang địa điểm mới) |
+| `EXPENSE` | Người dùng kể "hôm qua ăn ở Bé Mặn hết 1tr2" | `expenses` |
+
+Nhiều phương án cho cùng một câu hỏi dùng chung `option_group`. Chọn một thì các phương án
+anh em chuyển `REJECTED` với lý do `SUPERSEDED` — không để nhiều phương án cùng `PENDING`
+rồi người dùng bấm nhầm hai cái.
+
 ### 4.1 Ba giai đoạn
 
 | Giai đoạn | Ai làm | Dữ liệu đổi chưa |
@@ -255,6 +287,45 @@ Không tin bản ghi cũ. Kiểm lại từng thao tác lúc áp dụng — `BR-
 
 ---
 
+### 4.5 Hoàn tác — đường lui cho một cú bấm
+
+Áp dụng được thì phải lùi được. Nhưng lùi **không phải** là phép nghịch đảo toán học của
+áp dụng, vì giữa hai lúc đó người dùng có thể đã sửa tay.
+
+| Điều kiểm | Hỏng thì |
+|---|---|
+| Đề xuất thuộc đúng chuyến, chuyến thuộc người gọi | `404 PROPOSAL_NOT_FOUND` |
+| Trạng thái là `APPLIED` | `409 PROPOSAL_NOT_APPLIED` |
+| Còn trong cửa sổ 10 phút | `409 UNDO_WINDOW_CLOSED` |
+| Không bị đề xuất áp dụng sau chặn | `409 UNDO_BLOCKED_BY_LATER` kèm mã cái chặn |
+| Có `undo_json` | `409 UNDO_NOT_AVAILABLE` |
+
+**Luật chặn là LIFO có nới:** cho lùi nếu nó là đề xuất áp dụng gần nhất, **hoặc** nếu tập
+bản ghi nó đụng không giao với tập của đề xuất nào áp dụng sau nó. Hai đề xuất ở hai ngày
+khác nhau thì lùi cái nào trước cũng được — một phép giao mảng mã số là đủ để biết.
+
+**Khi vân tay lệch, hoàn tác bỏ qua chứ không đè.** Người dùng sửa tay một hoạt động sau
+khi áp dụng, rồi bấm hoàn tác: hệ thống giữ nguyên phần họ sửa và ghi vào `undoSkipped`.
+Lùi dở dang mà nói rõ, còn hơn lùi sạch mà nuốt mất công sức của người ta.
+
+**Ba điều giao diện phải nói trước khi lùi:** phạm vi thật (xoá cái gì, dựng lại cái gì) ·
+phần sửa tay sẽ được giữ nên lịch trình không quay về đúng như trước · **địa điểm đã ghi
+vào cơ sở dữ liệu lúc áp dụng vẫn ở lại**, hoàn tác lịch trình không rút lại việc đó.
+
+### 4.6 Vì sao chỗ này — giải trình một quyết định
+
+Mỗi đề xuất mang theo `evidence_json`: đã cân nhắc những chỗ nào, chỗ nào bị loại và vì
+sao, và mã của những lượt `ai_tool_executions` đã chạy để ra quyết định đó. Hoạt động sinh
+ra từ đề xuất giữ `from_proposal_id`.
+
+Nhờ vậy người dùng bấm vào một hoạt động do trợ lý tạo là thấy đúng: công cụ nào chạy mất
+bao lâu, điểm số từng ứng viên, và **những chỗ bị loại**. Không có gì được dựng lại hay
+diễn giải sau — toàn bộ là dòng thật trong nhật ký, đúng những dòng mà quản trị viên nhìn
+thấy ở màn `tool-executions`.
+
+Khi không truy được nguồn (đề xuất đã bị xoá), giao diện nói thẳng là **không biết**, chứ
+không dựng một lời giải thích nghe hợp lý.
+
 ## 5. Lời nhắc hệ thống
 
 Lời nhắc hệ thống dựng lại ở mỗi lượt, không lưu cứng.
@@ -269,6 +340,9 @@ Lời nhắc hệ thống dựng lại ở mỗi lượt, không lưu cứng.
 | **Cấm bịa địa điểm.** Chỉ nhắc địa điểm có trong kết quả công cụ | `QĐ-08` |
 | **Luôn nêu rõ số liệu thời tiết là dự báo hay trung bình khí hậu** | `QĐ-07` · `BR-510` |
 | Muốn đổi lịch trình thì phải dùng `propose_itinerary_changes` | `QĐ-01` |
+| Muốn ghi chi tiêu thì phải dùng `propose_expense` — **không tự cộng số** | `QĐ-09` |
+| **Ràng buộc cứng của chuyến**, kèm câu: giữ được thì giữ, không giữ được thì **nói ra** | |
+| Giai đoạn chuyến đi, và hoạt động nào đã xong — **không đề xuất sửa chuyện đã xảy ra** | |
 | Không hứa hẹn về giá vé, giá phòng, tình trạng mở cửa | `ADS-01` §6.2 |
 
 **Cấm đưa vào lời nhắc:** khoá dịch vụ, mã người dùng khác, dữ liệu chuyến đi của người khác.

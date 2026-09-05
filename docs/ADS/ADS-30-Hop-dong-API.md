@@ -1,6 +1,10 @@
 # ADS-30 — Hợp đồng API
 
-**TripMind** · v1.0 · 03/09/2026
+**TripMind** · v2.0 · 05/09/2026
+
+> **Bản v2.0 đảo `DI-8`** (tra cứu không còn ghi vào cơ sở dữ liệu, §6) và thêm bốn nhóm
+> điểm cuối: người tham gia và chia tiền, giai đoạn chuyến đi cùng trạng thái hoạt động,
+> nhật ký và ảnh, hoàn tác đề xuất. Nguyên tắc chi phối không đổi.
 
 Tài liệu này chốt điểm cuối, mã lỗi và phân quyền. Mô tả OpenAPI sinh tự động là nguồn chân lý về hình dạng dữ liệu; tài liệu này nói về **quy ước và ý định**.
 
@@ -42,6 +46,7 @@ Tài liệu này chốt điểm cuối, mã lỗi và phân quyền. Mô tả Op
 | `409` | Xung đột trạng thái | `PROPOSAL_NOT_PENDING` · `PROPOSAL_EXPIRED` · `PLACE_ALREADY_SAVED` |
 | `422` | Đúng cú pháp nhưng vi phạm luật nghiệp vụ | `TRIP_TOO_LONG` · `REORDER_SET_MISMATCH` |
 | `429` | Vượt giới hạn tần suất | `RATE_LIMITED` kèm `retryAfterSeconds` |
+| `507` | Hết chỗ lưu, hoặc kho ảnh không dùng được | `STORAGE_FULL` · `PHOTO_STORE_UNAVAILABLE` |
 | `502` | Dịch vụ ngoài lỗi **và không có đường lui** | `UPSTREAM_UNAVAILABLE` |
 | `500` | Lỗi không lường trước | `INTERNAL_ERROR` |
 
@@ -187,10 +192,24 @@ GET    /api/me/saved-places
 | Hành vi | Chi tiết |
 |---|---|
 | Tìm kiếm tra đệm Redis trước | Khoá theo băm của truy vấn, hạn 1 giờ |
-| Kết quả được ghi vào bảng địa điểm | Theo cặp *(nhà cung cấp, mã ngoài)* — `DI-8` |
+| **Kết quả KHÔNG ghi vào bảng địa điểm** | **Đảo `DI-8`.** Tra cứu chỉ đi vào bộ đệm — `ADS-20` §1.3 |
+| Mỗi kết quả kèm `dbId` | `null` nghĩa là chỗ này chưa nằm trong cơ sở dữ liệu của bạn |
+| Phản hồi kèm `cached: true/false` | Nói rõ số liệu lấy lại từ đệm hay vừa hỏi nhà cung cấp |
 | Nhà cung cấp lỗi | `200` kèm `{ "results": [], "reason": "PROVIDER_UNAVAILABLE" }` |
 | Lưu trùng | `409 PLACE_ALREADY_SAVED` |
 | Bỏ lưu | Xoá liên kết, **giữ** bản ghi địa điểm — `BR-304` |
+
+**Địa điểm chỉ vào cơ sở dữ liệu qua bốn đường, cả bốn đều là cú bấm của người dùng:**
+
+```http
+POST   /api/places/{externalId}/save                 → adopted_via = SAVED
+POST   /api/trips/{id}/itinerary/activities          → ITINERARY  (khi thân có placeExternalId)
+POST   /api/trips/{id}/ai/apply                      → PROPOSAL   (đề xuất mang địa điểm mới)
+POST   /api/trips/{id}/ai/generate                   → AI_GENERATE
+```
+
+Không có điểm cuối nào ghi địa điểm mà không do người dùng khởi động. `GET /api/places`
+là điểm cuối **chỉ đọc theo đúng nghĩa**: gọi bao nhiêu lần cũng không sinh dòng nào.
 
 Phản hồi tìm kiếm hiển thị kèm dòng ghi nguồn theo yêu cầu của nhà cung cấp.
 
@@ -342,6 +361,78 @@ POST /api/proposals/{id}/reject
 Lịch trình có thể đã đổi từ lúc dựng đề xuất — `ADS-21` §4.4.
 
 ---
+
+## 10a. Hoàn tác một đề xuất đã áp dụng
+
+```http
+POST /api/trips/{id}/ai/undo        { "proposalId": 1042 }
+GET  /api/trips/{id}/ai/undo/{proposalId}/preview
+```
+
+Điểm cuối xem trước **chạy khô**: không ghi gì, chỉ trả về đúng những việc sắp xảy ra để
+hộp xác nhận nói thật.
+
+### 10a.1 Năm điều kiểm
+
+| # | Kiểm | Lỗi |
+|---|---|---|
+| 1 | Đề xuất thuộc đúng chuyến, chuyến thuộc người gọi | `404 PROPOSAL_NOT_FOUND` |
+| 2 | Trạng thái là `APPLIED` | `409 PROPOSAL_NOT_APPLIED` |
+| 3 | Còn trong cửa sổ 10 phút | `409 UNDO_WINDOW_CLOSED` |
+| 4 | Không bị đề xuất áp dụng sau chặn | `409 UNDO_BLOCKED_BY_LATER` kèm `details.blockedBy` |
+| 5 | Có nhật ký nghịch đảo | `409 UNDO_NOT_AVAILABLE` |
+
+Điều kiểm 4 là **LIFO có nới** — `ADS-21` §4.5.
+
+### 10a.2 Phản hồi
+
+```json
+{
+  "reverted": 2,
+  "undoSkipped": [
+    { "title": "Bảo tàng Điêu khắc Chăm", "reason": "ACTIVITY_EDITED_AFTER_APPLY" }
+  ],
+  "itinerary": { }
+}
+```
+
+`undoSkipped` đối xứng với `skipped` của điểm cuối áp dụng, và giao diện phải hiện đầy đủ.
+Lùi dở dang mà nói rõ còn hơn lùi sạch mà nuốt phần người dùng đã sửa tay.
+
+Đề xuất đã hoàn tác chuyển `REVERTED` và **không áp dụng lại được** — điều kiểm `PENDING`
+giữ nguyên.
+
+## 10b. Giai đoạn chuyến đi, trạng thái hoạt động, nhật ký
+
+```http
+PUT    /api/trips/{id}/phase              { "phase": "DURING"|null, "simulatedDay": 2 }
+PUT    /api/activities/{id}/status        { "status": "DOING", "actualStart": "15:20", "skipReason": null }
+GET    /api/trips/{id}/drift?day=1
+PUT    /api/trips/{id}/constraints        [{ "kind": "NO_EARLY", "value": "08:00" }]
+
+GET    /api/trips/{id}/journal
+PUT    /api/trips/{id}/journal            { "dayNumber": 1, "activityId": 504|null, "note": "…", "mood": "GOOD" }
+DELETE /api/journal/{id}
+POST   /api/trips/{id}/photos             multipart
+DELETE /api/photos/{id}
+
+GET    /api/trips/{id}/participants
+POST   /api/trips/{id}/participants       { "name": "Minh Thư" }
+DELETE /api/participants/{id}
+GET    /api/trips/{id}/settlement
+GET    /api/trips/{id}/accuracy
+GET    /api/me/bias
+```
+
+| Quy ước | Chi tiết |
+|---|---|
+| `phase` bỏ trống | Quay về suy từ ngày. Phản hồi luôn kèm `phaseIsManual` để giao diện nói rõ |
+| `status = DOING` | Hoạt động `DOING` trước đó tự chuyển `DONE`; phản hồi trả `autoClosed` |
+| `GET drift` | **Chỉ tính.** Muốn dời giờ thì hỏi trợ lý, nó dựng đề xuất |
+| `source` của drift | `ACTUAL` (đã xong muộn) khác `NOW` (đang làm và đã quá giờ). Giao diện phải nói khác nhau |
+| Xoá người tham gia | `409 PARTICIPANT_HAS_EXPENSES` nếu họ đang đứng tên khoản chi |
+| `POST photos` | `507 PHOTO_STORE_UNAVAILABLE` nếu kho ảnh không dùng được — **nói thẳng, không nhận rồi làm mất** |
+| `GET accuracy` · `GET bias` | Hạng mục thiếu một trong hai vế trả `enough:false`, **không** trả 0 hay vô cực |
 
 ## 11. Quản trị
 
