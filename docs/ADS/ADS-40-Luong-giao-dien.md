@@ -1,6 +1,10 @@
 # ADS-40 — Thiết kế màn hình TripMind
 
-**TripMind** · v1.0 · 03/09/2026
+**TripMind** · v2.0 · 05/09/2026
+
+> **Bản v2.0 thêm giai đoạn.** Bản v1.0 chỉ phục vụ lúc *trước chuyến*. Bản này thêm màn
+> hình cho lúc *đang đi* và *sau chuyến*, thêm hoàn tác và giải trình cho trợ lý — và vì
+> thế "bảy chỗ giao diện phải nói thật" ở phần F thành **mười**.
 
 Tài liệu này mô tả có những màn hình nào, mỗi màn hiển thị gì, gọi điểm cuối nào, và **chỗ nào giao diện bắt buộc phải nói thật** thay vì làm đẹp.
 
@@ -108,6 +112,7 @@ graph TB
 | 3 | Đăng ký | `/register` | Công khai |
 | 4 | Bảng điều khiển | `/app` | Người dùng |
 | 5 | Tạo chuyến | `/app/trips/new` | Người dùng |
+| 5b | **Nhìn lại** | `/app/trips/:id/review` | Người dùng · chỉ khi chuyến đã kết thúc |
 | 6 | Tổng quan chuyến | `/app/trips/:id` | Người dùng |
 | 7 | Lịch trình | `/app/trips/:id/itinerary` | Người dùng |
 | 8 | Bản đồ | `/app/trips/:id/map` | Người dùng |
@@ -349,7 +354,7 @@ Bảng chỉ đọc, có phân trang. **Không có nút sửa nội dung chuyế
 
 ## Phần F — Những chỗ giao diện phải nói thật
 
-Tổng hợp lại, đây là bảy chỗ mà làm đẹp sẽ thành nói dối:
+Tổng hợp lại, đây là mười chỗ mà làm đẹp sẽ thành nói dối:
 
 | # | Chỗ | Phải nói thật rằng |
 |---|---|---|
@@ -360,6 +365,64 @@ Tổng hợp lại, đây là bảy chỗ mà làm đẹp sẽ thành nói dối
 | 5 | Dịch vụ ngoài lỗi | "Không tra được" khác với "không có kết quả" |
 | 6 | Khối rỗng | Rỗng khác với bằng không |
 | 7 | Hoạt động do AI tạo | Phân biệt được với hoạt động người dùng tự thêm |
+| 8 | **Hộp xác nhận hoàn tác** | Phần bạn sửa tay sẽ **được giữ nguyên**, nên lịch trình không quay về đúng như trước. Và địa điểm đã ghi vào CSDL thì không rút lại |
+| 9 | **Chế độ đang đi** | Giai đoạn này **suy từ ngày** hay **bạn tự bật**. Ngày đang xem có phải hôm nay thật không |
+| 10 | **Hệ số ước sai** | Nó **không** được cộng vào tổng ước tính. Hạng mục thiếu một vế thì ghi "chưa đủ dữ liệu", không ghi 0% |
+
+Ba chỗ mới đều cùng một dạng sai: một con số hoặc một trạng thái **trông như sự thật đo
+được**, nhưng thực ra là suy đoán, là lựa chọn của người dùng, hoặc là phép chia thiếu một
+vế. Chỗ nào cũng dễ làm cho gọn bằng cách giấu đi — và giấu đi là nói dối.
+
+---
+
+## Phần H — Ba giai đoạn của một chuyến đi
+
+Bản v1.0 coi mọi chuyến như nhau. Thực ra một chuyến đi qua ba giai đoạn, và **cùng một màn
+hình phải nói chuyện khác nhau** ở mỗi giai đoạn.
+
+| Giai đoạn | Suy từ | Màn Lịch trình hiện gì | Thanh đo trên thẻ chuyến |
+|---|---|---|---|
+| Chưa đi | `TODAY < startDate` | Danh sách ngày, kéo thả được | **% đã lên lịch** — số ngày có ≥2 hoạt động |
+| Đang đi | `startDate ≤ TODAY ≤ endDate` | Thêm dải **Hôm nay** + nút đánh dấu từng hoạt động | **% đã đi qua** — số hoạt động đã xong hoặc đã bỏ |
+| Đã xong | `TODAY > endDate` | Như trên, cộng tab **Nhìn lại** | **% đã đi qua** |
+
+Hai thanh đo là **hai chỉ số khác nhau**, hai nhãn khác nhau, và không được trộn. Hiện
+"75% đã lên lịch" cho một chuyến đã kết thúc là vô nghĩa.
+
+### H.1 Người dùng đặt tay được, và giao diện phải nói ra
+
+Giai đoạn suy từ ngày là mặc định, nhưng người dùng đặt tay được — về sớm, đi muộn, hoặc
+ngồi viết nhật ký sau chuyến. Khi đang đặt tay:
+
+| Chỗ | Phải hiện |
+|---|---|
+| Thanh tiêu đề chuyến | Chip **"bạn tự đặt"** cạnh tên giai đoạn |
+| Dải Hôm nay | "Ngày 1 **(mô phỏng)**" và một dòng nói rõ hôm nay thật là ngày mấy |
+
+Đây là chỗ số 9 của phần F. Một chip ghi "Đang đi" trong khi hôm nay chưa tới ngày khởi
+hành mà không chú thích gì là giao diện nói sai.
+
+### H.2 Lệch lịch — hai nguồn, hai cách nói
+
+| Nguồn | Khi nào | Câu phải khác nhau |
+|---|---|---|
+| `ACTUAL` | Hoạt động đã xong muộn hơn dự kiến | "**Đã trễ** 40 phút" |
+| `NOW` | Hoạt động đang làm và đã quá giờ | "**Đang trễ** 40 phút tính tới lúc này" |
+
+Cái thứ hai còn thay đổi được — người dùng có thể xong trong năm phút nữa. Nói "đã trễ"
+cho một việc chưa kết thúc là chốt một con số chưa chốt.
+
+**Hệ thống không tự dời giờ.** Nó tính ra bạn trễ bao nhiêu rồi để trợ lý dựng đề xuất.
+Tự dời là AI ghi thẳng vào dữ liệu, phá `QĐ-01`.
+
+### H.3 Ảnh — nói thẳng khi không lưu được
+
+Kho ảnh có thể không dùng được (chế độ riêng tư, giao thức tệp cục bộ). Khi đó giao diện
+**từ chối nhận ảnh và nói rõ**, chứ không nhận rồi để mất im lặng:
+
+> "Trình duyệt này không cho lưu ảnh. Bạn vẫn ghi được dòng cảm nhận."
+
+Cùng một nếp với "không tra được khác với không có kết quả".
 
 ---
 

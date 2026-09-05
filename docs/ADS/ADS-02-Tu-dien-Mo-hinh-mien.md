@@ -224,6 +224,37 @@ PENDING · APPLIED · REJECTED · EXPIRED
 
 Cưỡng chế bằng `CHECK` — `DI-5`.
 
+**v2.0 thêm `REVERTED`** — đã áp dụng rồi người dùng lùi lại. Khác `REJECTED` ở chỗ dữ liệu
+đã từng đổi thật. Đề xuất `REVERTED` **không** áp dụng lại được.
+
+### 3.3a Hai loại đề xuất *(v2.0)*
+
+| Giá trị | Áp dụng thì ghi vào |
+|---|---|
+| `ITINERARY` | `activities` — đổi lịch, dời giờ, chọn phương án |
+| `EXPENSE` | `expenses` — phiếu ghi chi tiêu đọc từ câu chữ |
+
+### 3.3b Bốn trạng thái hoạt động *(v2.0)*
+
+| Giá trị | Nghĩa |
+|---|---|
+| `PLANNED` | Chưa làm. Thiếu khoá cũng hiểu là giá trị này |
+| `DOING` | Đang làm. **Nhiều nhất một cái mỗi chuyến** |
+| `DONE` | Đã xong, có giờ thực tế |
+| `SKIPPED` | Đã bỏ, có lý do. **Khác với xoá** — vẫn nằm trong lịch trình |
+
+Lý do bỏ: `RAIN` · `TIRED` · `CLOSED` · `NO_TIME` · `OTHER`.
+
+### 3.3c Ba giai đoạn chuyến đi *(v2.0)*
+
+`BEFORE` · `DURING` · `AFTER`. Suy từ ngày, người dùng đặt tay đè được — và khi đè thì
+giao diện phải ghi rõ.
+
+### 3.3d Bốn lý do một địa điểm có mặt trong CSDL *(v2.0)*
+
+`SAVED` · `ITINERARY` · `PROPOSAL` · `AI_GENERATE`. Cả bốn đều là hành động của người dùng.
+Tra cứu **không** sinh dòng nào — `ADS-20` §1.3.
+
 ### 3.4 Sáu loại hoạt động
 
 | Mã | Nghĩa | Thường có địa điểm |
