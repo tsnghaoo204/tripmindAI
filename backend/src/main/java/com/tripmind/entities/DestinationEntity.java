@@ -23,6 +23,19 @@ public class DestinationEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * Nguồn của bản ghi: MANUAL (gieo sẵn hoặc người dùng tự nhập), GOOGLE, MAPBOX.
+     */
+    @Column(nullable = false, length = 24)
+    @Builder.Default
+    private String provider = "MANUAL";
+
+    /**
+     * Mã của nhà cung cấp (Google {@code place_id}). NULL với bản ghi MANUAL.
+     */
+    @Column(name = "external_id")
+    private String externalId;
+
     @Column(nullable = false, length = 160)
     private String name;
 

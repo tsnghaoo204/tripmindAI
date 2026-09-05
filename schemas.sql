@@ -63,19 +63,44 @@ CREATE TABLE user_preferences (
 -- 2. DESTINATIONS & PLACES
 -- =============================================================================
 
+-- v2.0: điểm đến KHÔNG còn là danh sách đóng gieo sẵn. Ngoài mấy dòng gợi ý ở mục 6,
+-- dòng mới sinh ra khi người dùng chọn một thành phố từ Google Places: tầng dịch vụ
+-- phân giải rồi "chèn nếu chưa có". Cùng nguyên tắc nạp theo hành động người dùng như
+-- bảng `places` — xem ADS-20 §1.3.
 CREATE TABLE destinations (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    -- Nguồn của dòng này. MANUAL = gieo sẵn hoặc người dùng tự nhập;
+    -- GOOGLE/MAPBOX = phân giải từ nhà cung cấp, `external_id` giữ mã của họ.
+    provider VARCHAR(24) NOT NULL DEFAULT 'MANUAL',
+    external_id VARCHAR(255),
     name VARCHAR(160) NOT NULL,
     country VARCHAR(80) NOT NULL,
     latitude NUMERIC(9,6) NOT NULL,
     longitude NUMERIC(9,6) NOT NULL,
+    -- Google Places không trả múi giờ IANA. Tầng dịch vụ hỏi Time Zone API theo toạ độ
+    -- trước khi chèn — cột này là đầu vào của mọi tính toán thời tiết và giờ hoạt động.
     timezone VARCHAR(64) NOT NULL,
     metadata JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT uq_destinations_country_name UNIQUE (country, name)
+    CONSTRAINT chk_destinations_provider CHECK (provider IN ('MANUAL', 'GOOGLE', 'MAPBOX')),
+    CONSTRAINT chk_destinations_external_id CHECK (provider = 'MANUAL' OR external_id IS NOT NULL)
 );
 
+-- Khoá trùng lặp chính cho điểm đến lấy từ nhà cung cấp: cùng một `place_id` không vào
+-- bảng hai lần. Chỉ mục MỘT PHẦN vì dòng MANUAL để `external_id` NULL.
+CREATE UNIQUE INDEX uq_destinations_provider_external
+    ON destinations (provider, external_id) WHERE external_id IS NOT NULL;
+
+-- Khoá dự phòng, chỉ áp cho dòng tự nhập/gieo sẵn. KHÔNG áp cho dòng của nhà cung cấp:
+-- Google trả tên thành phố theo nhiều định dạng và nhiều ngôn ngữ ("Da Nang" / "Đà Nẵng"
+-- / "Danang"), ràng buộc (country, name) trên đó sẽ chặn oan những thành phố hợp lệ.
+CREATE UNIQUE INDEX uq_destinations_country_name
+    ON destinations (country, name) WHERE external_id IS NULL;
+
 CREATE INDEX idx_destinations_name ON destinations (name);
+
+-- Tra cứu khi phân giải/nạp điểm đến từ mã nhà cung cấp.
+CREATE INDEX idx_destinations_external ON destinations (external_id) WHERE external_id IS NOT NULL;
 
 CREATE TABLE places (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -389,24 +414,32 @@ ALTER TABLE trips ADD CONSTRAINT chk_trips_phase_override
     CHECK (phase_override IS NULL OR phase_override IN ('BEFORE', 'DURING', 'AFTER'));
 
 -- =============================================================================
--- 6. SEED DATA (POPULAR DESTINATIONS)
+-- 6. SEED DATA (POPULAR DESTINATIONS) - GỢI Ý, KHÔNG PHẢI DANH SÁCH ĐÓNG
+-- =============================================================================
+-- Mười lăm dòng dưới đây chỉ để màn tạo chuyến có sẵn thứ để bấm ở lần chạy đầu, và
+-- để bản demo chạy được khi chưa cấu hình khoá Google. Người dùng đi Tokyo, Seoul hay
+-- một thị trấn không có ở đây thì DestinationService phân giải qua Google Places rồi
+-- chèn thêm một dòng `provider = 'GOOGLE'` — KHÔNG phải sửa tệp này.
+-- Xoá hẳn khối này hệ thống vẫn chạy đúng; chỉ mất phần gợi ý sẵn.
+--
+-- Dòng gieo sẵn để `external_id` NULL nên rơi vào khoá dự phòng (country, name).
 -- =============================================================================
 
-INSERT INTO destinations (name, country, latitude, longitude, timezone, metadata)
+INSERT INTO destinations (provider, name, country, latitude, longitude, timezone, metadata)
 VALUES
-    ('Da Nang', 'Vietnam', 16.054407, 108.202167, 'Asia/Ho_Chi_Minh', '{"region": "Central", "description": "Coastal city famous for My Khe Beach, Ba Na Hills, Dragon Bridge, and rich culinary culture."}'),
-    ('Hoi An', 'Vietnam', 15.880058, 108.338047, 'Asia/Ho_Chi_Minh', '{"region": "Central", "description": "UNESCO World Heritage ancient town with lantern-lit streets and historic architecture."}'),
-    ('Hue', 'Vietnam', 16.463713, 107.590866, 'Asia/Ho_Chi_Minh', '{"region": "Central", "description": "Historic imperial capital with royal palaces, tombs, and traditional royal cuisine."}'),
-    ('Hanoi', 'Vietnam', 21.028511, 105.854167, 'Asia/Ho_Chi_Minh', '{"region": "North", "description": "Thousand-year-old capital with French quarter, Old Quarter, and famous street food culture."}'),
-    ('Ha Long', 'Vietnam', 20.950454, 107.073364, 'Asia/Ho_Chi_Minh', '{"region": "North", "description": "World wonder bay featuring thousands of limestone karsts and emerald waters."}'),
-    ('Sa Pa', 'Vietnam', 22.336361, 103.843773, 'Asia/Ho_Chi_Minh', '{"region": "North", "description": "Mountain town famed for terraced rice paddies, Fansipan peak, and ethnic minority culture."}'),
-    ('Ninh Binh', 'Vietnam', 20.250614, 105.974457, 'Asia/Ho_Chi_Minh', '{"region": "North", "description": "Ha Long Bay on land featuring Trang An landscape complex, caves, and boat tours."}'),
-    ('Ho Chi Minh City', 'Vietnam', 10.823099, 106.629664, 'Asia/Ho_Chi_Minh', '{"region": "South", "description": "Dynamic economic powerhouse with buzzing nightlife, skyscrapers, and vibrant cafe culture."}'),
-    ('Da Lat', 'Vietnam', 11.940419, 108.458313, 'Asia/Ho_Chi_Minh', '{"region": "Central Highlands", "description": "City of Eternal Spring with pine hills, cool weather, flower valleys, and romance."}'),
-    ('Nha Trang', 'Vietnam', 12.238791, 109.196749, 'Asia/Ho_Chi_Minh', '{"region": "Central", "description": "Famous beach resort with diving sites, islands, amusement parks, and seafood."}'),
-    ('Phu Quoc', 'Vietnam', 10.289879, 103.984020, 'Asia/Ho_Chi_Minh', '{"region": "South", "description": "Tropical paradise island known for white sand beaches, sunset views, and luxury resorts."}'),
-    ('Quy Nhon', 'Vietnam', 13.782967, 109.219666, 'Asia/Ho_Chi_Minh', '{"region": "Central", "description": "Pristine coastal destination with Ky Co beach, Eo Gio, and Cham heritage."}'),
-    ('Can Tho', 'Vietnam', 10.045162, 105.746857, 'Asia/Ho_Chi_Minh', '{"region": "South", "description": "Heart of the Mekong Delta famous for Cai Rang floating market and fruit orchards."}'),
-    ('Vung Tau', 'Vietnam', 10.345991, 107.084267, 'Asia/Ho_Chi_Minh', '{"region": "South", "description": "Popular weekend coastal getaway near Ho Chi Minh City."}'),
-    ('Phan Thiet', 'Vietnam', 10.980461, 108.261475, 'Asia/Ho_Chi_Minh', '{"region": "South", "description": "Coastal town famed for Mui Ne red and white sand dunes, resorts, and water sports."}')
-ON CONFLICT (country, name) DO NOTHING;
+    ('MANUAL', 'Da Nang', 'Vietnam', 16.054407, 108.202167, 'Asia/Ho_Chi_Minh', '{"region": "Central", "description": "Coastal city famous for My Khe Beach, Ba Na Hills, Dragon Bridge, and rich culinary culture."}'),
+    ('MANUAL', 'Hoi An', 'Vietnam', 15.880058, 108.338047, 'Asia/Ho_Chi_Minh', '{"region": "Central", "description": "UNESCO World Heritage ancient town with lantern-lit streets and historic architecture."}'),
+    ('MANUAL', 'Hue', 'Vietnam', 16.463713, 107.590866, 'Asia/Ho_Chi_Minh', '{"region": "Central", "description": "Historic imperial capital with royal palaces, tombs, and traditional royal cuisine."}'),
+    ('MANUAL', 'Hanoi', 'Vietnam', 21.028511, 105.854167, 'Asia/Ho_Chi_Minh', '{"region": "North", "description": "Thousand-year-old capital with French quarter, Old Quarter, and famous street food culture."}'),
+    ('MANUAL', 'Ha Long', 'Vietnam', 20.950454, 107.073364, 'Asia/Ho_Chi_Minh', '{"region": "North", "description": "World wonder bay featuring thousands of limestone karsts and emerald waters."}'),
+    ('MANUAL', 'Sa Pa', 'Vietnam', 22.336361, 103.843773, 'Asia/Ho_Chi_Minh', '{"region": "North", "description": "Mountain town famed for terraced rice paddies, Fansipan peak, and ethnic minority culture."}'),
+    ('MANUAL', 'Ninh Binh', 'Vietnam', 20.250614, 105.974457, 'Asia/Ho_Chi_Minh', '{"region": "North", "description": "Ha Long Bay on land featuring Trang An landscape complex, caves, and boat tours."}'),
+    ('MANUAL', 'Ho Chi Minh City', 'Vietnam', 10.823099, 106.629664, 'Asia/Ho_Chi_Minh', '{"region": "South", "description": "Dynamic economic powerhouse with buzzing nightlife, skyscrapers, and vibrant cafe culture."}'),
+    ('MANUAL', 'Da Lat', 'Vietnam', 11.940419, 108.458313, 'Asia/Ho_Chi_Minh', '{"region": "Central Highlands", "description": "City of Eternal Spring with pine hills, cool weather, flower valleys, and romance."}'),
+    ('MANUAL', 'Nha Trang', 'Vietnam', 12.238791, 109.196749, 'Asia/Ho_Chi_Minh', '{"region": "Central", "description": "Famous beach resort with diving sites, islands, amusement parks, and seafood."}'),
+    ('MANUAL', 'Phu Quoc', 'Vietnam', 10.289879, 103.984020, 'Asia/Ho_Chi_Minh', '{"region": "South", "description": "Tropical paradise island known for white sand beaches, sunset views, and luxury resorts."}'),
+    ('MANUAL', 'Quy Nhon', 'Vietnam', 13.782967, 109.219666, 'Asia/Ho_Chi_Minh', '{"region": "Central", "description": "Pristine coastal destination with Ky Co beach, Eo Gio, and Cham heritage."}'),
+    ('MANUAL', 'Can Tho', 'Vietnam', 10.045162, 105.746857, 'Asia/Ho_Chi_Minh', '{"region": "South", "description": "Heart of the Mekong Delta famous for Cai Rang floating market and fruit orchards."}'),
+    ('MANUAL', 'Vung Tau', 'Vietnam', 10.345991, 107.084267, 'Asia/Ho_Chi_Minh', '{"region": "South", "description": "Popular weekend coastal getaway near Ho Chi Minh City."}'),
+    ('MANUAL', 'Phan Thiet', 'Vietnam', 10.980461, 108.261475, 'Asia/Ho_Chi_Minh', '{"region": "South", "description": "Coastal town famed for Mui Ne red and white sand dunes, resorts, and water sports."}')
+ON CONFLICT (country, name) WHERE external_id IS NULL DO NOTHING;

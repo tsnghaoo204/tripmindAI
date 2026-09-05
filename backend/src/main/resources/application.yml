@@ -13,7 +13,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:tripmind}
     username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    password: ${DB_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -48,12 +48,20 @@ springdoc:
 tripmind:
   ai:
     gemini:
-      api-key: ${GEMINI_API_KEY:}
+      api-key: ${GEMINI_API_KEY:AIzaSyDaoHpQdz57DVOtpkZqQRr85afryUb-moE}
       model: ${GEMINI_MODEL:gemini-1.5-flash}
   google:
     places:
-      api-key: ${GOOGLE_PLACES_API_KEY:}
-      use-mock: ${USE_MOCK_PLACES:true}
+      api-key: ${GOOGLE_PLACES_API_KEY:AIzaSyChwrqvafQ_qRFgfcwA_ijJGx2qlVPJ5aM}
+      # Places API (New) v1 - searchText / place details
+      base-url: ${GOOGLE_PLACES_BASE_URL:https://places.googleapis.com/v1}
+      # Time Zone API: Places khong tra ve mui gio IANA, phai hoi rieng theo toa do
+      timezone-url: ${GOOGLE_TIMEZONE_URL:https://maps.googleapis.com/maps/api/timezone/json}
+      language: ${GOOGLE_PLACES_LANGUAGE:vi}
+      max-results: ${GOOGLE_PLACES_MAX_RESULTS:10}
+      # false = goi Google that. Bat len chi khi chay offline: client tra ve rong,
+      # he thong chi con catalog trong CSDL.
+      use-mock: ${USE_MOCK_PLACES:false}
   open-meteo:
     base-url: https://api.open-meteo.com/v1
   exchange-rate:
