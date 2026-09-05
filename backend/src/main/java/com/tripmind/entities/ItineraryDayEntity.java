@@ -35,6 +35,7 @@ public class ItineraryDayEntity {
     @Column(nullable = false)
     private LocalDate date;
 
+    @Column(columnDefinition = "text")
     private String note;
 
     @OneToMany(mappedBy = "itineraryDay", cascade = CascadeType.ALL, orphanRemoval = true)

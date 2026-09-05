@@ -3,7 +3,9 @@ package com.tripmind.entities;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -40,13 +42,17 @@ public class TripEntity {
     @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
+    // SMALLINT trong schema, giong day_number va order_index.
     @Column(nullable = false)
     @Builder.Default
-    private int travelers = 1;
+    private short travelers = 1;
 
     private Long budget;
 
-    @Column(nullable = false, length = 3)
+    // CHAR(3) chu khong phai VARCHAR(3): quy uoc tien te cua ADS-20 §1.2. Thieu dong nay
+    // thi Hibernate cho doi varchar va `ddl-auto: validate` chan app khoi dong.
+    @Column(nullable = false, length = 3, columnDefinition = "char(3)")
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Builder.Default
     private String currency = "VND";
 

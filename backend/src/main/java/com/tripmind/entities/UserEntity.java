@@ -30,7 +30,7 @@ public class UserEntity {
     @Column(nullable = false, length = 120)
     private String name;
 
-    @Column(name = "avatar_url")
+    @Column(name = "avatar_url", columnDefinition = "text")
     private String avatarUrl;
 
     @Enumerated(EnumType.STRING)

@@ -53,6 +53,7 @@ public class ActivityEntity {
     @Column(name = "transportation_mode", length = 16)
     private String transportationMode;
 
+    @Column(columnDefinition = "text")
     private String notes;
 
     @Column(name = "order_index", nullable = false)
