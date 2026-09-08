@@ -24,6 +24,7 @@ public class UserEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(name = "password_hash", nullable = false, length = 72)
     private String passwordHash;
 
