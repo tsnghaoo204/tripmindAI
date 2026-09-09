@@ -9,8 +9,8 @@
 
 - [x] **Giai đoạn 1: Xác thực, Phân quyền & User Service** *(Đã hoàn thành 100%)*
 - [x] **Giai đoạn 2: Quản lý Điểm đến & Chuyến đi cơ bản** *(Đã hoàn thành 100%)*
-- [ ] **Giai đoạn 3: Lịch trình linh hoạt, Cụm địa điểm & Khoảng cách** *(Ưu tiên số 1)*
-- [ ] **Giai đoạn 4: Dịch vụ ngoài (Thời tiết & Tỷ giá)** *(Ưu tiên số 2)*
+- [x] **Giai đoạn 3: Lịch trình linh hoạt, Cụm địa điểm & Khoảng cách** *(Đã hoàn thành 100%)*
+- [ ] **Giai đoạn 4: Dịch vụ ngoài (Thời tiết & Tỷ giá)** *(Ưu tiên số 1)*
 - [ ] **Giai đoạn 5: Ngân sách & Chi tiêu thực tế** *(Ưu tiên số 3)*
 - [ ] **Giai đoạn 6: Trợ lý AI Agent & Bộ công cụ Tool Calling** *(Ưu tiên số 4)*
 - [ ] **Giai đoạn 7: Cơ chế Đề xuất, Giải trình AI & Hoàn tác** *(Ưu tiên số 5 — Cốt lõi đề tài)*
@@ -41,23 +41,25 @@
 - [x] `TRIP-01`: Catalog 15 điểm đến gợi ý có sẵn trong CSDL (`destinations`).
 - [x] `TRIP-02`: Tích hợp Google Places Client (`searchText`, `getPlaceDetails`, `nearbySearch`).
 - [x] `TRIP-03`: `DestinationService`: Tra cứu nội bộ kết hợp nạp động qua Google Places khi điểm đến chưa có trong DB.
-- [x] `TRIP-04`: `PlaceService`: Tìm kiếm địa điểm, xem chi tiết đánh giá (rating, review, giờ mở cửa).
-- [x] `TRIP-05`: `TripService.createTrip`: Tạo chuyến đi và tự động sinh đủ các ngày (`itinerary_days`).
-- [x] `TRIP-06`: API lấy danh sách chuyến đi `GET /api/trips` và chi tiết chuyến đi `GET /api/trips/{id}`.
-- [x] `TRIP-07`: Xử lý lazy loading Hibernate proxy & cấu hình `open-in-view: true`.
+- [x] `TRIP-04`: `DestinationController`: API lấy điểm đến phổ biến `GET /api/destinations/popular`, tìm kiếm `GET /api/destinations?query=...`, chi tiết `GET /api/destinations/{id}`.
+- [x] `TRIP-05`: `PlaceService`: Tìm kiếm địa điểm, xem chi tiết đánh giá (rating, review, giờ mở cửa), bổ sung cơ chế fallback nội bộ khi Google hết quota.
+- [x] `TRIP-06`: `TripService.createTrip`: Tạo chuyến đi và tự động sinh đủ các ngày (`itinerary_days`).
+- [x] `TRIP-07`: API lấy danh sách chuyến đi `GET /api/trips`, chi tiết `GET /api/trips/{id}`, xóa `DELETE /api/trips/{id}`.
+- [x] `TRIP-08`: API cập nhật thông tin chuyến đi `PUT /api/trips/{id}` (đổi tên, ngân sách, số người, tiền tệ).
+- [x] `TRIP-09`: Xử lý lazy loading Hibernate proxy & cấu hình `open-in-view: true`.
 
 ---
 
 ### Giai đoạn 3: Lịch trình linh hoạt, Cụm địa điểm & Khoảng cách (ITINERARY & ACTIVITIES)
-🎯 **Mục tiêu tiếp theo**: Cho phép người dùng xây dựng các hoạt động trong ngày, hiển thị khoảng cách di chuyển giữa các điểm và gợi ý khung giờ vàng.
+*Đã hoàn thành và kiểm thử nghiệm thu xanh 100%.*
 
-- [ ] `ITIN-01`: Hoàn thiện Entity & Repository cho `ActivityEntity` (gắn với `itinerary_days`, `places`).
-- [ ] `ITIN-02`: Dịch vụ tính khoảng cách `DistanceService` (công thức Haversine tính km và thời gian di chuyển ước tính phút giữa 2 tọa độ).
-- [ ] `ITIN-03`: API Lấy toàn bộ lịch trình chuyến đi `GET /api/trips/{id}/itinerary` (trả về danh sách ngày, các hoạt động được sắp theo thứ tự, kèm khoảng cách đến điểm kế tiếp và gợi ý khung giờ vàng).
-- [ ] `ITIN-04`: API Thêm hoạt động vào ngày `POST /api/trips/{id}/itinerary/activities` (nhận `placeId` hoặc nhập tự do, ghi chú khung giờ đẹp, chi phí ước tính).
-- [ ] `ITIN-05`: API Cập nhật hoạt động `PUT /api/activities/{id}` và Xóa hoạt động `DELETE /api/activities/{id}`.
-- [ ] `ITIN-06`: API Sắp xếp lại thứ tự (Kéo thả / Drag-Drop) `PUT /api/itinerary-days/{dayId}/reorder` (cập nhật lại `orderIndex` liên tục và tính lại khoảng cách theo thứ tự mới).
-- [ ] `ITIN-07`: Bảng `saved_places`: API Lưu địa điểm yêu thích `POST /api/places/{id}/save`, Bỏ lưu `DELETE /api/places/{id}/save` và Lấy danh sách `GET /api/me/saved-places`.
+- [x] `ITIN-01`: Hoàn thiện Entity & Repository cho `ActivityEntity` (gắn với `itinerary_days`, `places`).
+- [x] `ITIN-02`: Dịch vụ tính khoảng cách `DistanceService` (công thức Haversine tính km và thời gian di chuyển ước tính phút giữa 2 tọa độ).
+- [x] `ITIN-03`: API Lấy toàn bộ lịch trình chuyến đi `GET /api/trips/{id}/itinerary` (trả về danh sách ngày, các hoạt động được sắp theo thứ tự, kèm khoảng cách đến điểm kế tiếp và gợi ý khung giờ vàng).
+- [x] `ITIN-04`: API Thêm hoạt động vào ngày `POST /api/trips/{id}/itinerary/activities` (nhận `placeId` hoặc nhập tự do, ghi chú khung giờ đẹp, chi phí ước tính).
+- [x] `ITIN-05`: API Cập nhật hoạt động `PUT /api/activities/{id}` và Xóa hoạt động `DELETE /api/activities/{id}`.
+- [x] `ITIN-06`: API Sắp xếp lại thứ tự (Kéo thả / Drag-Drop) `PUT /api/itinerary-days/{dayId}/reorder` (cập nhật lại `orderIndex` liên tục và tính lại khoảng cách theo thứ tự mới).
+- [x] `ITIN-07`: Bảng `saved_places`: API Lưu địa điểm yêu thích `POST /api/places/{id}/save`, Bỏ lưu `DELETE /api/places/{id}/save` và Lấy danh sách `GET /api/me/saved-places`.
 
 ---
 
@@ -113,4 +115,4 @@
 ---
 
 ## 🚀 Bước cần làm ngay tiếp theo
-Bắt đầu triển khai **Giai đoạn 3: Lịch trình linh hoạt, Cụm địa điểm & Khoảng cách (ITIN-01 -> ITIN-07)**.
+Bắt đầu triển khai **Giai đoạn 4: Dịch vụ ngoài — Thời tiết & Tỷ giá (EXT-01 -> EXT-04)**.

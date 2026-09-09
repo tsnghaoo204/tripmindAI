@@ -31,12 +31,28 @@ public class PlaceServiceImpl implements PlaceService {
                 ? query + " " + destinationName
                 : query;
 
-        List<GooglePlace> googlePlaces = googlePlacesClient.searchText(searchQuery, null);
         List<PlaceResponse> responses = new ArrayList<>();
 
-        for (GooglePlace gp : googlePlaces) {
-            responses.add(toPlaceResponse(gp));
+        // 1. Try Google Places if enabled
+        try {
+            List<GooglePlace> googlePlaces = googlePlacesClient.searchText(searchQuery, null);
+            for (GooglePlace gp : googlePlaces) {
+                responses.add(toPlaceResponse(gp));
+            }
+        } catch (Exception ex) {
+            log.warn("Google Places API unavailable ({}), falling back to local places database.", ex.getMessage());
         }
+
+        // 2. Fallback to local catalog if Google Places returned empty or failed
+        if (responses.isEmpty() && query != null && !query.isBlank()) {
+            String clean = query.trim();
+            List<PlaceEntity> localPlaces = placeRepository
+                    .findByNameContainingIgnoreCaseOrCategoryContainingIgnoreCaseOrAddressContainingIgnoreCase(clean, clean, clean);
+            for (PlaceEntity entity : localPlaces) {
+                responses.add(fromEntity(entity));
+            }
+        }
+
         return responses;
     }
 
@@ -44,8 +60,18 @@ public class PlaceServiceImpl implements PlaceService {
     @Transactional
     public List<PlaceResponse> getNearbyRecommendations(BigDecimal latitude, BigDecimal longitude, Integer radiusMeters, String category) {
         String query = (category != null && !category.isBlank()) ? category : "attractions";
-        List<GooglePlace> googlePlaces = googlePlacesClient.searchText(query, null);
-        return googlePlaces.stream().map(this::toPlaceResponse).toList();
+        try {
+            List<GooglePlace> googlePlaces = googlePlacesClient.searchText(query, null);
+            if (!googlePlaces.isEmpty()) {
+                return googlePlaces.stream().map(this::toPlaceResponse).toList();
+            }
+        } catch (Exception ex) {
+            log.warn("Google Places nearby recommendation unavailable ({}), falling back to local places.", ex.getMessage());
+        }
+
+        return placeRepository.findTop20ByOrderByIdDesc().stream()
+                .map(this::fromEntity)
+                .toList();
     }
 
     @Override

@@ -22,6 +22,7 @@ public class ActivityEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "itinerary_day_id", nullable = false)
     private ItineraryDayEntity itineraryDay;
@@ -58,6 +59,22 @@ public class ActivityEntity {
 
     @Column(name = "order_index", nullable = false)
     private short orderIndex;
+
+    @Column(name = "status", nullable = false, length = 10)
+    @Builder.Default
+    private String status = "PLANNED";
+
+    @Column(name = "actual_start")
+    private LocalTime actualStart;
+
+    @Column(name = "actual_end")
+    private LocalTime actualEnd;
+
+    @Column(name = "skip_reason", length = 12)
+    private String skipReason;
+
+    @Column(name = "from_proposal_id")
+    private Long fromProposalId;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
