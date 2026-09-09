@@ -14,5 +14,7 @@ public interface TripService {
 
     List<TripEntity> getTripsByUser(Long userId);
 
+    TripEntity updateTrip(Long userId, Long tripId, com.tripmind.domains.requests.UpdateTripRequest request);
+
     void deleteTrip(Long userId, Long tripId);
 }

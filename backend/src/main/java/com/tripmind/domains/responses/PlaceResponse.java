@@ -30,4 +30,28 @@ public class PlaceResponse {
     private JsonNode openingHours;
     private JsonNode reviews;
     private JsonNode photoUrls;
+
+    public static PlaceResponse fromEntity(com.tripmind.entities.PlaceEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        return PlaceResponse.builder()
+                .id(entity.getId())
+                .provider(entity.getProvider())
+                .externalId(entity.getExternalId())
+                .name(entity.getName())
+                .category(entity.getCategory())
+                .latitude(entity.getLatitude())
+                .longitude(entity.getLongitude())
+                .rating(entity.getRating())
+                .userRatingsTotal(entity.getUserRatingsTotal())
+                .priceLevel(entity.getPriceLevel() != null ? entity.getPriceLevel().intValue() : null)
+                .address(entity.getAddress())
+                .phoneNumber(entity.getPhoneNumber())
+                .websiteUrl(entity.getWebsiteUrl())
+                .openingHours(entity.getOpeningHours())
+                .reviews(entity.getReviews())
+                .photoUrls(entity.getPhotoUrls())
+                .build();
+    }
 }

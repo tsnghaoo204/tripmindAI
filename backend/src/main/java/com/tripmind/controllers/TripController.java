@@ -51,6 +51,16 @@ public class TripController {
         return ResponseEntity.ok(ApiResponse.ok(trip));
     }
 
+    @PutMapping("/{tripId}")
+    @Operation(summary = "Update trip information")
+    public ResponseEntity<ApiResponse<TripEntity>> updateTrip(
+            @PathVariable Long tripId,
+            @Valid @RequestBody com.tripmind.domains.requests.UpdateTripRequest request) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        TripEntity trip = tripService.updateTrip(currentUserId, tripId, request);
+        return ResponseEntity.ok(ApiResponse.ok("Trip updated successfully", trip));
+    }
+
     @DeleteMapping("/{tripId}")
     @Operation(summary = "Delete a trip")
     public ResponseEntity<ApiResponse<Void>> deleteTrip(@PathVariable Long tripId) {

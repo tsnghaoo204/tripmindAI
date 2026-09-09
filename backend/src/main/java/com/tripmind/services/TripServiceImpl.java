@@ -87,6 +87,27 @@ public class TripServiceImpl implements TripService {
 
     @Override
     @Transactional
+    public TripEntity updateTrip(Long userId, Long tripId, com.tripmind.domains.requests.UpdateTripRequest request) {
+        TripEntity trip = getTripById(userId, tripId);
+        if (request.getName() != null && !request.getName().isBlank()) {
+            trip.setName(request.getName().trim());
+        }
+        if (request.getTravelers() != null && request.getTravelers() >= 1) {
+            trip.setTravelers(request.getTravelers().shortValue());
+        }
+        if (request.getBudget() != null && request.getBudget() >= 0) {
+            trip.setBudget(request.getBudget());
+        }
+        if (request.getCurrency() != null && !request.getCurrency().isBlank()) {
+            trip.setCurrency(request.getCurrency().trim());
+        }
+        trip = tripRepository.save(trip);
+        log.info("Updated trip ID={} for user ID={}", tripId, userId);
+        return trip;
+    }
+
+    @Override
+    @Transactional
     public void deleteTrip(Long userId, Long tripId) {
         TripEntity trip = getTripById(userId, tripId);
         tripRepository.delete(trip);

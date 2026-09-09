@@ -60,9 +60,23 @@ public class DestinationService {
      * dùng không bị chặn ở màn tạo chuyến chỉ vì một dịch vụ bên ngoài chập chờn.
      */
     @Transactional(readOnly = true)
+    public List<DestinationResponse> getPopularDestinations() {
+        return destinationRepository.findAll().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public DestinationResponse getDestinationById(Long id) {
+        DestinationEntity entity = destinationRepository.findById(id)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Destination not found with ID: " + id));
+        return toResponse(entity);
+    }
+
+    @Transactional(readOnly = true)
     public List<DestinationResponse> searchDestinations(String query) {
         if (query == null || query.isBlank()) {
-            return List.of();
+            return getPopularDestinations();
         }
 
         Map<String, DestinationResponse> results = new LinkedHashMap<>();
@@ -87,7 +101,7 @@ public class DestinationService {
                 String key = dedupeKey(PROVIDER_GOOGLE, place.placeId(), place.country(), place.name());
                 results.putIfAbsent(key, toResponse(place));
             }
-        } catch (AppException e) {
+        } catch (Exception e) {
             log.warn("Google Places khong tra ve goi y cho '{}': {}. Chi dung catalog noi bo.",
                     query, e.getMessage());
         }
