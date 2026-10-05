@@ -1,5 +1,7 @@
 # BE-TODO — Kế hoạch dựng backend TripMind
 
+> ⚠️ **Đã được thay thế bởi [BE-ROADMAP.md](BE-ROADMAP.md) (05/10/2026).** Theo dõi tiến độ backend ở file đó.
+
 **v0.1 · 04/09/2026** · Chỉ nói về **backend**. Frontend có lộ trình riêng ở [`PLAN.md`](PLAN.md) §7.
 
 > Nguồn: [`PLAN.md`](PLAN.md) §12 (nguồn chân lý) · [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`ADS-10`](ADS/ADS-10-Kien-truc-phan-mem.md) · [`ADS-20`](ADS/ADS-20-Thiet-ke-CSDL.md) · [`ADS-21`](ADS/ADS-21-Tich-hop-AI-Agent.md) · [`ADS-30`](ADS/ADS-30-Hop-dong-API.md)
