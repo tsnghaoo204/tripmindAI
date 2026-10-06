@@ -45,7 +45,8 @@ public class ExportController {
         return ResponseEntity.ok()
                 .contentType(TEXT_CALENDAR)
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
-                        .filename(slug(trip.getName()) + ".ics", StandardCharsets.UTF_8)
+                        // Tên file đã bỏ dấu về ASCII nên không cần mã hoá RFC 2047.
+                        .filename(slug(trip.getName()) + ".ics")
                         .build().toString())
                 .body(body);
     }
