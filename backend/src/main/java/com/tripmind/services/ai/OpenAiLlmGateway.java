@@ -21,17 +21,40 @@ import org.springframework.stereotype.Component;
 public class OpenAiLlmGateway implements LlmGateway {
 
     private final OpenAiChatModel chatModel;
+    private final OpenAiChatModel fallbackChatModel;
 
     public OpenAiLlmGateway(AiProperties properties) {
         if (!properties.isConfigured()) {
             log.warn("GEMINI_API_KEY chua dat: tro ly AI se tra 503 AI_NOT_CONFIGURED");
             this.chatModel = null;
+            this.fallbackChatModel = null;
             return;
         }
+        io.netty.channel.ChannelOption.class.getName(); // verify class availability
+        reactor.netty.http.client.HttpClient httpClient = reactor.netty.http.client.HttpClient.create()
+                .responseTimeout(java.time.Duration.ofSeconds(60))
+                .option(io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS, 15000)
+                .doOnConnected(conn -> conn
+                        .addHandlerLast(new io.netty.handler.timeout.ReadTimeoutHandler(60, java.util.concurrent.TimeUnit.SECONDS))
+                        .addHandlerLast(new io.netty.handler.timeout.WriteTimeoutHandler(60, java.util.concurrent.TimeUnit.SECONDS)));
+
+        org.springframework.web.reactive.function.client.WebClient.Builder webClientBuilder =
+                org.springframework.web.reactive.function.client.WebClient.builder()
+                        .clientConnector(new org.springframework.http.client.reactive.ReactorClientHttpConnector(httpClient));
+
+        org.springframework.http.client.SimpleClientHttpRequestFactory requestFactory =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(15000);
+        requestFactory.setReadTimeout(60000);
+        org.springframework.web.client.RestClient.Builder restClientBuilder =
+                org.springframework.web.client.RestClient.builder().requestFactory(requestFactory);
+
         OpenAiApi api = OpenAiApi.builder()
                 .baseUrl(properties.baseUrl())
                 .completionsPath(properties.completionsPath())
                 .apiKey(properties.apiKey())
+                .restClientBuilder(restClientBuilder)
+                .webClientBuilder(webClientBuilder)
                 .build();
         this.chatModel = OpenAiChatModel.builder()
                 .openAiApi(api)
@@ -39,10 +62,29 @@ public class OpenAiLlmGateway implements LlmGateway {
                         .model(properties.model())
                         .temperature(properties.temperature())
                         .build())
-                // Mặc định Spring AI thử lại 10 lần; một lượt hỏi chỉ có 60 giây.
-                .retryTemplate(RetryTemplate.builder().maxAttempts(2).fixedBackoff(500).build())
+                .retryTemplate(RetryTemplate.builder()
+                        .maxAttempts(3)
+                        .exponentialBackoff(1000, 2.0, 4000)
+                        .build())
                 .build();
-        log.info("Tro ly AI dung mo hinh {} tai {}", properties.model(), properties.baseUrl());
+
+        String fallbackModel = "gemini-3.5-flash-lite".equalsIgnoreCase(properties.model())
+                ? "gemini-3.1-flash-lite"
+                : "gemini-3.5-flash-lite";
+
+        this.fallbackChatModel = OpenAiChatModel.builder()
+                .openAiApi(api)
+                .defaultOptions(OpenAiChatOptions.builder()
+                        .model(fallbackModel)
+                        .temperature(properties.temperature())
+                        .build())
+                .retryTemplate(RetryTemplate.builder()
+                        .maxAttempts(2)
+                        .fixedBackoff(1000)
+                        .build())
+                .build();
+
+        log.info("Tro ly AI dung mo hinh chinh [{}] va du phong [{}] tai {}", properties.model(), fallbackModel, properties.baseUrl());
     }
 
     @Override
@@ -58,7 +100,14 @@ public class OpenAiLlmGateway implements LlmGateway {
         try {
             return chatModel.call(prompt);
         } catch (RuntimeException e) {
-            log.error("Nha cung cap mo hinh loi: {}", e.getMessage());
+            log.warn("Mo hinh chinh loi ({}). Tu dong chuyen sang mo hinh du phong...", e.getMessage());
+            if (fallbackChatModel != null) {
+                try {
+                    return fallbackChatModel.call(prompt);
+                } catch (RuntimeException fe) {
+                    log.error("Mo hinh du phong cung loi: {}", fe.getMessage());
+                }
+            }
             throw new AppException(ErrorCode.AI_PROVIDER_ERROR, "AI model provider failed: " + e.getMessage());
         }
     }

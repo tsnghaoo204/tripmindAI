@@ -66,4 +66,42 @@ public class AdminController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(200) int size) {
         return ResponseEntity.ok(ApiResponse.ok(adminService.trips(page, size)));
     }
+
+    @PostMapping("/users")
+    @Operation(summary = "Create user as admin")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createUser(
+            @jakarta.validation.Valid @RequestBody com.tripmind.domains.requests.AdminCreateUserRequest request) {
+        return ResponseEntity.ok(ApiResponse.created("User created successfully", adminService.createUser(request)));
+    }
+
+    @PutMapping("/users/{userId}")
+    @Operation(summary = "Update user details or role as admin")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateUser(
+            @PathVariable Long userId,
+            @jakarta.validation.Valid @RequestBody com.tripmind.domains.requests.AdminUpdateUserRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("User updated successfully", adminService.updateUser(userId, request)));
+    }
+
+    @DeleteMapping("/users/{userId}")
+    @Operation(summary = "Delete user as admin")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long userId) {
+        Long currentAdminId = com.tripmind.configurations.security.SecurityUtils.getCurrentUserId();
+        adminService.deleteUser(currentAdminId, userId);
+        return ResponseEntity.ok(ApiResponse.ok("User deleted successfully", null));
+    }
+
+    @PutMapping("/trips/{tripId}")
+    @Operation(summary = "Update trip as admin")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateTrip(
+            @PathVariable Long tripId,
+            @RequestBody Map<String, Object> request) {
+        return ResponseEntity.ok(ApiResponse.ok("Trip updated successfully", adminService.updateTrip(tripId, request)));
+    }
+
+    @DeleteMapping("/trips/{tripId}")
+    @Operation(summary = "Delete any trip as admin")
+    public ResponseEntity<ApiResponse<Void>> deleteTrip(@PathVariable Long tripId) {
+        adminService.deleteTrip(tripId);
+        return ResponseEntity.ok(ApiResponse.ok("Trip deleted successfully", null));
+    }
 }

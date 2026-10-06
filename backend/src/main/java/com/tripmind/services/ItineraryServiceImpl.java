@@ -370,6 +370,7 @@ public class ItineraryServiceImpl implements ItineraryService {
                 .actualStart(entity.getActualStart())
                 .actualEnd(entity.getActualEnd())
                 .place(PlaceResponse.fromEntity(entity.getPlace()))
+                .placeName(entity.getPlace() != null ? entity.getPlace().getName() : null)
                 .idealTimingTip(idealTip);
 
         if (estimate != null) {

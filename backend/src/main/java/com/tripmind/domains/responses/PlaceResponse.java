@@ -19,6 +19,9 @@ public class PlaceResponse {
     private String externalId;
     private String name;
     private String category;
+    private String primaryType;
+    private String primaryTypeDisplayName;
+    private java.util.List<String> types;
     private BigDecimal latitude;
     private BigDecimal longitude;
     private BigDecimal rating;
@@ -35,12 +38,40 @@ public class PlaceResponse {
         if (entity == null) {
             return null;
         }
+        String primaryType = null;
+        String primaryTypeDisplayName = null;
+        java.util.List<String> types = null;
+        if (entity.getMetadata() != null) {
+            JsonNode meta = entity.getMetadata();
+            if (meta.hasNonNull("primaryType")) {
+                primaryType = meta.get("primaryType").asText();
+            }
+            if (meta.hasNonNull("primaryTypeDisplayName")) {
+                primaryTypeDisplayName = meta.get("primaryTypeDisplayName").asText();
+            }
+            if (meta.hasNonNull("types") && meta.get("types").isArray()) {
+                types = new java.util.ArrayList<>();
+                for (JsonNode t : meta.get("types")) {
+                    types.add(t.asText());
+                }
+            }
+        }
+        if (primaryType == null) {
+            primaryType = entity.getCategory();
+        }
+        if (types == null && entity.getCategory() != null) {
+            types = java.util.List.of(entity.getCategory());
+        }
+
         return PlaceResponse.builder()
                 .id(entity.getId())
                 .provider(entity.getProvider())
                 .externalId(entity.getExternalId())
                 .name(entity.getName())
                 .category(entity.getCategory())
+                .primaryType(primaryType)
+                .primaryTypeDisplayName(primaryTypeDisplayName)
+                .types(types)
                 .latitude(entity.getLatitude())
                 .longitude(entity.getLongitude())
                 .rating(entity.getRating())

@@ -34,6 +34,15 @@ public class TripController {
 
     private final TripService tripService;
     private final TripDuplicationService tripDuplicationService;
+    private final com.tripmind.services.ai.TripPromptParserService tripPromptParserService;
+
+    @PostMapping("/parse-prompt")
+    @Operation(summary = "Parse natural language prompt into trip fields using AI")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> parsePrompt(
+            @RequestBody java.util.Map<String, String> request) {
+        String prompt = request.getOrDefault("prompt", "");
+        return ResponseEntity.ok(ApiResponse.ok(tripPromptParserService.parsePrompt(prompt)));
+    }
 
     @PostMapping
     @Operation(summary = "Create a new trip (days are generated automatically)")

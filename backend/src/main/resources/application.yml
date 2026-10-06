@@ -73,7 +73,7 @@ tripmind:
     # Gemini qua lop tuong thich OpenAI; doi nha cung cap = doi 3 dong nay.
     base-url: ${LLM_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
     completions-path: ${LLM_COMPLETIONS_PATH:/chat/completions}
-    model: ${LLM_MODEL:gemini-3.8-flash}
+    model: ${LLM_MODEL:gemini-3.5-flash-lite}
     temperature: 0.3
     # BR-502: tran moi luot hoi
     max-rounds: 8

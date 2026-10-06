@@ -112,6 +112,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/api-docs/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/places/**", "/api/destinations/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/trips/parse-prompt").permitAll()
                         // Admin endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // All other API endpoints require authentication

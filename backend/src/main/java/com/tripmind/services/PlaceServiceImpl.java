@@ -93,12 +93,18 @@ public class PlaceServiceImpl implements PlaceService {
     }
 
     private PlaceResponse toPlaceResponse(GooglePlace gp) {
-        String category = (gp.types() != null && !gp.types().isEmpty()) ? gp.types().get(0) : "GENERAL";
+        String primaryType = gp.primaryType();
+        String category = (primaryType != null && !primaryType.isBlank())
+                ? primaryType
+                : ((gp.types() != null && !gp.types().isEmpty()) ? gp.types().get(0) : "GENERAL");
         return PlaceResponse.builder()
                 .provider("GOOGLE")
                 .externalId(gp.placeId())
                 .name(gp.name())
                 .category(category)
+                .primaryType(primaryType != null ? primaryType : category)
+                .primaryTypeDisplayName(gp.primaryTypeDisplayName())
+                .types(gp.types())
                 .latitude(gp.latitude())
                 .longitude(gp.longitude())
                 .rating(gp.rating())
@@ -113,23 +119,6 @@ public class PlaceServiceImpl implements PlaceService {
     }
 
     private PlaceResponse fromEntity(PlaceEntity entity) {
-        return PlaceResponse.builder()
-                .id(entity.getId())
-                .provider(entity.getProvider())
-                .externalId(entity.getExternalId())
-                .name(entity.getName())
-                .category(entity.getCategory())
-                .latitude(entity.getLatitude())
-                .longitude(entity.getLongitude())
-                .rating(entity.getRating())
-                .userRatingsTotal(entity.getUserRatingsTotal())
-                .priceLevel(entity.getPriceLevel() != null ? entity.getPriceLevel().intValue() : null)
-                .address(entity.getAddress())
-                .phoneNumber(entity.getPhoneNumber())
-                .websiteUrl(entity.getWebsiteUrl())
-                .openingHours(entity.getOpeningHours())
-                .reviews(entity.getReviews())
-                .photoUrls(entity.getPhotoUrls())
-                .build();
+        return PlaceResponse.fromEntity(entity);
     }
 }

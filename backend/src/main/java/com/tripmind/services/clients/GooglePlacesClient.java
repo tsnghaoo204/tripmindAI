@@ -51,6 +51,8 @@ public class GooglePlacesClient {
             "places.formattedAddress",
             "places.location",
             "places.types",
+            "places.primaryType",
+            "places.primaryTypeDisplayName",
             "places.rating",
             "places.userRatingCount",
             "places.priceLevel",
@@ -63,6 +65,8 @@ public class GooglePlacesClient {
             "formattedAddress",
             "location",
             "types",
+            "primaryType",
+            "primaryTypeDisplayName",
             "rating",
             "userRatingCount",
             "priceLevel",
@@ -231,12 +235,18 @@ public class GooglePlacesClient {
     private GooglePlace toGooglePlace(JsonNode node) {
         JsonNode location = node.get("location");
         JsonNode displayName = node.get("displayName");
+        JsonNode primaryTypeDisplayName = node.get("primaryTypeDisplayName");
 
         List<String> types = new ArrayList<>();
         JsonNode typesNode = node.get("types");
         if (typesNode != null && typesNode.isArray()) {
             typesNode.forEach(type -> types.add(type.asText()));
         }
+
+        String primaryType = text(node, "primaryType");
+        String primaryTypeDisplay = primaryTypeDisplayName != null && primaryTypeDisplayName.hasNonNull("text")
+                ? primaryTypeDisplayName.get("text").asText()
+                : null;
 
         return new GooglePlace(
                 text(node, "id"),
@@ -248,6 +258,8 @@ public class GooglePlacesClient {
                 addressComponent(node, "country", true),
                 addressComponent(node, "administrative_area_level_1", false),
                 List.copyOf(types),
+                primaryType,
+                primaryTypeDisplay,
                 node.hasNonNull("rating") ? node.get("rating").decimalValue() : null,
                 node.hasNonNull("userRatingCount") ? node.get("userRatingCount").asInt() : null,
                 priceLevel(text(node, "priceLevel")),
@@ -308,6 +320,7 @@ public class GooglePlacesClient {
      * Một địa điểm do Google trả về, đã bóc khỏi hình dạng JSON của nhà cung cấp.
      * {@code raw} giữ nguyên nút gốc để lưu vào cột {@code metadata}.
      */
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
     public record GooglePlace(
             String placeId,
             String name,
@@ -318,6 +331,8 @@ public class GooglePlacesClient {
             String countryCode,
             String adminArea,
             List<String> types,
+            String primaryType,
+            String primaryTypeDisplayName,
             BigDecimal rating,
             Integer userRatingCount,
             Integer priceLevel,
@@ -326,6 +341,29 @@ public class GooglePlacesClient {
             JsonNode openingHours,
             JsonNode photos,
             JsonNode raw) {
+
+        public GooglePlace(
+                String placeId,
+                String name,
+                String formattedAddress,
+                BigDecimal latitude,
+                BigDecimal longitude,
+                String country,
+                String countryCode,
+                String adminArea,
+                List<String> types,
+                BigDecimal rating,
+                Integer userRatingCount,
+                Integer priceLevel,
+                String websiteUri,
+                String phoneNumber,
+                JsonNode openingHours,
+                JsonNode photos,
+                JsonNode raw) {
+            this(placeId, name, formattedAddress, latitude, longitude, country, countryCode, adminArea, types,
+                    (types != null && !types.isEmpty() ? types.get(0) : null), null, rating, userRatingCount, priceLevel,
+                    websiteUri, phoneNumber, openingHours, photos, raw);
+        }
 
         /** Đủ dữ liệu để ghi thành một dòng {@code destinations} hay chưa. */
         public boolean isResolvable() {
@@ -336,10 +374,10 @@ public class GooglePlacesClient {
 
         /** Kết quả có phải một vùng địa lý (thành phố, tỉnh, đảo) chứ không phải một quán ăn. */
         public boolean isLocality() {
-            return types.contains("locality")
+            return types != null && (types.contains("locality")
                     || types.contains("administrative_area_level_1")
                     || types.contains("administrative_area_level_2")
-                    || types.contains("political");
+                    || types.contains("political"));
         }
     }
 }

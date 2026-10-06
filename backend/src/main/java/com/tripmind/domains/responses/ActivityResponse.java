@@ -39,6 +39,7 @@ public class ActivityResponse {
     private LocalTime actualEnd;
 
     private PlaceResponse place;
+    private String placeName;
 
     private Long distanceToNextMeters;
     private String formattedDistanceToNext;

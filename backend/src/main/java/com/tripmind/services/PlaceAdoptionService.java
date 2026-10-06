@@ -79,7 +79,23 @@ public class PlaceAdoptionService {
     }
 
     public static PlaceEntity fromGoogle(GooglePlace place, PlaceAdoption via) {
-        String category = place.types() == null || place.types().isEmpty() ? null : place.types().get(0);
+        String primaryType = place.primaryType();
+        String category = (primaryType != null && !primaryType.isBlank())
+                ? primaryType
+                : (place.types() == null || place.types().isEmpty() ? null : place.types().get(0));
+
+        com.fasterxml.jackson.databind.node.ObjectNode metadata = com.fasterxml.jackson.databind.node.JsonNodeFactory.instance.objectNode();
+        if (primaryType != null) {
+            metadata.put("primaryType", primaryType);
+        }
+        if (place.primaryTypeDisplayName() != null) {
+            metadata.put("primaryTypeDisplayName", place.primaryTypeDisplayName());
+        }
+        if (place.types() != null && !place.types().isEmpty()) {
+            com.fasterxml.jackson.databind.node.ArrayNode arr = metadata.putArray("types");
+            place.types().forEach(arr::add);
+        }
+
         return PlaceEntity.builder()
                 .provider(PROVIDER_GOOGLE)
                 .externalId(place.placeId())
@@ -95,6 +111,7 @@ public class PlaceAdoptionService {
                 .websiteUrl(place.websiteUri())
                 .openingHours(place.openingHours())
                 .photoUrls(place.photos())
+                .metadata(metadata)
                 .adoptedVia(via)
                 .adoptedAt(Instant.now())
                 .fetchedAt(Instant.now())

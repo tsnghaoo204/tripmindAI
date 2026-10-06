@@ -4,7 +4,17 @@ import com.tripmind.domains.responses.PageResponse;
 import com.tripmind.domains.responses.ToolExecutionResponse;
 import com.tripmind.entities.AiToolExecutionEntity;
 import com.tripmind.enums.ToolExecutionStatus;
+import com.tripmind.enums.TripPhase;
 import com.tripmind.repositories.AiToolExecutionRepository;
+import com.tripmind.domains.requests.AdminCreateUserRequest;
+import com.tripmind.domains.requests.AdminUpdateUserRequest;
+import com.tripmind.entities.UserEntity;
+import com.tripmind.entities.TripEntity;
+import com.tripmind.exceptions.AppException;
+import com.tripmind.exceptions.ErrorCode;
+import com.tripmind.repositories.UserRepository;
+import com.tripmind.repositories.TripRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -24,14 +34,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Màn quản trị — <b>chỉ đọc</b> (FR-903 → FR-906). Danh sách chuyến ở mức tổng hợp: không lộ
- * nội dung lịch trình, chi tiêu hay hội thoại của ai; quản trị không sửa được chuyến của người khác.
+ * Màn quản trị — Giám sát và quản trị tài khoản, kế hoạch hệ thống.
  */
 @Service
 @RequiredArgsConstructor
 public class AdminService {
 
     private final AiToolExecutionRepository executionRepository;
+    private final UserRepository userRepository;
+    private final TripRepository tripRepository;
+    private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbc;
 
     @Transactional(readOnly = true)
@@ -128,8 +140,8 @@ public class AdminService {
     public PageResponse<Map<String, Object>> trips(int page, int size) {
         long total = jdbc.queryForObject("SELECT COUNT(*) FROM trips", Long.class);
         List<Map<String, Object>> rows = jdbc.queryForList("""
-                SELECT t.id, t.user_id AS "userId", d.name AS destination, d.country, t.start_date AS "startDate",
-                       t.end_date AS "endDate", t.travelers, t.currency,
+                SELECT t.id, t.name, t.user_id AS "userId", d.name AS "destinationName", d.country, t.start_date AS "startDate",
+                       t.end_date AS "endDate", t.travelers, t.currency, t.phase_override AS "phase",
                        (SELECT COUNT(*) FROM activities a JOIN itinerary_days i ON i.id = a.itinerary_day_id
                          WHERE i.trip_id = t.id) AS "activityCount",
                        (SELECT COUNT(*) FROM conversations c WHERE c.trip_id = t.id) AS "conversationCount",
@@ -138,6 +150,98 @@ public class AdminService {
                 ORDER BY t.id DESC LIMIT ? OFFSET ?
                 """, size, (long) page * size);
         return new PageResponse<>(rows, page, size, total);
+    }
+
+    @Transactional
+    public Map<String, Object> createUser(AdminCreateUserRequest req) {
+        if (userRepository.existsByEmail(req.getEmail().trim().toLowerCase())) {
+            throw new AppException(ErrorCode.CONFLICT, "Email already in use: " + req.getEmail());
+        }
+        UserEntity user = UserEntity.builder()
+                .email(req.getEmail().trim().toLowerCase())
+                .name(req.getName().trim())
+                .passwordHash(passwordEncoder.encode(req.getPassword()))
+                .role(req.getRole())
+                .isActive(true)
+                .build();
+        user = userRepository.save(user);
+
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("id", user.getId());
+        res.put("email", user.getEmail());
+        res.put("name", user.getName());
+        res.put("role", user.getRole().name());
+        res.put("active", user.isActive());
+        res.put("createdAt", user.getCreatedAt());
+        return res;
+    }
+
+    @Transactional
+    public Map<String, Object> updateUser(Long userId, AdminUpdateUserRequest req) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "User not found: " + userId));
+
+        if (req.getName() != null && !req.getName().isBlank()) {
+            user.setName(req.getName().trim());
+        }
+        if (req.getRole() != null) {
+            user.setRole(req.getRole());
+        }
+        if (req.getActive() != null) {
+            user.setActive(req.getActive());
+        }
+        if (req.getPassword() != null && !req.getPassword().isBlank()) {
+            user.setPasswordHash(passwordEncoder.encode(req.getPassword()));
+        }
+        user = userRepository.save(user);
+
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("id", user.getId());
+        res.put("email", user.getEmail());
+        res.put("name", user.getName());
+        res.put("role", user.getRole().name());
+        res.put("active", user.isActive());
+        res.put("updatedAt", user.getUpdatedAt());
+        return res;
+    }
+
+    @Transactional
+    public void deleteUser(Long currentAdminId, Long targetUserId) {
+        if (currentAdminId != null && currentAdminId.equals(targetUserId)) {
+            throw new AppException(ErrorCode.VALIDATION_ERROR, "Cannot delete your own admin account");
+        }
+        UserEntity user = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "User not found: " + targetUserId));
+        userRepository.delete(user);
+    }
+
+    @Transactional
+    public void deleteTrip(Long tripId) {
+        TripEntity trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Trip not found: " + tripId));
+        tripRepository.delete(trip);
+    }
+
+    @Transactional
+    public Map<String, Object> updateTrip(Long tripId, Map<String, Object> req) {
+        TripEntity trip = tripRepository.findById(tripId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Trip not found: " + tripId));
+        if (req.containsKey("name") && req.get("name") != null && !req.get("name").toString().isBlank()) {
+            trip.setName(req.get("name").toString().trim());
+        }
+        if (req.containsKey("phase")) {
+            String p = (String) req.get("phase");
+            trip.setPhaseOverride(p == null || p.isBlank() ? null : TripPhase.valueOf(p));
+        }
+        if (req.containsKey("budget") && req.get("budget") != null) {
+            trip.setBudget(((Number) req.get("budget")).longValue());
+        }
+        trip = tripRepository.save(trip);
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("id", trip.getId());
+        res.put("name", trip.getName());
+        res.put("phase", trip.getPhaseOverride() != null ? trip.getPhaseOverride().name() : null);
+        return res;
     }
 
     private static Instant startOf(LocalDate date) {
