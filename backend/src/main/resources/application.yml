@@ -29,7 +29,9 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    open-in-view: true
+    # Tắt: mọi DTO dựng xong trong giao dịch của service. Bật thì một lượt chat SSE 60 giây
+    # giữ một kết nối CSDL suốt thời gian đó.
+    open-in-view: false
     properties:
       hibernate:
         format_sql: true
@@ -65,6 +67,26 @@ jwt:
 
 # External Services configuration
 tripmind:
+  ai:
+    # De trong thi tro ly tra 503 AI_NOT_CONFIGURED, phan con lai van chay.
+    api-key: ${GEMINI_API_KEY:}
+    # Gemini qua lop tuong thich OpenAI; doi nha cung cap = doi 3 dong nay.
+    base-url: ${LLM_BASE_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+    completions-path: ${LLM_COMPLETIONS_PATH:/chat/completions}
+    model: ${LLM_MODEL:gemini-3.8-flash}
+    temperature: 0.3
+    # BR-502: tran moi luot hoi
+    max-rounds: 8
+    turn-timeout: 60s
+    history-messages: 20
+    tool-result-max-chars: 4000
+    # BR-504
+    max-search-results: 5
+    # BR-601
+    rate-limit-per-hour: 20
+    # FR-707, FR-1201
+    proposal-ttl: 30m
+    undo-window: 10m
   google:
     places:
       api-key: ${GOOGLE_PLACES_API_KEY:}

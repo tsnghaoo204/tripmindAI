@@ -16,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -56,7 +55,7 @@ public class WeatherService {
     private final StringRedisTemplate redis;
     private final ObjectMapper objectMapper;
 
-    @Transactional(readOnly = true)
+    /** Không bọc giao dịch: không giữ kết nối CSDL trong lúc chờ Open-Meteo. */
     public TripWeatherResponse getTripWeather(Long userId, Long tripId) {
         return forTrip(tripService.getOwnedTrip(userId, tripId));
     }

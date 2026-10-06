@@ -3,6 +3,10 @@ package com.tripmind.support;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -27,7 +31,20 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(IntegrationTest.FakeLlmConfiguration.class)
 public abstract class IntegrationTest {
+
+    @TestConfiguration
+    static class FakeLlmConfiguration {
+        @Bean
+        @Primary
+        FakeLlmGateway fakeLlmGateway() {
+            return new FakeLlmGateway();
+        }
+    }
+
+    @Autowired
+    protected FakeLlmGateway llm;
 
     @ServiceConnection
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(DockerImageName.parse("postgres:16"));
@@ -81,6 +98,46 @@ public abstract class IntegrationTest {
                     + result.getResponse().getStatus() + ": " + content);
         }
         return content.isBlank() ? objectMapper.createObjectNode() : objectMapper.readTree(content);
+    }
+
+    /**
+     * Gửi một câu hỏi tới trợ lý, đợi luồng SSE đóng, trả về toàn bộ văn bản sự kiện.
+     */
+    protected String chat(String token, long tripId, Object body) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/trips/" + tripId + "/ai/chat")
+                        .header("Authorization", "Bearer " + token)
+                        .accept(MediaType.TEXT_EVENT_STREAM)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(body)))
+                .andReturn();
+        if (!result.getRequest().isAsyncStarted()) {
+            throw new AssertionError("Chat did not start a stream: HTTP " + result.getResponse().getStatus()
+                    + " " + result.getResponse().getContentAsString());
+        }
+        long deadline = System.currentTimeMillis() + 20_000;
+        String content = "";
+        while (System.currentTimeMillis() < deadline) {
+            content = result.getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+            if (content.contains("event:done") || content.contains("event:error")) {
+                break;
+            }
+            Thread.sleep(20);
+        }
+        return content;
+    }
+
+    /** Dữ liệu JSON của sự kiện SSE đầu tiên có tên {@code event}. */
+    protected JsonNode eventData(String stream, String event) throws Exception {
+        for (String block : stream.split("\\n\\n")) {
+            if (block.contains("event:" + event + "\n")) {
+                for (String line : block.split("\\n")) {
+                    if (line.startsWith("data:")) {
+                        return objectMapper.readTree(line.substring(5));
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     protected JsonNode get(String url, String token, int expectedStatus) throws Exception {

@@ -5,6 +5,7 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -26,7 +27,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AppException.class)
     public ResponseEntity<ApiResponse<Object>> handleAppException(AppException ex) {
         ErrorCode code = ex.getErrorCode();
+        // Đặt sẵn Content-Type: lỗi trước khi mở luồng SSE (Accept: text/event-stream) vẫn trả được JSON.
         return ResponseEntity.status(code.getStatus())
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(ApiResponse.fail(code.name(), ex.getMessage(), ex.getDetails()));
     }
 

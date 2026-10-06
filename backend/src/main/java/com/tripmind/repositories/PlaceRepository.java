@@ -12,6 +12,8 @@ public interface PlaceRepository extends JpaRepository<PlaceEntity, Long> {
 
     Optional<PlaceEntity> findByProviderAndExternalId(String provider, String externalId);
 
+    Optional<PlaceEntity> findFirstByExternalId(String externalId);
+
     List<PlaceEntity> findByNameContainingIgnoreCaseOrCategoryContainingIgnoreCaseOrAddressContainingIgnoreCase(
             String name, String category, String address);
 

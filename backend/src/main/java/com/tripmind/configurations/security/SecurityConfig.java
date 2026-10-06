@@ -2,6 +2,7 @@ package com.tripmind.configurations.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tripmind.domains.responses.ApiResponse;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -94,6 +95,8 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler())
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Lượt dispatch bất đồng bộ của SSE đã được xác thực ở request gốc.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         // Public endpoints
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/health").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/api-docs/**").permitAll()

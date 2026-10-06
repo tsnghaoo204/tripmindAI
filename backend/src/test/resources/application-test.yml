@@ -8,3 +8,7 @@ tripmind:
     places:
       api-key: ""
       use-mock: true
+  ai:
+    # Mo hinh that duoc thay bang FakeLlmGateway; khoa nay chi de cau hinh hop le.
+    api-key: test
+    rate-limit-per-hour: 5
