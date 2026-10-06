@@ -16,7 +16,7 @@ class JwtTokenProviderTest {
     @BeforeEach
     void setUp() {
         jwtProperties = new JwtProperties();
-        jwtProperties.setSecret("REMOVED");
+        jwtProperties.setSecret("unit-test-only-secret-not-used-anywhere-else-0123456789");
         jwtProperties.setExpirationMs(3600000L); // 1 hour
 
         jwtTokenProvider = new JwtTokenProvider(jwtProperties);
