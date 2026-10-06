@@ -1,6 +1,7 @@
 package com.tripmind.repositories;
 
 import com.tripmind.entities.ActivityEntity;
+import com.tripmind.enums.ActivityStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,4 +22,8 @@ public interface ActivityRepository extends JpaRepository<ActivityEntity, Long> 
 
     @Query("SELECT a FROM ActivityEntity a WHERE a.id = :id AND a.itineraryDay.trip.user.id = :userId")
     Optional<ActivityEntity> findByIdAndUserId(@Param("id") Long id, @Param("userId") Long userId);
+
+    Optional<ActivityEntity> findFirstByItineraryDayTripIdAndStatusAndIdNot(Long tripId, ActivityStatus status, Long id);
+
+    long countByItineraryDayTripId(Long tripId);
 }

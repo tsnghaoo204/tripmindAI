@@ -84,3 +84,35 @@ tripmind:
     max-days: 30
     # BR-207: ngay co it nhat bay nhieu hoat dong thi tinh la "da len lich"
     planned-day-min-activities: 2
+  # Goi y chi phi uoc tinh theo price_level cua Google (0-4), tinh theo nguoi.
+  # Chi so trong danh sach = price_level. Tien te khong co bang thi khong goi y.
+  cost-estimate:
+    currencies:
+      VND:
+        rounding: 1000
+        food:
+          - { min: 0, max: 0 }
+          - { min: 30000, max: 100000 }
+          - { min: 100000, max: 300000 }
+          - { min: 300000, max: 700000 }
+          - { min: 700000, max: 2000000 }
+        other:
+          - { min: 0, max: 0 }
+          - { min: 0, max: 100000 }
+          - { min: 100000, max: 300000 }
+          - { min: 300000, max: 800000 }
+          - { min: 800000, max: 3000000 }
+      USD:
+        rounding: 1
+        food:
+          - { min: 0, max: 0 }
+          - { min: 5, max: 15 }
+          - { min: 15, max: 40 }
+          - { min: 40, max: 90 }
+          - { min: 90, max: 250 }
+        other:
+          - { min: 0, max: 0 }
+          - { min: 0, max: 15 }
+          - { min: 15, max: 40 }
+          - { min: 40, max: 100 }
+          - { min: 100, max: 300 }

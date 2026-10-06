@@ -3,6 +3,7 @@ package com.tripmind.services;
 import com.tripmind.domains.responses.PlaceResponse;
 import com.tripmind.domains.responses.SavedPlaceResponse;
 import com.tripmind.entities.PlaceEntity;
+import com.tripmind.enums.PlaceAdoption;
 import com.tripmind.entities.SavedPlaceEntity;
 import com.tripmind.entities.UserEntity;
 import com.tripmind.exceptions.AppException;
@@ -26,6 +27,7 @@ public class SavedPlaceServiceImpl implements SavedPlaceService {
     private final SavedPlaceRepository savedPlaceRepository;
     private final PlaceRepository placeRepository;
     private final UserRepository userRepository;
+    private final PlaceAdoptionService placeAdoptionService;
 
     @Override
     @Transactional
@@ -50,6 +52,13 @@ public class SavedPlaceServiceImpl implements SavedPlaceService {
         log.info("User ID={} saved place ID={} ({})", userId, placeId, place.getName());
 
         return toResponse(saved);
+    }
+
+    @Override
+    @Transactional
+    public SavedPlaceResponse saveExternalPlace(Long userId, String provider, String externalId) {
+        PlaceEntity place = placeAdoptionService.resolve(null, provider, externalId, PlaceAdoption.SAVED);
+        return savePlace(userId, place.getId());
     }
 
     @Override

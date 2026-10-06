@@ -11,7 +11,9 @@ import com.tripmind.entities.PlaceEntity;
 import com.tripmind.entities.TripEntity;
 import com.tripmind.entities.UserEntity;
 import com.tripmind.enums.ActivityType;
+import com.tripmind.enums.ActivityStatus;
 import com.tripmind.exceptions.AppException;
+import com.tripmind.exceptions.ErrorCode;
 import com.tripmind.repositories.ActivityRepository;
 import com.tripmind.repositories.ItineraryDayRepository;
 import com.tripmind.repositories.PlaceRepository;
@@ -51,6 +53,12 @@ class ItineraryServiceTest {
 
     @Mock
     private PlaceRepository placeRepository;
+
+    @Mock
+    private PlaceAdoptionService placeAdoptionService;
+
+    @Mock
+    private CostEstimator costEstimator;
 
     @Spy
     private DistanceService distanceService = new DistanceService();
@@ -107,7 +115,7 @@ class ItineraryServiceTest {
                 .transportationMode("MOTORBIKE")
                 .build();
 
-        when(tripRepository.findById(10L)).thenReturn(Optional.of(trip));
+        when(tripRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(trip));
         when(itineraryDayRepository.findByTripIdOrderByDayNumberAsc(10L)).thenReturn(List.of(day1));
         when(activityRepository.findByItineraryDayIdOrderByOrderIndexAsc(100L)).thenReturn(List.of(act1, act2));
 
@@ -137,7 +145,7 @@ class ItineraryServiceTest {
                 .estimatedCost(30000L)
                 .build();
 
-        when(tripRepository.findById(10L)).thenReturn(Optional.of(trip));
+        when(tripRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(trip));
         when(itineraryDayRepository.findById(100L)).thenReturn(Optional.of(day1));
         when(activityRepository.findMaxOrderIndexByItineraryDayId(100L)).thenReturn((short) 2);
         when(activityRepository.save(any(ActivityEntity.class))).thenAnswer(i -> {
@@ -155,12 +163,54 @@ class ItineraryServiceTest {
     }
 
     @Test
-    @DisplayName("Should throw exception when accessing trip of another user")
-    void shouldThrowForbiddenWhenAccessingOtherUserTrip() {
-        when(tripRepository.findById(10L)).thenReturn(Optional.of(trip));
+    @DisplayName("Trip of another user is reported as not found (BR-104), never forbidden")
+    void shouldReturnNotFoundWhenAccessingOtherUserTrip() {
+        when(tripRepository.findByIdAndUserId(10L, 999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> itineraryService.getItinerary(999L, 10L))
-                .isInstanceOf(AppException.class);
+                .isInstanceOf(AppException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.RESOURCE_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("Reorder list with a duplicated id is rejected with REORDER_SET_MISMATCH (BR-205)")
+    void shouldRejectDuplicateIdsInReorder() {
+        ActivityEntity act1 = ActivityEntity.builder().id(1L).itineraryDay(day1).orderIndex((short) 0).title("Act 1").build();
+        ActivityEntity act2 = ActivityEntity.builder().id(2L).itineraryDay(day1).orderIndex((short) 1).title("Act 2").build();
+        when(itineraryDayRepository.findByIdAndUserId(100L, 1L)).thenReturn(Optional.of(day1));
+        when(activityRepository.findByItineraryDayIdOrderByOrderIndexAsc(100L)).thenReturn(List.of(act1, act2));
+
+        assertThatThrownBy(() -> itineraryService.reorderActivities(1L, 100L, List.of(1L, 1L)))
+                .isInstanceOf(AppException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.REORDER_SET_MISMATCH);
+        verify(activityRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("End time before start time is rejected (BR-206)")
+    void shouldRejectEndBeforeStart() {
+        CreateActivityRequest request = CreateActivityRequest.builder()
+                .dayId(100L).title("Bao tang").activityType(ActivityType.SIGHTSEEING)
+                .startTime(java.time.LocalTime.of(10, 0)).endTime(java.time.LocalTime.of(9, 0))
+                .build();
+        when(tripRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(trip));
+        when(itineraryDayRepository.findById(100L)).thenReturn(Optional.of(day1));
+
+        assertThatThrownBy(() -> itineraryService.addActivity(1L, 10L, request))
+                .isInstanceOf(AppException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_TIME_RANGE);
+    }
+
+    @Test
+    @DisplayName("Skipping an activity requires a reason (FR-1004)")
+    void shouldRequireSkipReason() {
+        ActivityEntity act = ActivityEntity.builder().id(1L).itineraryDay(day1).orderIndex((short) 0).title("Act").build();
+        when(activityRepository.findByIdAndUserId(1L, 1L)).thenReturn(Optional.of(act));
+
+        assertThatThrownBy(() -> itineraryService.updateActivity(1L, 1L,
+                UpdateActivityRequest.builder().status(ActivityStatus.SKIPPED).build()))
+                .isInstanceOf(AppException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.VALIDATION_ERROR);
     }
 
     @Test

@@ -1,6 +1,10 @@
 package com.tripmind.entities;
 
+import com.tripmind.enums.ActivityCreator;
+import com.tripmind.enums.ActivityStatus;
 import com.tripmind.enums.ActivityType;
+import com.tripmind.enums.CostSource;
+import com.tripmind.enums.SkipReason;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -38,9 +42,10 @@ public class ActivityEntity {
     @Column(name = "activity_type", nullable = false, length = 16)
     private ActivityType activityType;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "created_by", nullable = false, length = 8)
     @Builder.Default
-    private String createdBy = "USER";
+    private ActivityCreator createdBy = ActivityCreator.USER;
 
     @Column(name = "start_time")
     private LocalTime startTime;
@@ -48,8 +53,13 @@ public class ActivityEntity {
     @Column(name = "end_time")
     private LocalTime endTime;
 
+    /** NULL = chưa biết chi phí; khác với 0 = miễn phí. */
     @Column(name = "estimated_cost")
     private Long estimatedCost;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estimated_cost_source", length = 12)
+    private CostSource estimatedCostSource;
 
     @Column(name = "transportation_mode", length = 16)
     private String transportationMode;
@@ -60,9 +70,10 @@ public class ActivityEntity {
     @Column(name = "order_index", nullable = false)
     private short orderIndex;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 10)
     @Builder.Default
-    private String status = "PLANNED";
+    private ActivityStatus status = ActivityStatus.PLANNED;
 
     @Column(name = "actual_start")
     private LocalTime actualStart;
@@ -70,8 +81,9 @@ public class ActivityEntity {
     @Column(name = "actual_end")
     private LocalTime actualEnd;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "skip_reason", length = 12)
-    private String skipReason;
+    private SkipReason skipReason;
 
     @Column(name = "from_proposal_id")
     private Long fromProposalId;

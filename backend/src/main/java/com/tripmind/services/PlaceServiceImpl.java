@@ -23,6 +23,7 @@ public class PlaceServiceImpl implements PlaceService {
 
     private final PlaceRepository placeRepository;
     private final GooglePlacesClient googlePlacesClient;
+    private final PlaceCandidateCache candidateCache;
 
     @Override
     @Transactional
@@ -36,6 +37,7 @@ public class PlaceServiceImpl implements PlaceService {
         // 1. Try Google Places if enabled
         try {
             List<GooglePlace> googlePlaces = googlePlacesClient.searchText(searchQuery, null);
+            candidateCache.putAll(PlaceAdoptionService.PROVIDER_GOOGLE, googlePlaces);
             for (GooglePlace gp : googlePlaces) {
                 responses.add(toPlaceResponse(gp));
             }
@@ -62,6 +64,7 @@ public class PlaceServiceImpl implements PlaceService {
         String query = (category != null && !category.isBlank()) ? category : "attractions";
         try {
             List<GooglePlace> googlePlaces = googlePlacesClient.searchText(query, null);
+            candidateCache.putAll(PlaceAdoptionService.PROVIDER_GOOGLE, googlePlaces);
             if (!googlePlaces.isEmpty()) {
                 return googlePlaces.stream().map(this::toPlaceResponse).toList();
             }

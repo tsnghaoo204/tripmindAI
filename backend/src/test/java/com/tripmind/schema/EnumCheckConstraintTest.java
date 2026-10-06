@@ -44,7 +44,10 @@ class EnumCheckConstraintTest {
             Map.entry("chk_ai_tool_executions_status", ToolExecutionStatus.class),
             Map.entry("chk_ai_proposals_status", ProposalStatus.class),
             Map.entry("chk_ai_proposals_kind", ProposalKind.class),
-            Map.entry("chk_trips_phase_override", TripPhase.class));
+            Map.entry("chk_trips_phase_override", TripPhase.class),
+            Map.entry("chk_trips_travel_style", TravelStyle.class),
+            Map.entry("chk_trips_budget_pref", BudgetPreference.class),
+            Map.entry("chk_activities_cost_source", CostSource.class));
 
     @Test
     @DisplayName("Mọi enum ánh xạ xuống cột có CHECK phải có đúng tập giá trị của CHECK đó")

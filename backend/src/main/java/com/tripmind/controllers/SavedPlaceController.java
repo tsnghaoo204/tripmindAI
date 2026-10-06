@@ -1,6 +1,8 @@
 package com.tripmind.controllers;
 
+import com.tripmind.domains.requests.SaveExternalPlaceRequest;
 import com.tripmind.domains.responses.ApiResponse;
+import jakarta.validation.Valid;
 import com.tripmind.domains.responses.SavedPlaceResponse;
 import com.tripmind.services.SavedPlaceService;
 import com.tripmind.configurations.security.SecurityUtils;
@@ -25,6 +27,15 @@ public class SavedPlaceController {
     public ResponseEntity<ApiResponse<SavedPlaceResponse>> savePlace(@PathVariable Long placeId) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         SavedPlaceResponse response = savedPlaceService.savePlace(currentUserId, placeId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created("Place saved to favorites successfully", response));
+    }
+
+    @PostMapping("/api/me/saved-places")
+    @Operation(summary = "Save a search result that is not in the database yet (provider + externalId)")
+    public ResponseEntity<ApiResponse<SavedPlaceResponse>> saveExternalPlace(@Valid @RequestBody SaveExternalPlaceRequest request) {
+        SavedPlaceResponse response = savedPlaceService.saveExternalPlace(
+                SecurityUtils.getCurrentUserId(), request.getProvider(), request.getExternalId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Place saved to favorites successfully", response));
     }

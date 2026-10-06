@@ -1,6 +1,7 @@
 package com.tripmind.entities;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.tripmind.enums.PlaceAdoption;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -77,6 +78,16 @@ public class PlaceEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private JsonNode metadata;
+
+    /** Vì sao địa điểm có mặt trong CSDL: lưu yêu thích, thêm vào lịch trình, đề xuất AI, sinh lịch trình. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "adopted_via", nullable = false, length = 16)
+    @Builder.Default
+    private PlaceAdoption adoptedVia = PlaceAdoption.SAVED;
+
+    @Column(name = "adopted_at", nullable = false)
+    @Builder.Default
+    private Instant adoptedAt = Instant.now();
 
     @Column(name = "fetched_at", nullable = false)
     @Builder.Default

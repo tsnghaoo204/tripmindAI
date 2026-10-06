@@ -1,6 +1,10 @@
 package com.tripmind.domains.responses;
 
+import com.tripmind.enums.ActivityCreator;
+import com.tripmind.enums.ActivityStatus;
 import com.tripmind.enums.ActivityType;
+import com.tripmind.enums.CostSource;
+import com.tripmind.enums.SkipReason;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,13 +24,19 @@ public class ActivityResponse {
     private Short orderIndex;
     private String title;
     private ActivityType activityType;
-    private String createdBy;
+    private ActivityCreator createdBy;
+    /** Đề xuất AI sinh ra hoạt động này; NULL nếu người dùng tự thêm. */
+    private Long fromProposalId;
     private LocalTime startTime;
     private LocalTime endTime;
     private Long estimatedCost;
+    private CostSource estimatedCostSource;
     private String transportationMode;
     private String notes;
-    private String status;
+    private ActivityStatus status;
+    private SkipReason skipReason;
+    private LocalTime actualStart;
+    private LocalTime actualEnd;
 
     private PlaceResponse place;
 

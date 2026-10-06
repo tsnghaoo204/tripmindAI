@@ -5,8 +5,10 @@ import com.tripmind.domains.requests.ReorderActivitiesRequest;
 import com.tripmind.domains.requests.UpdateActivityRequest;
 import com.tripmind.domains.responses.ActivityResponse;
 import com.tripmind.domains.responses.ApiResponse;
+import com.tripmind.domains.responses.CostEstimateResponse;
 import com.tripmind.domains.responses.ItineraryDayResponse;
 import com.tripmind.domains.responses.ItineraryResponse;
+import com.tripmind.enums.ActivityType;
 import com.tripmind.services.ItineraryService;
 import com.tripmind.configurations.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -59,6 +61,18 @@ public class ItineraryController {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         itineraryService.deleteActivity(currentUserId, activityId);
         return ResponseEntity.ok(ApiResponse.ok("Activity deleted successfully", null));
+    }
+
+    @GetMapping("/api/trips/{tripId}/cost-estimate")
+    @Operation(summary = "Suggest estimated cost from Google price level × travelers (null when there is no price data)")
+    public ResponseEntity<ApiResponse<CostEstimateResponse>> estimateCost(
+            @PathVariable Long tripId,
+            @RequestParam(required = false) Long placeId,
+            @RequestParam(required = false) Integer priceLevel,
+            @RequestParam(required = false) ActivityType activityType) {
+        CostEstimateResponse response = itineraryService.estimateCost(
+                SecurityUtils.getCurrentUserId(), tripId, placeId, priceLevel, activityType);
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
     @PutMapping("/api/itinerary-days/{dayId}/reorder")
