@@ -108,6 +108,12 @@ tripmind:
     climate-years: 3
     timeout: 5s
     cache-ttl: 3h
+  # BR-601 tang chung; tang AI xem tripmind.ai.rate-limit-per-hour
+  rate-limit:
+    api-per-minute: ${API_RATE_LIMIT_PER_MINUTE:120}
+  admin:
+    # Email (phan tach bang dau phay) duoc cap vai tro ADMIN luc khoi dong
+    emails: ${ADMIN_EMAILS:}
   trip:
     # BR-201: do dai toi da cua mot chuyen
     max-days: 30
