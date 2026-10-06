@@ -1,0 +1,10 @@
+# Cau hinh rieng cho test tich hop. CSDL va Redis do Testcontainers dung len.
+jwt:
+  secret: test-only-secret-key-for-integration-tests-0123456789
+  expiration-ms: 3600000
+
+tripmind:
+  google:
+    places:
+      api-key: ""
+      use-mock: true

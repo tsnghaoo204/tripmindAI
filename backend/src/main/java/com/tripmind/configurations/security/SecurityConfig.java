@@ -53,7 +53,7 @@ public class SecurityConfig {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
-            ApiResponse<Void> apiResponse = ApiResponse.fail("Unauthorized: " + authException.getMessage());
+            ApiResponse<Void> apiResponse = ApiResponse.fail("UNAUTHORIZED", "Unauthorized: " + authException.getMessage(), null);
             objectMapper.writeValue(response.getOutputStream(), apiResponse);
         };
     }
@@ -64,7 +64,7 @@ public class SecurityConfig {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
-            ApiResponse<Void> apiResponse = ApiResponse.fail("Forbidden: " + accessDeniedException.getMessage());
+            ApiResponse<Void> apiResponse = ApiResponse.fail("FORBIDDEN", "Forbidden: " + accessDeniedException.getMessage(), null);
             objectMapper.writeValue(response.getOutputStream(), apiResponse);
         };
     }

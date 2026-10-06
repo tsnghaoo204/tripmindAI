@@ -16,8 +16,12 @@ import java.time.Instant;
 public class ApiResponse<T> {
 
     private boolean success;
+    /** Mã lỗi ({@link com.tripmind.exceptions.ErrorCode}); chỉ có khi {@code success = false}. */
+    private String code;
     private String message;
     private T data;
+    /** Dữ liệu kèm theo lỗi; chỉ có khi {@code success = false}. */
+    private Object details;
     @Builder.Default
     private Instant timestamp = Instant.now();
 
@@ -49,6 +53,15 @@ public class ApiResponse<T> {
         return ApiResponse.<T>builder()
                 .success(false)
                 .message(message)
+                .build();
+    }
+
+    public static <T> ApiResponse<T> fail(String code, String message, Object details) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .code(code)
+                .message(message)
+                .details(details)
                 .build();
     }
 }

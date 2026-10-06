@@ -27,6 +27,7 @@ buildNumber.properties
 # application.yml. Xem `${GOOGLE_PLACES_API_KEY:...}` trong application.yml.
 .env
 .env.*
+!.env.example
 application-local.yml
 application-local.yaml
 application-local.properties
