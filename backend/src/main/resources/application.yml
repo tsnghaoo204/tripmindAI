@@ -145,6 +145,17 @@ tripmind:
           - { min: 15, max: 40 }
           - { min: 40, max: 100 }
           - { min: 100, max: 300 }
+  checklist:
+    # Nguong cua bo luat goi y checklist
+    rain-probability: 50
+    rain-mm: 5
+    hot-temp-max: 32
+    cold-temp-min: 15
+    long-trip-days: 4
+    # Ma hoac ten quoc gia coi la "trong nuoc" (khong goi y ho chieu, doi ngoai te)
+    home-countries: [VN, Vietnam, Việt Nam, Viet Nam]
+  export:
+    ics-uid-domain: tripmind
   budget:
     # BR-403: vuot ti le nay thi canh bao NEAR_LIMIT, vuot 100% thi OVER
     near-limit-ratio: 0.9

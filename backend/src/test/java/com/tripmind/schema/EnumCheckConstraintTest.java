@@ -47,7 +47,11 @@ class EnumCheckConstraintTest {
             Map.entry("chk_trips_phase_override", TripPhase.class),
             Map.entry("chk_trips_travel_style", TravelStyle.class),
             Map.entry("chk_trips_budget_pref", BudgetPreference.class),
-            Map.entry("chk_activities_cost_source", CostSource.class));
+            Map.entry("chk_activities_cost_source", CostSource.class),
+            Map.entry("chk_checklist_kind", ChecklistKind.class),
+            Map.entry("chk_checklist_source", ChecklistSource.class),
+            Map.entry("chk_checklist_category", ChecklistCategory.class),
+            Map.entry("chk_place_ratings_verdict", PlaceVerdict.class));
 
     @Test
     @DisplayName("Mọi enum ánh xạ xuống cột có CHECK phải có đúng tập giá trị của CHECK đó")

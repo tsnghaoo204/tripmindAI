@@ -27,6 +27,13 @@ public interface ActivityRepository extends JpaRepository<ActivityEntity, Long> 
 
     long countByItineraryDayTripId(Long tripId);
 
+    /** Mọi hoạt động của chuyến kèm địa điểm và ngày, đọc một lần — dùng được ngoài giao dịch. */
+    @Query("""
+            SELECT a FROM ActivityEntity a JOIN FETCH a.itineraryDay d LEFT JOIN FETCH a.place
+            WHERE d.trip.id = :tripId ORDER BY d.dayNumber, a.orderIndex
+            """)
+    List<ActivityEntity> findWithPlacesByTripId(@Param("tripId") Long tripId);
+
     /**
      * {@code [activityType, sum]} chi phí ước tính của một chuyến, bỏ hoạt động đã bỏ qua
      * (FR-1105): thứ người dùng không làm thì không tính là sẽ tiêu.

@@ -2,13 +2,16 @@ package com.tripmind.controllers;
 
 import com.tripmind.configurations.security.SecurityUtils;
 import com.tripmind.domains.requests.CreateTripRequest;
+import com.tripmind.domains.requests.DuplicateTripRequest;
 import com.tripmind.domains.requests.UpdateTripPhaseRequest;
 import com.tripmind.domains.requests.UpdateTripRequest;
 import com.tripmind.domains.responses.ApiResponse;
+import com.tripmind.domains.responses.DuplicateTripResponse;
 import com.tripmind.domains.responses.TripResponse;
 import com.tripmind.enums.TripPhase;
 import com.tripmind.exceptions.AppException;
 import com.tripmind.exceptions.ErrorCode;
+import com.tripmind.services.TripDuplicationService;
 import com.tripmind.services.TripService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,6 +33,7 @@ import java.util.List;
 public class TripController {
 
     private final TripService tripService;
+    private final TripDuplicationService tripDuplicationService;
 
     @PostMapping
     @Operation(summary = "Create a new trip (days are generated automatically)")
@@ -70,6 +74,14 @@ public class TripController {
             @RequestBody UpdateTripPhaseRequest request) {
         TripResponse trip = tripService.updatePhase(SecurityUtils.getCurrentUserId(), tripId, request.getPhase());
         return ResponseEntity.ok(ApiResponse.ok("Trip phase updated", trip));
+    }
+
+    @PostMapping("/{tripId}/duplicate")
+    @Operation(summary = "Copy a trip to new dates: days, activities and checklist (expenses are not copied)")
+    public ResponseEntity<ApiResponse<DuplicateTripResponse>> duplicate(@PathVariable Long tripId,
+                                                                       @Valid @RequestBody DuplicateTripRequest request) {
+        DuplicateTripResponse response = tripDuplicationService.duplicate(SecurityUtils.getCurrentUserId(), tripId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("Trip duplicated", response));
     }
 
     @DeleteMapping("/{tripId}")

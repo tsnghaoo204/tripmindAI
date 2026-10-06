@@ -12,3 +12,8 @@ tripmind:
     # Mo hinh that duoc thay bang FakeLlmGateway; khoa nay chi de cau hinh hop le.
     api-key: test
     rate-limit-per-hour: 5
+  # Khong goi Open-Meteo that trong test: dia chi khong ton tai, het han nhanh.
+  open-meteo:
+    base-url: http://127.0.0.1:9/v1
+    archive-base-url: http://127.0.0.1:9/v1
+    timeout: 1s
