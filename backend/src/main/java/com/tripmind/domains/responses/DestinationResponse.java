@@ -30,4 +30,22 @@ public class DestinationResponse {
     private String formattedAddress;
     private JsonNode metadata;
     private boolean saved;
+
+    public static DestinationResponse fromEntity(com.tripmind.entities.DestinationEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        return DestinationResponse.builder()
+                .id(entity.getId())
+                .provider(entity.getProvider())
+                .externalId(entity.getExternalId())
+                .name(entity.getName())
+                .country(entity.getCountry())
+                .latitude(entity.getLatitude())
+                .longitude(entity.getLongitude())
+                .timezone(entity.getTimezone())
+                .metadata(entity.getMetadata())
+                .saved(true)
+                .build();
+    }
 }

@@ -1,5 +1,6 @@
 package com.tripmind.domains.requests;
 
+import com.tripmind.domains.models.GroupProfile;
 import com.tripmind.enums.BudgetPreference;
 import com.tripmind.enums.TravelStyle;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -9,6 +10,8 @@ import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -60,13 +63,19 @@ public class CreateTripRequest {
     private Long budget;
 
     @Builder.Default
+    @Pattern(regexp = "^[A-Z]{3}$", message = "Currency must be an ISO-4217 code, e.g. VND")
     private String currency = "VND";
 
+    /** Bỏ trống thì lấy sở thích mặc định của tài khoản ({@code user_preferences}). */
     private TravelStyle travelStyle;
 
     private BudgetPreference budgetPreference;
 
-    private List<String> preferences;
+    @Size(max = 20, message = "At most 20 preferences")
+    private List<@Size(max = 40) String> preferences;
+
+    @Valid
+    private GroupProfile groupProfile;
 
     /**
      * Đúng một trong ba đường xác định điểm đến là đủ; không có đường nào thì chuyến đi

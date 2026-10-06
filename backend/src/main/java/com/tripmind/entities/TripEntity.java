@@ -1,5 +1,9 @@
 package com.tripmind.entities;
 
+import com.tripmind.domains.models.GroupProfile;
+import com.tripmind.enums.BudgetPreference;
+import com.tripmind.enums.TravelStyle;
+import com.tripmind.enums.TripPhase;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -58,7 +62,31 @@ public class TripEntity {
     @Builder.Default
     private String currency = "VND";
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "travel_style", length = 16)
+    private TravelStyle travelStyle;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "budget_preference", length = 16)
+    private BudgetPreference budgetPreference;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "preferences_json", nullable = false, columnDefinition = "jsonb")
+    @Builder.Default
+    private List<String> preferences = new ArrayList<>();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "group_profile", nullable = false, columnDefinition = "jsonb")
+    @Builder.Default
+    private GroupProfile groupProfile = GroupProfile.empty();
+
+    /** Giai đoạn do người dùng đặt tay; NULL thì suy từ ngày ({@code TripClock}). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "phase_override", length = 8)
+    private TripPhase phaseOverride;
+
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("dayNumber ASC")
     @Builder.Default
     private List<ItineraryDayEntity> days = new ArrayList<>();
 
@@ -69,4 +97,9 @@ public class TripEntity {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    /** Số ngày của chuyến, tính cả ngày đầu và ngày cuối. */
+    public int lengthInDays() {
+        return (int) java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate) + 1;
+    }
 }

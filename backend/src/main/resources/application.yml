@@ -79,3 +79,8 @@ tripmind:
       use-mock: ${USE_MOCK_PLACES:false}
   open-meteo:
     base-url: https://api.open-meteo.com/v1
+  trip:
+    # BR-201: do dai toi da cua mot chuyen
+    max-days: 30
+    # BR-207: ngay co it nhat bay nhieu hoat dong thi tinh la "da len lich"
+    planned-day-min-activities: 2

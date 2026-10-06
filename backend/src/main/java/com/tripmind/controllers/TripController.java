@@ -2,10 +2,16 @@ package com.tripmind.controllers;
 
 import com.tripmind.configurations.security.SecurityUtils;
 import com.tripmind.domains.requests.CreateTripRequest;
+import com.tripmind.domains.requests.UpdateTripPhaseRequest;
+import com.tripmind.domains.requests.UpdateTripRequest;
 import com.tripmind.domains.responses.ApiResponse;
-import com.tripmind.entities.TripEntity;
+import com.tripmind.domains.responses.TripResponse;
+import com.tripmind.enums.TripPhase;
+import com.tripmind.exceptions.AppException;
+import com.tripmind.exceptions.ErrorCode;
 import com.tripmind.services.TripService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -26,46 +32,63 @@ public class TripController {
     private final TripService tripService;
 
     @PostMapping
-    @Operation(summary = "Create a new trip")
-    public ResponseEntity<ApiResponse<TripEntity>> createTrip(
-            @Valid @RequestBody CreateTripRequest request) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        TripEntity trip = tripService.createTrip(currentUserId, request);
+    @Operation(summary = "Create a new trip (days are generated automatically)")
+    public ResponseEntity<ApiResponse<TripResponse>> createTrip(@Valid @RequestBody CreateTripRequest request) {
+        TripResponse trip = tripService.createTrip(SecurityUtils.getCurrentUserId(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Trip created successfully", trip));
     }
 
     @GetMapping
-    @Operation(summary = "Get all trips for current user")
-    public ResponseEntity<ApiResponse<List<TripEntity>>> getMyTrips() {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        List<TripEntity> trips = tripService.getTripsByUser(currentUserId);
+    @Operation(summary = "Get trips of current user, optionally filtered by status")
+    public ResponseEntity<ApiResponse<List<TripResponse>>> getMyTrips(
+            @Parameter(description = "upcoming | ongoing | past")
+            @RequestParam(required = false) String status) {
+        List<TripResponse> trips = tripService.getTrips(SecurityUtils.getCurrentUserId(), toPhase(status));
         return ResponseEntity.ok(ApiResponse.ok(trips));
     }
 
     @GetMapping("/{tripId}")
-    @Operation(summary = "Get detailed trip itinerary by ID")
-    public ResponseEntity<ApiResponse<TripEntity>> getTripDetails(@PathVariable Long tripId) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        TripEntity trip = tripService.getTripById(currentUserId, tripId);
-        return ResponseEntity.ok(ApiResponse.ok(trip));
+    @Operation(summary = "Get trip details with day summaries")
+    public ResponseEntity<ApiResponse<TripResponse>> getTripDetails(@PathVariable Long tripId) {
+        return ResponseEntity.ok(ApiResponse.ok(tripService.getTrip(SecurityUtils.getCurrentUserId(), tripId)));
     }
 
     @PutMapping("/{tripId}")
-    @Operation(summary = "Update trip information")
-    public ResponseEntity<ApiResponse<TripEntity>> updateTrip(
+    @Operation(summary = "Update trip; changing dates adds or removes days at the end")
+    public ResponseEntity<ApiResponse<TripResponse>> updateTrip(
             @PathVariable Long tripId,
-            @Valid @RequestBody com.tripmind.domains.requests.UpdateTripRequest request) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        TripEntity trip = tripService.updateTrip(currentUserId, tripId, request);
+            @Valid @RequestBody UpdateTripRequest request) {
+        TripResponse trip = tripService.updateTrip(SecurityUtils.getCurrentUserId(), tripId, request);
         return ResponseEntity.ok(ApiResponse.ok("Trip updated successfully", trip));
     }
 
+    @PutMapping("/{tripId}/phase")
+    @Operation(summary = "Set trip phase manually (BEFORE/DURING/AFTER) or null to derive from dates")
+    public ResponseEntity<ApiResponse<TripResponse>> updatePhase(
+            @PathVariable Long tripId,
+            @RequestBody UpdateTripPhaseRequest request) {
+        TripResponse trip = tripService.updatePhase(SecurityUtils.getCurrentUserId(), tripId, request.getPhase());
+        return ResponseEntity.ok(ApiResponse.ok("Trip phase updated", trip));
+    }
+
     @DeleteMapping("/{tripId}")
-    @Operation(summary = "Delete a trip")
+    @Operation(summary = "Delete a trip with its days, activities, expenses and conversations")
     public ResponseEntity<ApiResponse<Void>> deleteTrip(@PathVariable Long tripId) {
-        Long currentUserId = SecurityUtils.getCurrentUserId();
-        tripService.deleteTrip(currentUserId, tripId);
+        tripService.deleteTrip(SecurityUtils.getCurrentUserId(), tripId);
         return ResponseEntity.ok(ApiResponse.ok("Trip deleted successfully", null));
+    }
+
+    private TripPhase toPhase(String status) {
+        if (status == null || status.isBlank()) {
+            return null;
+        }
+        return switch (status.trim().toLowerCase()) {
+            case "upcoming" -> TripPhase.BEFORE;
+            case "ongoing" -> TripPhase.DURING;
+            case "past" -> TripPhase.AFTER;
+            default -> throw new AppException(ErrorCode.VALIDATION_ERROR,
+                    "status must be one of upcoming, ongoing, past");
+        };
     }
 }

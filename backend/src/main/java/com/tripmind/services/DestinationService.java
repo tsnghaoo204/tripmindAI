@@ -349,18 +349,7 @@ public class DestinationService {
     }
 
     private DestinationResponse toResponse(DestinationEntity entity) {
-        return DestinationResponse.builder()
-                .id(entity.getId())
-                .provider(entity.getProvider())
-                .externalId(entity.getExternalId())
-                .name(entity.getName())
-                .country(entity.getCountry())
-                .latitude(entity.getLatitude())
-                .longitude(entity.getLongitude())
-                .timezone(entity.getTimezone())
-                .metadata(entity.getMetadata())
-                .saved(true)
-                .build();
+        return DestinationResponse.fromEntity(entity);
     }
 
     private DestinationResponse toResponse(GooglePlace place) {
