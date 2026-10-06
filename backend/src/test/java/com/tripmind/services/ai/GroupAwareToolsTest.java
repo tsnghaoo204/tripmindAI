@@ -5,7 +5,7 @@ import com.tripmind.entities.DestinationEntity;
 import com.tripmind.entities.TripEntity;
 import com.tripmind.enums.DietaryRestriction;
 import com.tripmind.services.TripClock;
-import com.tripmind.services.ai.tools.PlaceToolsAccess;
+import com.tripmind.services.ai.tools.PlaceTools;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ByteArrayResource;
@@ -24,10 +24,10 @@ class GroupAwareToolsTest {
     @Test
     @DisplayName("Tìm quán ăn khi nhóm có người ăn chay: thêm 'chay' vào truy vấn; tìm bảo tàng thì giữ nguyên")
     void dietaryKeywords() {
-        assertThat(PlaceToolsAccess.withDietaryKeywords("quán ăn gần biển", vegetarianFamily)).isEqualTo("quán ăn gần biển chay");
-        assertThat(PlaceToolsAccess.withDietaryKeywords("bảo tàng", vegetarianFamily)).isEqualTo("bảo tàng");
-        assertThat(PlaceToolsAccess.withDietaryKeywords("quán chay", vegetarianFamily)).isEqualTo("quán chay");
-        assertThat(PlaceToolsAccess.withDietaryKeywords("quán ăn", GroupProfile.empty())).isEqualTo("quán ăn");
+        assertThat(PlaceTools.withDietaryKeywords("quán ăn gần biển", vegetarianFamily)).isEqualTo("quán ăn gần biển chay");
+        assertThat(PlaceTools.withDietaryKeywords("bảo tàng", vegetarianFamily)).isEqualTo("bảo tàng");
+        assertThat(PlaceTools.withDietaryKeywords("quán chay", vegetarianFamily)).isEqualTo("quán chay");
+        assertThat(PlaceTools.withDietaryKeywords("quán ăn", GroupProfile.empty())).isEqualTo("quán ăn");
     }
 
     @Test

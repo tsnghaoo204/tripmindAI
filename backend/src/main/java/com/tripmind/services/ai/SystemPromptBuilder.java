@@ -57,7 +57,7 @@ public class SystemPromptBuilder {
                 .replace("{currency}", trip.getCurrency());
     }
 
-    private String tripSummary(TripEntity trip) {
+    public String tripSummary(TripEntity trip) {
         List<String> parts = new ArrayList<>();
         parts.add("- Tên: " + trip.getName());
         parts.add("- Điểm đến: " + trip.getDestination().getName() + " (" + trip.getDestination().getCountry() + ")");
@@ -77,7 +77,7 @@ public class SystemPromptBuilder {
     }
 
     /** Một dòng tóm tắt nhóm đi, ví dụ "Nhóm 4 người, 1 trẻ nhỏ, ăn chay. Tránh lịch dày và chặng đi bộ dài." */
-    String groupSummary(TripEntity trip) {
+    public String groupSummary(TripEntity trip) {
         GroupProfile group = trip.getGroupProfile();
         if (group == null || group.isEmpty()) {
             return "";

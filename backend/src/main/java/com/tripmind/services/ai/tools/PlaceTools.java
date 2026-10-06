@@ -9,11 +9,11 @@ import com.tripmind.entities.TripEntity;
 import com.tripmind.enums.DietaryRestriction;
 import com.tripmind.repositories.PlaceRepository;
 import com.tripmind.services.DistanceService;
-import com.tripmind.services.PlaceAdoptionService;
 import com.tripmind.services.PlaceService;
 import com.tripmind.services.TripService;
 import com.tripmind.services.ai.AgentToolSet;
 import com.tripmind.services.ai.AgentTurn;
+import com.tripmind.services.ai.PlaceVerifier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.annotation.Tool;
@@ -35,7 +35,7 @@ public class PlaceTools implements AgentToolSet {
 
     private final PlaceService placeService;
     private final PlaceRepository placeRepository;
-    private final PlaceAdoptionService placeAdoptionService;
+    private final PlaceVerifier placeVerifier;
     private final TripService tripService;
     private final DistanceService distanceService;
     private final PlaceRatingLookup placeRatingLookup;
@@ -122,30 +122,16 @@ public class PlaceTools implements AgentToolSet {
         return ToolSupport.json(objectMapper, Map.of("shown", accepted.size(), "rejected", rejected));
     }
 
-    /**
-     * Địa điểm có thật (QĐ-08): đã có trong CSDL, hoặc vừa được công cụ tìm kiếm trả về trong
-     * lượt này và còn trong bộ đệm ứng viên. Tên mô hình tự nghĩ ra không qua được bước này.
-     */
-    Optional<PlaceView> verified(String externalId, AgentTurn turn) {
-        if (externalId == null || externalId.isBlank()) {
-            return Optional.empty();
-        }
-        Optional<PlaceView> inDb = placeRepository.findFirstByExternalId(externalId)
-                .map(p -> PlaceView.of(PlaceResponse.fromEntity(p)));
-        if (inDb.isPresent()) {
-            return inDb;
-        }
-        if (!turn.getSeenPlaceIds().contains(externalId)) {
-            return Optional.empty();
-        }
-        return placeAdoptionService.findCandidate(externalId)
-                .map(gp -> new PlaceView("GOOGLE", gp.placeId(), gp.name(),
-                        gp.types() == null || gp.types().isEmpty() ? null : gp.types().get(0), gp.rating(),
-                        gp.priceLevel(), gp.formattedAddress(), gp.latitude(), gp.longitude(), null));
+    private Optional<PlaceView> verified(String externalId, AgentTurn turn) {
+        return placeVerifier.verify(externalId, turn)
+                .map(ref -> placeRepository.findFirstByExternalId(ref.externalId())
+                        .map(p -> PlaceView.of(PlaceResponse.fromEntity(p)))
+                        .orElseGet(() -> new PlaceView(ref.provider(), ref.externalId(), ref.name(), null, null,
+                                ref.priceLevel(), null, ref.lat(), ref.lng(), null)));
     }
 
     /** Nhóm có người ăn chay / halal: thêm từ khoá vào truy vấn tìm quán ăn — bằng mã, không nhờ mô hình nhớ. */
-    static String withDietaryKeywords(String query, GroupProfile group) {
+    public static String withDietaryKeywords(String query, GroupProfile group) {
         if (group == null || group.dietaryOrEmpty().isEmpty() || query == null) {
             return query;
         }

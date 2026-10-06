@@ -44,10 +44,10 @@ public class ToolRegistry {
     }
 
     public ToolCallback find(String name) {
-        return callbacks.get(name);
+        return name == null ? null : callbacks.get(name);
     }
 
     public String label(String name) {
-        return LABELS.getOrDefault(name, "Đang xử lý...");
+        return name == null ? "Đang xử lý..." : LABELS.getOrDefault(name, "Đang xử lý...");
     }
 }
