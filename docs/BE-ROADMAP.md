@@ -1,6 +1,6 @@
 # BE-ROADMAP — Kế hoạch hoàn thiện backend TripMind
 
-**v1.0 · 05/10/2026** · Chỉ nói về **backend**. Giao diện làm sau khi backend xong.
+**v1.1 · 06/10/2026** · `P0`→`P8` đã xong, xem [BE-CHANGES.md](BE-CHANGES.md) · Chỉ nói về **backend**. Giao diện làm sau khi backend xong.
 
 > File này **thay thế** [`TODO.md`](TODO.md) và [`BE-TODO.md`](BE-TODO.md) làm nơi theo dõi tiến độ backend.
 > `BE-TODO.md` vẫn giữ giá trị tham khảo cho luật nghiệp vụ (`BR`, `QĐ`, `DI`) và bẫy kỹ thuật (§6),
@@ -69,17 +69,17 @@
 
 | # | Quyết định | Lý do | Trạng thái |
 |---|---|---|---|
-| `D1` | **Giữ Spring Boot 3.4 + Spring AI 1.x** (starter `spring-ai-starter-model-openai`, trỏ vào lớp tương thích OpenAI của Gemini). Sửa lại `ARCHITECTURE.md` và `PLAN.md` | Spring AI 2.0 bắt buộc Boot 4. Nâng Boot giữa dự án dễ vỡ Security/JPA mà không thêm giá trị gì cho đề tài | Chờ xác nhận, trước `P5` |
+| `D1` | **Giữ Spring Boot 3.4 + Spring AI 1.x** (starter `spring-ai-starter-model-openai`, trỏ vào lớp tương thích OpenAI của Gemini). Sửa lại `ARCHITECTURE.md` và `PLAN.md` | Spring AI 2.0 bắt buộc Boot 4. Nâng Boot giữa dự án dễ vỡ Security/JPA mà không thêm giá trị gì cho đề tài | Đã chốt 06/10 |
 | `D2` | **Không làm refresh token.** Token truy cập sống 24h. Ghi vào phần hạn chế của báo cáo | `TODO.md` đã chốt | Đã chốt |
 | `D3` | **Không quy đổi tỷ giá.** Mọi khoản chi phải cùng mã tiền với chuyến; khác mã thì từ chối (`422 CURRENCY_MISMATCH`) | PLAN xếp tỷ giá đầu danh sách cắt; `BR-401` vẫn được giữ | Đã chốt |
 | `D4` | **Flyway bắt đầu từ `V1__baseline.sql`** = `schemas.sql` ở thư mục gốc, bỏ các câu `DROP`. Xoá `resources/db/schemas.sql`. File gốc chỉ còn một dòng trỏ sang thư mục migration | Một nguồn duy nhất; DB đang có sẵn được nhận làm baseline, không phải tạo lại | Đã chốt |
 | `D5` | **Không làm:** nhật ký + ảnh (`FR-1011`→`1013`), nhập bằng giọng nói (`FR-1014`), thói quen ước lượng (`FR-1106`) | Đã cắt ở `FEATURE-REVIEW.md` | Đã chốt |
-| `D6` | Model mặc định: dòng **Gemini Flash hiện hành** (ví dụ `gemini-2.5-flash`). Kiểm tra lại tên trong AI Studio trước khi ghim | `gemini-1.5-flash` đã bị ngừng | Chốt ở `P5.0` |
+| `D6` | Model mặc định: dòng **Gemini Flash hiện hành** (ví dụ `gemini-2.5-flash`). Kiểm tra lại tên trong AI Studio trước khi ghim | `gemini-1.5-flash` đã bị ngừng | Đã chốt: `gemini-3.8-flash`, đổi qua `LLM_MODEL` |
 | `D7` | Giữ **cấu trúc phân tầng** hiện có (`controllers/services/...`), không chuyển sang cấu trúc theo tính năng như `ADS-10` | Code đã viết theo kiểu này; đổi giữa chừng tốn công mà không thêm tính năng | Đã chốt |
 | `D8` | **Sở thích lưu theo từng chuyến** (cột mới trên `trips`). Nếu khi tạo chuyến không gửi lên thì lấy mặc định từ `user_preferences` | Mỗi chuyến có thể khác nhau (đi với bạn bè khác đi với gia đình); AI cần đọc theo chuyến | Đã chốt |
 | `D9` | **Checklist dùng luồng đề xuất dạng nhẹ**, giống `propose_places`: hệ thống trả danh sách ứng viên kèm lý do, người dùng chọn cái nào thì mới ghi vào DB. **Không** thêm loại mới vào `ai_proposals` | Vẫn giữ nguyên tắc `QĐ-01` (không ghi nếu người dùng chưa bấm) mà không phải mở rộng cơ chế áp dụng/hoàn tác | Đã chốt |
-| `D10` | **PDF làm ở frontend** bằng CSS in (`@media print` + `window.print()`). Backend chỉ xuất `.ics` | Trình duyệt tự xử lý font tiếng Việt; làm PDF ở backend phải nhúng font, mất thêm 1–2 ngày | Chờ xác nhận, trước `P7` |
-| `D11` | **Vòng gọi công cụ dùng `call()`, không stream.** Chỉ lượt trả lời cuối được chia thành nhiều sự kiện `token` gửi qua SSE. Tiến trình hiển thị bằng `tool_start` / `tool_end` | Vòng lặp tự điều khiển cần đọc trọn danh sách tool call mỗi vòng. Ghép tool call từ các mảnh stream phức tạp và dễ lỗi | Chờ xác nhận, trước `P5` |
+| `D10` | **PDF làm ở frontend** bằng CSS in (`@media print` + `window.print()`). Backend chỉ xuất `.ics` | Trình duyệt tự xử lý font tiếng Việt; làm PDF ở backend phải nhúng font, mất thêm 1–2 ngày | Đã chốt 06/10 |
+| `D11` | **Vòng gọi công cụ dùng `call()`, không stream.** Chỉ lượt trả lời cuối được chia thành nhiều sự kiện `token` gửi qua SSE. Tiến trình hiển thị bằng `tool_start` / `tool_end` | Vòng lặp tự điều khiển cần đọc trọn danh sách tool call mỗi vòng. Ghép tool call từ các mảnh stream phức tạp và dễ lỗi | Đã chốt 06/10 |
 
 ---
 
@@ -87,15 +87,15 @@
 
 | Giai đoạn | Nội dung | Ước tính | Trạng thái |
 |---|---|---|---|
-| `P0` | Dọn nền: khoá API, Flyway, Docker Compose | 1,5 ngày | [ ] |
-| `P1` | Chuyến đi: sở thích, 🆕 thông tin nhóm, 30 ngày, đổi ngày, giai đoạn chuyến | 3 ngày | [ ] |
-| `P2` | Lịch trình: sửa lỗi + 🆕 gợi ý chi phí ước tính | 1,5 ngày | [ ] |
-| `P3` | Ngân sách, chi tiêu + 🆕 hôm nay còn tiêu được bao nhiêu | 2,5 ngày | [ ] |
-| `P4` | Thời tiết | 2 ngày | [ ] |
-| `P5` | Trợ lý AI: nền tảng, công cụ đọc, SSE | 6 ngày | [ ] |
-| `P6` | Đề xuất → duyệt → áp dụng → hoàn tác → giải trình, sinh lịch trình | 7 ngày | [ ] |
-| `P7` | 🆕 Checklist · xuất `.ics` · đánh giá địa điểm · nhân bản chuyến | 4,5 ngày | [ ] |
-| `P8` | Quản trị, giới hạn tần suất, test tích hợp, đóng gói | 2 ngày | [ ] |
+| `P0` | Dọn nền: khoá API, Flyway, Docker Compose | 1,5 ngày | [x] |
+| `P1` | Chuyến đi: sở thích, 🆕 thông tin nhóm, 30 ngày, đổi ngày, giai đoạn chuyến | 3 ngày | [x] |
+| `P2` | Lịch trình: sửa lỗi + 🆕 gợi ý chi phí ước tính | 1,5 ngày | [x] |
+| `P3` | Ngân sách, chi tiêu + 🆕 hôm nay còn tiêu được bao nhiêu | 2,5 ngày | [x] |
+| `P4` | Thời tiết | 2 ngày | [x] |
+| `P5` | Trợ lý AI: nền tảng, công cụ đọc, SSE | 6 ngày | [x] |
+| `P6` | Đề xuất → duyệt → áp dụng → hoàn tác → giải trình, sinh lịch trình | 7 ngày | [x] |
+| `P7` | 🆕 Checklist · xuất `.ics` · đánh giá địa điểm · nhân bản chuyến | 4,5 ngày | [x] |
+| `P8` | Quản trị, giới hạn tần suất, test tích hợp, đóng gói | 2 ngày | [x] |
 | `P9` | Mở rộng nếu còn thời gian | — | [ ] |
 
 **Tổng `P0`→`P8` khoảng 30 ngày làm việc ≈ 6 tuần** nếu làm một mình toàn thời gian. Xem §9 về thời hạn và thứ tự cắt.
@@ -111,8 +111,9 @@
 | `V1__baseline.sql` | Toàn bộ `schemas.sql` gốc, bỏ `DROP` | `P0.3` |
 | `V2__trip_profile.sql` | `trips` thêm `travel_style`, `budget_preference`, `preferences_json`, `group_profile`; đổi `UNIQUE (trip_id, date)` của `itinerary_days` sang `DEFERRABLE` | `P1.1` |
 | `V3__activity_cost_source.sql` | `activities` thêm `estimated_cost_source` | `P2.4` |
-| `V4__checklist.sql` | Bảng `trip_checklist_items` | `P7.1` |
-| `V5__place_ratings.sql` | Bảng `place_ratings` | `P7.3` |
+| `V4__message_attachments.sql` | `messages` thêm `attachments_json` | `P5` |
+| `V5__checklist.sql` | Bảng `trip_checklist_items` | `P7.1` |
+| `V6__place_ratings.sql` | Bảng `place_ratings` | `P7.3` |
 
 Các bảng `expenses`, `conversations`, `messages`, `ai_tool_executions`, `ai_proposals` **đã có trong `V1`**, không cần migration riêng. Chỉ còn thiếu entity Java.
 
@@ -255,7 +256,7 @@ Các bảng `expenses`, `conversations`, `messages`, `ai_tool_executions`, `ai_p
 
 | # | Việc |
 |---|---|
-| `P7.1.1` | `V4__checklist.sql`: bảng `trip_checklist_items` (xem §6.4) |
+| `P7.1.1` | `V5__checklist.sql`: bảng `trip_checklist_items` (xem §6.4) |
 | `P7.1.2` | CRUD: `GET /api/trips/{id}/checklist?kind=PACK\|TODO` · `POST /api/trips/{id}/checklist` (một hoặc nhiều mục) · `PATCH /api/checklist-items/{id}` (sửa tên, tick xong) · `DELETE /api/checklist-items/{id}` |
 | `P7.1.3` | `ChecklistSuggester`: **bộ luật bằng mã** sinh ứng viên từ thời tiết, loại hoạt động, độ dài chuyến, điểm đến trong nước hay nước ngoài, thông tin nhóm. Mỗi ứng viên có `reason` truy được về dữ liệu (xem §6.4) |
 | `P7.1.4` | `GET /api/trips/{id}/checklist/suggestions`: trả ứng viên, **bỏ những mục đã có** (so tên không phân biệt hoa thường). Không ghi DB. Người dùng chọn rồi gọi `POST` ở `P7.1.2` với `source = SUGGESTED` |
@@ -279,7 +280,7 @@ Các bảng `expenses`, `conversations`, `messages`, `ai_tool_executions`, `ai_p
 
 | # | Việc |
 |---|---|
-| `P7.3.1` | `V5__place_ratings.sql`: bảng `place_ratings` (xem §6.6) |
+| `P7.3.1` | `V6__place_ratings.sql`: bảng `place_ratings` (xem §6.6) |
 | `P7.3.2` | `GET /api/trips/{id}/review/places`: các địa điểm có trong lịch trình chuyến này, **trừ hoạt động `SKIPPED`**, kèm đánh giá hiện tại nếu có |
 | `P7.3.3` | `PUT /api/trips/{id}/places/{placeId}/rating` `{ verdict: LIKE \| DISLIKE, note? }` · `DELETE` cùng đường dẫn. Chỉ cho phép khi `phase = AFTER`, ngược lại `409 TRIP_NOT_ENDED`. Địa điểm phải nằm trong lịch trình của chuyến |
 | `P7.3.4` | `GET /api/me/place-ratings` |
@@ -567,3 +568,4 @@ Mỗi lần xong một việc, thêm **một dòng** ở dưới cùng.
 | Ngày | Mã | Ghi chú |
 |---|---|---|
 | 05/10/2026 | — | Lập kế hoạch v1.0. Hiện trạng: xong giai đoạn 1–3 của `TODO.md` cũ, 21 test xanh |
+| 06/10/2026 | `P0`→`P8` | Xong trên nhánh `feat/be-complete`, 82 test xanh. Chi tiết và chỗ khác kế hoạch: [BE-CHANGES.md](BE-CHANGES.md) |
