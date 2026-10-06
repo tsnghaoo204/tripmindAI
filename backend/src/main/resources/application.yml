@@ -78,7 +78,14 @@ tripmind:
       # he thong chi con catalog trong CSDL.
       use-mock: ${USE_MOCK_PLACES:false}
   open-meteo:
-    base-url: https://api.open-meteo.com/v1
+    base-url: ${OPEN_METEO_BASE_URL:https://api.open-meteo.com/v1}
+    # API luu tru o ten mien khac: trung binh khi hau va ngay qua xa trong qua khu
+    archive-base-url: ${OPEN_METEO_ARCHIVE_URL:https://archive-api.open-meteo.com/v1}
+    forecast-days: 16
+    past-days: 90
+    climate-years: 3
+    timeout: 5s
+    cache-ttl: 3h
   trip:
     # BR-201: do dai toi da cua mot chuyen
     max-days: 30
