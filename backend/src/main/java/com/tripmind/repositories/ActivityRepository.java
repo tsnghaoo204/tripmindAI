@@ -26,4 +26,16 @@ public interface ActivityRepository extends JpaRepository<ActivityEntity, Long> 
     Optional<ActivityEntity> findFirstByItineraryDayTripIdAndStatusAndIdNot(Long tripId, ActivityStatus status, Long id);
 
     long countByItineraryDayTripId(Long tripId);
+
+    /**
+     * {@code [activityType, sum]} chi phí ước tính của một chuyến, bỏ hoạt động đã bỏ qua
+     * (FR-1105): thứ người dùng không làm thì không tính là sẽ tiêu.
+     */
+    @Query("""
+            SELECT a.activityType, SUM(a.estimatedCost) FROM ActivityEntity a
+            WHERE a.itineraryDay.trip.id = :tripId AND a.estimatedCost IS NOT NULL
+              AND a.status <> com.tripmind.enums.ActivityStatus.SKIPPED
+            GROUP BY a.activityType
+            """)
+    List<Object[]> sumEstimatedByType(@Param("tripId") Long tripId);
 }

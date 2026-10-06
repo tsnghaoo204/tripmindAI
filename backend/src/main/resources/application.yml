@@ -116,3 +116,9 @@ tripmind:
           - { min: 15, max: 40 }
           - { min: 40, max: 100 }
           - { min: 100, max: 300 }
+  budget:
+    # BR-403: vuot ti le nay thi canh bao NEAR_LIMIT, vuot 100% thi OVER
+    near-limit-ratio: 0.9
+    # Lam tron xuong han muc chi tieu moi ngay
+    daily-rounding:
+      VND: 1000

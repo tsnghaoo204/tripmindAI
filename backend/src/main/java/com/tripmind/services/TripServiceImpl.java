@@ -13,6 +13,7 @@ import com.tripmind.entities.UserPreferencesEntity;
 import com.tripmind.enums.TripPhase;
 import com.tripmind.exceptions.AppException;
 import com.tripmind.exceptions.ErrorCode;
+import com.tripmind.repositories.ExpenseRepository;
 import com.tripmind.repositories.TripRepository;
 import com.tripmind.repositories.UserPreferencesRepository;
 import com.tripmind.repositories.UserRepository;
@@ -39,6 +40,7 @@ public class TripServiceImpl implements TripService {
     private final TripRepository tripRepository;
     private final UserRepository userRepository;
     private final UserPreferencesRepository userPreferencesRepository;
+    private final ExpenseRepository expenseRepository;
     private final DestinationService destinationService;
     private final TripMapper tripMapper;
     private final TripClock tripClock;
@@ -140,7 +142,12 @@ public class TripServiceImpl implements TripService {
         if (request.getBudget() != null) {
             trip.setBudget(request.getBudget());
         }
-        if (request.getCurrency() != null) {
+        if (request.getCurrency() != null && !request.getCurrency().equals(trip.getCurrency())) {
+            // Không quy đổi tỷ giá: đổi tiền của chuyến khi đã có chi tiêu sẽ cộng lẫn hai loại tiền.
+            if (expenseRepository.existsByTripId(tripId)) {
+                throw new AppException(ErrorCode.CURRENCY_MISMATCH,
+                        "Cannot change currency of a trip that already has expenses in " + trip.getCurrency());
+            }
             trip.setCurrency(request.getCurrency());
         }
         if (request.getTravelStyle() != null) {
