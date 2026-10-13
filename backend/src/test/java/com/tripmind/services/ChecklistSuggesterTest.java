@@ -69,7 +69,7 @@ class ChecklistSuggesterTest {
     @Test
     @DisplayName("Đi nước ngoài, có trẻ nhỏ, có chuyến bay: hộ chiếu, đồ cho trẻ, check-in online trước 1 ngày")
     void abroadWithKidsAndFlight() {
-        ChecklistSuggestionsResponse r = suggester.suggest(trip("Japan", "JP", new GroupProfile(1, 0, null, null, null), 5),
+        ChecklistSuggestionsResponse r = suggester.suggest(trip("Japan", "JP", new GroupProfile(1, 0, null, null, null, null, null, null), 5),
                 List.of(activity(1, "Bay tới Tokyo", ActivityType.TRANSPORT, null)), null);
         Map<String, ChecklistItemResponse> items = byTitle(r);
 

@@ -31,11 +31,15 @@ export interface UpdateActivityInput {
 }
 
 export interface CostEstimateResponse {
-  estimatedCost: number
-  minCost: number
-  maxCost: number
-  currency: string
-  explanation: string
+  suggested?: number
+  min?: number
+  max?: number
+  currency?: string
+  travelers?: number
+  priceLevel?: number
+  basis?: string
+  source?: string
+  reason?: string
 }
 
 export const itineraryApi = {
@@ -72,12 +76,22 @@ export const itineraryApi = {
 
   getCostEstimate: async (
     tripId: number,
-    params: { dayNumber: number; placeExternalId?: string; activityType: string },
+    params: { placeId?: number; priceLevel?: number; activityType?: string },
   ): Promise<CostEstimateResponse> => {
     const q = new URLSearchParams()
-    q.set("dayNumber", String(params.dayNumber))
-    q.set("activityType", params.activityType)
-    if (params.placeExternalId) q.set("placeExternalId", params.placeExternalId)
+    if (params.placeId != null) q.set("placeId", String(params.placeId))
+    if (params.priceLevel != null) q.set("priceLevel", String(params.priceLevel))
+    if (params.activityType) q.set("activityType", params.activityType)
     return request<CostEstimateResponse>(`/api/trips/${tripId}/cost-estimate?${q.toString()}`)
+  },
+
+  getAlternatives: async (activityId: number): Promise<any[]> => {
+    return request<any[]>(`/api/activities/${activityId}/alternatives`)
+  },
+
+  selectAlternative: async (activityId: number, altId: number): Promise<Activity> => {
+    return request<Activity>(`/api/activities/${activityId}/alternatives/${altId}/select`, {
+      method: "PUT",
+    })
   },
 }

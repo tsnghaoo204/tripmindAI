@@ -37,7 +37,7 @@ class WeatherServiceTest {
     @BeforeEach
     void setUp() {
         Clock clock = Clock.fixed(TODAY.atTime(5, 0).toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
-        WeatherProperties props = new WeatherProperties("http://f", "http://a", 16, 90, 3,
+        WeatherProperties props = new WeatherProperties("http://f", "http://a", "http://g", 16, 90, 3,
                 Duration.ofSeconds(5), Duration.ofHours(3));
         service = new WeatherService(null, client, props, new TripClock(clock), mock(StringRedisTemplate.class), new ObjectMapper());
 

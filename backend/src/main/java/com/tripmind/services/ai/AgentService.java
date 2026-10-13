@@ -67,7 +67,7 @@ public class AgentService {
             conversationService.requireConversation(userId, tripId, conversationId);
         }
         if (!llm.isConfigured()) {
-            throw new AppException(ErrorCode.AI_NOT_CONFIGURED, "AI assistant is not configured (GEMINI_API_KEY is empty)");
+            throw new AppException(ErrorCode.AI_NOT_CONFIGURED, "AI assistant is not configured (LLM_API_KEY or LLM_MODEL is empty)");
         }
         rateLimiter.check("ai", userId, properties.rateLimitPerHour(), Duration.ofHours(1));
     }

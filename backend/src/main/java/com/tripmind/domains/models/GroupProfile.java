@@ -7,6 +7,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -22,10 +23,13 @@ public record GroupProfile(
         @Min(0) @Max(50) Integer seniors,
         Set<DietaryRestriction> dietary,
         Boolean limitedMobility,
-        @Size(max = 200) String note) {
+        @Size(max = 200) String note,
+        @Size(max = 20) List<@Min(0) @Max(17) Integer> childAges,
+        Boolean motionSickness,
+        @Size(max = 200) String allergies) {
 
     public static GroupProfile empty() {
-        return new GroupProfile(null, null, null, null, null);
+        return new GroupProfile(null, null, null, null, null, null, null, null);
     }
 
     @JsonIgnore
@@ -52,6 +56,7 @@ public record GroupProfile(
     @JsonIgnore
     public boolean isEmpty() {
         return childrenCount() == 0 && seniorsCount() == 0 && dietaryOrEmpty().isEmpty()
-                && !Boolean.TRUE.equals(limitedMobility) && (note == null || note.isBlank());
+                && !Boolean.TRUE.equals(limitedMobility) && (note == null || note.isBlank())
+                && !Boolean.TRUE.equals(motionSickness) && (allergies == null || allergies.isBlank());
     }
 }

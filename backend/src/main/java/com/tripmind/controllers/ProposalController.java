@@ -13,8 +13,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Map;
 
@@ -83,5 +85,11 @@ public class ProposalController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> generationStatus(@PathVariable Long tripId,
                                                                              @PathVariable String jobId) {
         return ResponseEntity.ok(ApiResponse.ok(generationService.status(SecurityUtils.getCurrentUserId(), tripId, jobId)));
+    }
+
+    @GetMapping(value = "/api/trips/{tripId}/ai/generate/{jobId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @Operation(summary = "Stream progress of an itinerary generation job (text/event-stream)")
+    public SseEmitter streamGenerationStatus(@PathVariable Long tripId, @PathVariable String jobId) {
+        return generationService.subscribe(SecurityUtils.getCurrentUserId(), tripId, jobId);
     }
 }

@@ -45,13 +45,15 @@ export function AddActivityModal({
   const handleFetchCostHint = async () => {
     try {
       const hint = await itineraryApi.getCostEstimate(tripId, {
-        dayNumber,
+        priceLevel: 2,
         activityType,
       })
-      if (hint.estimatedCost) {
-        setEstimatedCost(String(hint.estimatedCost))
-        setCostHint(hint.explanation)
-        toast.info(`Gợi ý: ${formatCurrency(hint.estimatedCost)}`)
+      if (hint.suggested != null) {
+        setEstimatedCost(String(hint.suggested))
+        setCostHint(hint.basis || null)
+        toast.info(`Gợi ý: ${formatCurrency(hint.suggested, hint.currency || "VND")}`)
+      } else if (hint.reason) {
+        toast.warning(`Không có dữ liệu ước tính: ${hint.reason}`)
       }
     } catch {
       toast.error("Không tìm thấy ước tính giá cho mục này")

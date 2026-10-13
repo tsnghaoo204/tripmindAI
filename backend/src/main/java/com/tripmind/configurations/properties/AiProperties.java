@@ -8,12 +8,14 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
- * Trợ lý AI, cấu hình ở {@code tripmind.ai.*}. Mô hình gọi qua lớp tương thích OpenAI nên
- * đổi nhà cung cấp chỉ cần đổi {@code baseUrl}, {@code apiKey}, {@code model}.
+ * Trợ lý AI, cấu hình ở {@code tripmind.ai.*}. Mô hình gọi qua 9router (lớp tương thích OpenAI) nên
+ * đổi nhà cung cấp chỉ cần đổi {@code baseUrl}, {@code apiKey}, {@code models}.
  *
  * @param apiKey             để trống thì trợ lý trả {@code 503 AI_NOT_CONFIGURED}, phần còn lại vẫn chạy
+ * @param models             các model thử lần lượt theo thứ tự; model trước lỗi thì chuyển model sau
  * @param maxRounds          trần số vòng gọi mô hình trong một lượt hỏi (BR-502)
  * @param turnTimeout        trần thời gian một lượt hỏi (BR-502)
  * @param historyMessages    số tin nhắn gần nhất đưa lại vào ngữ cảnh
@@ -28,7 +30,7 @@ public record AiProperties(
         String apiKey,
         @NotBlank String baseUrl,
         @NotBlank String completionsPath,
-        @NotBlank String model,
+        @DefaultValue List<String> models,
         @DefaultValue("0.3") double temperature,
         @DefaultValue("8") @Min(1) @Max(20) int maxRounds,
         @DefaultValue("PT60S") Duration turnTimeout,
@@ -40,6 +42,6 @@ public record AiProperties(
         @DefaultValue("PT10M") Duration undoWindow) {
 
     public boolean isConfigured() {
-        return apiKey != null && !apiKey.isBlank();
+        return apiKey != null && !apiKey.isBlank() && !models.isEmpty();
     }
 }

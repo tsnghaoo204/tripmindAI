@@ -3,12 +3,9 @@ package com.tripmind.controllers;
 import com.tripmind.domains.requests.CreateActivityRequest;
 import com.tripmind.domains.requests.ReorderActivitiesRequest;
 import com.tripmind.domains.requests.UpdateActivityRequest;
-import com.tripmind.domains.responses.ActivityResponse;
-import com.tripmind.domains.responses.ApiResponse;
-import com.tripmind.domains.responses.CostEstimateResponse;
-import com.tripmind.domains.responses.ItineraryDayResponse;
-import com.tripmind.domains.responses.ItineraryResponse;
+import com.tripmind.domains.responses.*;
 import com.tripmind.enums.ActivityType;
+import com.tripmind.services.ActivityAlternativeService;
 import com.tripmind.services.ItineraryService;
 import com.tripmind.configurations.security.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,12 +16,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Itinerary & Activities", description = "APIs for trip itineraries, activities, distance calculations and reordering")
 public class ItineraryController {
 
     private final ItineraryService itineraryService;
+    private final ActivityAlternativeService alternativeService;
 
     @GetMapping("/api/trips/{tripId}/itinerary")
     @Operation(summary = "Get full trip itinerary with calculated distances and ideal timing tips")
@@ -83,5 +83,23 @@ public class ItineraryController {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         ItineraryDayResponse response = itineraryService.reorderActivities(currentUserId, dayId, request.getActivityIds());
         return ResponseEntity.ok(ApiResponse.ok("Activities reordered successfully", response));
+    }
+
+    @GetMapping("/api/activities/{activityId}/alternatives")
+    @Operation(summary = "Get or generate top 3 budget/tier alternatives for a food or lodging activity")
+    public ResponseEntity<ApiResponse<List<ActivityAlternativeResponse>>> getAlternatives(@PathVariable Long activityId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        List<ActivityAlternativeResponse> response = alternativeService.getOrGenerateAlternatives(currentUserId, activityId);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @PutMapping("/api/activities/{activityId}/alternatives/{altId}/select")
+    @Operation(summary = "Select an alternative for an activity, updating its place, title and cost")
+    public ResponseEntity<ApiResponse<ActivityResponse>> selectAlternative(
+            @PathVariable Long activityId,
+            @PathVariable Long altId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        ActivityResponse response = alternativeService.selectAlternative(currentUserId, activityId, altId);
+        return ResponseEntity.ok(ApiResponse.ok("Alternative selected successfully", response));
     }
 }

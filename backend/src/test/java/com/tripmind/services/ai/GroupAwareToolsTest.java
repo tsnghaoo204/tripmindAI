@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class GroupAwareToolsTest {
 
     private final GroupProfile vegetarianFamily =
-            new GroupProfile(1, 0, Set.of(DietaryRestriction.VEGETARIAN), null, null);
+            new GroupProfile(1, 0, Set.of(DietaryRestriction.VEGETARIAN), null, null, null, null, null);
 
     @Test
     @DisplayName("Tìm quán ăn khi nhóm có người ăn chay: thêm 'chay' vào truy vấn; tìm bảo tàng thì giữ nguyên")

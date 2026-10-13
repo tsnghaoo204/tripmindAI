@@ -1,6 +1,7 @@
 package com.tripmind.entities;
 
 import com.tripmind.domains.models.GroupProfile;
+import com.tripmind.domains.models.TravelPlan;
 import com.tripmind.enums.BudgetPreference;
 import com.tripmind.enums.TravelStyle;
 import com.tripmind.enums.TripPhase;
@@ -79,6 +80,11 @@ public class TripEntity {
     @Column(name = "group_profile", nullable = false, columnDefinition = "jsonb")
     @Builder.Default
     private GroupProfile groupProfile = GroupProfile.empty();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "travel_plan", nullable = false, columnDefinition = "jsonb")
+    @Builder.Default
+    private TravelPlan travelPlan = TravelPlan.empty();
 
     /** Giai đoạn do người dùng đặt tay; NULL thì suy từ ngày ({@code TripClock}). */
     @Enumerated(EnumType.STRING)

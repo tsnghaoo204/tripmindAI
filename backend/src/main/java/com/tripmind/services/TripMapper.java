@@ -2,6 +2,7 @@ package com.tripmind.services;
 
 import com.tripmind.configurations.properties.TripProperties;
 import com.tripmind.domains.models.GroupProfile;
+import com.tripmind.domains.models.TravelPlan;
 import com.tripmind.domains.responses.DestinationResponse;
 import com.tripmind.domains.responses.TripResponse;
 import com.tripmind.entities.TripEntity;
@@ -59,6 +60,7 @@ public class TripMapper {
                 .budgetPreference(trip.getBudgetPreference())
                 .preferences(trip.getPreferences())
                 .groupProfile(trip.getGroupProfile() == null ? GroupProfile.empty() : trip.getGroupProfile())
+                .travelPlan(trip.getTravelPlan() == null ? TravelPlan.empty() : trip.getTravelPlan())
                 .phase(tripClock.phase(trip))
                 .phaseSource(trip.getPhaseOverride() == null ? "AUTO" : "MANUAL")
                 .today(tripClock.today(trip))

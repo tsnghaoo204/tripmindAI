@@ -132,6 +132,77 @@ export const aiApi = {
     return request<GenerateJobStatus>(`/api/trips/${tripId}/ai/generate/${jobId}`)
   },
 
+  /** Stream SSE progress of itinerary generation */
+  streamGenerateStatus: (
+    tripId: number,
+    jobId: string,
+    callbacks: {
+      onProgress?: (status: GenerateJobStatus) => void
+      onDone?: (status: GenerateJobStatus) => void
+      onError?: (err: any) => void
+    },
+  ): (() => void) => {
+    const token = localStorage.getItem("access_token")
+    const url = `/api/trips/${tripId}/ai/generate/${jobId}/stream`
+    const controller = new AbortController()
+
+    fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "text/event-stream",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const errJson = await response.json().catch(() => ({}))
+          throw new Error(errJson.message || `Lỗi máy chủ (${response.status})`)
+        }
+        if (!response.body) return
+
+        const reader = response.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ""
+
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const lines = buffer.split("\n\n")
+          buffer = lines.pop() || ""
+
+          for (const chunk of lines) {
+            const eventMatch = chunk.match(/^event:\s*(\w+)/m)
+            const dataMatch = chunk.match(/^data:\s*(.*)/m)
+            if (eventMatch && dataMatch) {
+              const event = eventMatch[1]
+              const dataText = dataMatch[1]
+              try {
+                const parsed = JSON.parse(dataText)
+                if (event === "progress") {
+                  callbacks.onProgress?.(parsed)
+                } else if (event === "done") {
+                  callbacks.onDone?.(parsed)
+                } else if (event === "error") {
+                  callbacks.onError?.(parsed)
+                }
+              } catch {
+                // Ignore parse errors on raw tokens / keep-alives
+              }
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          callbacks.onError?.(err)
+        }
+      })
+
+    return () => controller.abort()
+  },
+
   /** Stream SSE chat */
   streamChat: (
     tripId: number,

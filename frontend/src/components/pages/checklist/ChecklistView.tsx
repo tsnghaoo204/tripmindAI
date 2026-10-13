@@ -119,15 +119,16 @@ export function ChecklistView({ tripId }: ChecklistViewProps) {
     }
 
     try {
-      for (const item of itemsToAdd) {
-        await checklistApi.createItem(tripId, {
+      const created = await checklistApi.createItems(
+        tripId,
+        itemsToAdd.map((item) => ({
           title: item.title,
           kind: item.kind,
           category: item.category,
           dueDate: item.dueDate,
-        })
-      }
-      toast.success(`Đã thêm ${itemsToAdd.length} mục vào checklist!`)
+        })),
+      )
+      toast.success(`Đã thêm ${created.length} mục vào checklist!`)
       setIsSuggestModalOpen(false)
       fetchItems()
     } catch {

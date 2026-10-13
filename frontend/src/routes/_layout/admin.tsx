@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { adminApi, type AiUsageMetrics, type ToolExecutionAudit } from "@/client/api/admin-api"
 import { CreateTripModal } from "@/components/pages/trips/CreateTripModal"
+import { KnowledgeManagementTab } from "@/components/pages/admin/KnowledgeManagementTab"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -13,6 +14,7 @@ import {
   BarChart3,
   Users,
   Compass,
+  BookOpen,
   Clock,
   Wrench,
   AlertTriangle,
@@ -41,7 +43,7 @@ function AdminPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
 
-  const [activeTab, setActiveTab] = useState<"users" | "trips" | "metrics" | "tools">("users")
+  const [activeTab, setActiveTab] = useState<"users" | "trips" | "knowledge" | "metrics" | "tools">("users")
   const [metrics, setMetrics] = useState<AiUsageMetrics | null>(null)
   const [tools, setTools] = useState<ToolExecutionAudit[]>([])
   const [usersList, setUsersList] = useState<any[]>([])
@@ -324,6 +326,16 @@ function AdminPage() {
           }`}
         >
           <Compass className="h-4 w-4" /> Quản Lý Kế Hoạch ({tripsList.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("knowledge")}
+          className={`py-3 px-4 border-b-2 font-semibold flex items-center gap-2 transition-colors cursor-pointer shrink-0 ${
+            activeTab === "knowledge"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <BookOpen className="h-4 w-4" /> Dataset &amp; Tri Thức AI
         </button>
         <button
           onClick={() => setActiveTab("metrics")}
@@ -698,6 +710,9 @@ function AdminPage() {
           )}
         </Card>
       )}
+
+      {/* TAB 5: KNOWLEDGE MANAGEMENT (PHASE 2) */}
+      {activeTab === "knowledge" && <KnowledgeManagementTab />}
 
       {/* MODAL: CREATE USER */}
       {isCreateUserOpen && (

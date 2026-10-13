@@ -56,6 +56,7 @@ public class TripDuplicationService {
                 .budgetPreference(source.getBudgetPreference())
                 .preferences(new ArrayList<>(source.getPreferences()))
                 .groupProfile(source.getGroupProfile())
+                .travelPlan(source.getTravelPlan())
                 .days(new ArrayList<>())
                 .build();
 

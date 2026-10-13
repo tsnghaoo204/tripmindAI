@@ -54,6 +54,14 @@ public class TripPromptParserService {
                     - seniorsCount: số người cao tuổi (> 60 tuổi, mặc định 0)
                     - hasVegetarian: boolean (true nếu có ăn chay)
                     - hasMobilityDifficulty: boolean (true nếu khó đi lại, hạn chế đi bộ xa)
+                    - origin: nơi xuất phát/quê của người dùng (VD: "tôi là người Hà Tĩnh", "từ Hà Nội" -> "Hà Tĩnh", "Hà Nội"; không nhắc thì null)
+                    - transportMode: "BUS" | "TRAIN" | "FLIGHT" | "CAR" | "MOTORBIKE" nếu người dùng nhắc, không thì null
+                    - localTransport: "TAXI" | "MOTORBIKE_RENTAL" | "OWN_VEHICLE" | "WALK" nếu nhắc, không thì null
+                    - lodgingType: "HOMESTAY" | "HOTEL" | "RESORT" nếu nhắc, không thì null
+                    - interests: mảng sở thích ngắn trong số ["thiên nhiên", "check-in", "ẩm thực", "văn hóa tâm linh", "mạo hiểm", "nghỉ dưỡng", "mua sắm"]
+                    - childAges: mảng tuổi trẻ em nếu có nhắc (VD: "bé 5 tuổi" -> [5]), không thì []
+                    - motionSickness: boolean (true nếu có người say xe)
+                    - avoid: điều người dùng không muốn (chuỗi ngắn), không có thì null
 
                     Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ, không bọc markdown ```json và không có văn bản giải thích.
                     """;
@@ -71,8 +79,8 @@ public class TripPromptParserService {
 
                     String destination = node.has("destination") ? node.get("destination").asText() : "";
                     String country = node.has("country") ? node.get("country").asText() : "Việt Nam";
-                    Double lat = node.has("latitude") && !node.get("latitude").isNull() ? node.get("latitude").asDouble() : 16.0544;
-                    Double lng = node.has("longitude") && !node.get("longitude").isNull() ? node.get("longitude").asDouble() : 108.2022;
+                    Double lat = node.has("latitude") && !node.get("latitude").isNull() ? node.get("latitude").asDouble() : null;
+                    Double lng = node.has("longitude") && !node.get("longitude").isNull() ? node.get("longitude").asDouble() : null;
                     String timezone = node.has("timezone") ? node.get("timezone").asText() : "Asia/Ho_Chi_Minh";
 
                     int days = node.has("days") && node.get("days").asInt() > 0 ? node.get("days").asInt() : 3;
@@ -105,6 +113,16 @@ public class TripPromptParserService {
                     result.put("seniorsCount", seniorsCount);
                     result.put("hasVegetarian", hasVegetarian);
                     result.put("hasMobilityDifficulty", hasMobilityDifficulty);
+                    result.put("origin", text(node, "origin"));
+                    result.put("transportMode", text(node, "transportMode"));
+                    result.put("localTransport", text(node, "localTransport"));
+                    result.put("lodgingType", text(node, "lodgingType"));
+                    result.put("interests", node.has("interests") && node.get("interests").isArray()
+                            ? objectMapper.convertValue(node.get("interests"), List.class) : List.of());
+                    result.put("childAges", node.has("childAges") && node.get("childAges").isArray()
+                            ? objectMapper.convertValue(node.get("childAges"), List.class) : List.of());
+                    result.put("motionSickness", node.has("motionSickness") && node.get("motionSickness").asBoolean());
+                    result.put("avoid", text(node, "avoid"));
 
                     // Tra cứu động trong CSDL (không gán cứng)
                     if (!destination.isBlank()) {
@@ -127,6 +145,11 @@ public class TripPromptParserService {
 
         // 2. Dự phòng động không fix cứng bất kỳ thành phố nào
         return dynamicFallbackParse(userPrompt);
+    }
+
+    private static String text(JsonNode node, String field) {
+        JsonNode v = node.get(field);
+        return v == null || v.isNull() || v.asText().isBlank() || "null".equals(v.asText()) ? null : v.asText().trim();
     }
 
     private Map<String, Object> dynamicFallbackParse(String prompt) {

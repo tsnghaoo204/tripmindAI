@@ -21,11 +21,13 @@ import {
   CheckCircle,
   Clock,
   RotateCw,
+  ThumbsUp,
 } from "lucide-react"
 import { DayTimeline } from "@/components/pages/itinerary/DayTimeline"
 import { BudgetView } from "@/components/pages/budget/BudgetView"
 import { ChecklistView } from "@/components/pages/checklist/ChecklistView"
 import { AiChatDrawer } from "@/components/pages/ai/AiChatDrawer"
+import { PlaceReviewModal } from "@/components/pages/itinerary/PlaceReviewModal"
 import { formatDateRange, formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -46,6 +48,7 @@ function TripDetailPage() {
 
   // AI Drawer State
   const [isAiOpen, setIsAiOpen] = useState(false)
+  const [isReviewOpen, setIsReviewOpen] = useState(false)
 
   // AI Generation State
   const [isGenerating, setIsGenerating] = useState(false)
@@ -74,12 +77,30 @@ function TripDetailPage() {
   }, [tripId])
 
   const handleDuplicateTrip = async () => {
+    const inputDate = prompt(
+      "Nhập ngày bắt đầu cho chuyến mới (YYYY-MM-DD):",
+      "2026-11-01",
+    )
+    if (!inputDate) return
     try {
-      const res: any = await tripApi.createTrip({ ...trip, title: `${trip?.title} (Bản sao)` })
-      toast.success("Đã nhân bản chuyến đi!")
+      const res: any = await tripApi.duplicateTrip(tripId, {
+        name: `${trip?.title} (Bản sao)`,
+        startDate: inputDate,
+      })
+      toast.success(`Đã nhân bản chuyến đi! Sao chép ${res.activitiesCopied || 0} hoạt động.`)
       navigate({ to: "/" })
-    } catch {
-      toast.error("Không thể nhân bản chuyến đi")
+    } catch (err: any) {
+      toast.error(err.message || "Không thể nhân bản chuyến đi")
+    }
+  }
+
+  const handleUpdatePhase = async (phase: "BEFORE" | "DURING" | "AFTER" | null) => {
+    try {
+      await tripApi.updateTripPhase(tripId, phase)
+      toast.success(`Đã cập nhật giai đoạn chuyến đi: ${phase || "Tự động"}`)
+      loadData()
+    } catch (err: any) {
+      toast.error(err.message || "Không thể cập nhật giai đoạn")
     }
   }
 
@@ -102,26 +123,35 @@ function TripDetailPage() {
       setGenerateJob(job)
       toast.info("Đã bắt đầu tác vụ sinh lịch trình...")
 
-      // Polling loop
-      const interval = setInterval(async () => {
-        try {
-          const status = await aiApi.getGenerateStatus(tripId, job.jobId)
+      // Stream progress via SSE instead of polling
+      aiApi.streamGenerateStatus(tripId, job.jobId, {
+        onProgress: (status) => {
           setGenerateJob(status)
-          if (status.state === "DONE") {
-            clearInterval(interval)
-            setIsGenerating(false)
-            toast.success("Sinh lịch trình thành công!")
-            loadData()
-          } else if (status.state === "FAILED") {
-            clearInterval(interval)
-            setIsGenerating(false)
-            toast.error(status.error || "Không thể sinh lịch trình")
-          }
-        } catch {
-          clearInterval(interval)
+        },
+        onDone: (status) => {
+          setGenerateJob(status)
           setIsGenerating(false)
-        }
-      }, 2000)
+          toast.success("Sinh lịch trình thành công!")
+          loadData()
+        },
+        onError: async (err) => {
+          // Fallback: Kiểm tra lại 1 lần qua GET status phòng khi đứt kết nối mạng giữa chừng
+          try {
+            const fallback = await aiApi.getGenerateStatus(tripId, job.jobId)
+            setGenerateJob(fallback)
+            if (fallback.state === "DONE") {
+              setIsGenerating(false)
+              toast.success("Sinh lịch trình thành công!")
+              loadData()
+              return
+            }
+          } catch {
+            // bỏ qua lỗi fallback
+          }
+          setIsGenerating(false)
+          toast.error(err?.error || err?.message || "Không thể sinh lịch trình")
+        },
+      })
     } catch (err: any) {
       setIsGenerating(false)
       toast.error(err.message || "Lỗi khi kích hoạt AI sinh lịch trình")
@@ -146,9 +176,22 @@ function TripDetailPage() {
               <Badge className="bg-white/20 text-white backdrop-blur-md border-none">
                 {trip.destination.name}, {trip.destination.country}
               </Badge>
-              <Badge className="bg-black/30 text-white backdrop-blur-md border-none">
-                {trip.phase === "BEFORE" ? "Chưa đi" : trip.phase === "DURING" ? "Đang đi" : "Đã xong"}
-              </Badge>
+              {/* Phase Switcher */}
+              <div className="flex items-center gap-1 bg-black/30 p-1 rounded-xl backdrop-blur-md">
+                {(["BEFORE", "DURING", "AFTER"] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => handleUpdatePhase(p)}
+                    className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                      trip.phase === p
+                        ? "bg-white text-slate-900 shadow-sm"
+                        : "text-white/80 hover:bg-white/10"
+                    }`}
+                  >
+                    {p === "BEFORE" ? "Chưa đi" : p === "DURING" ? "Đang đi" : "Đã xong"}
+                  </button>
+                ))}
+              </div>
               {trip.travelStyle && (
                 <Badge className="bg-white/10 text-white backdrop-blur-md border-none">
                   Phong cách: {trip.travelStyle}
@@ -186,6 +229,16 @@ function TripDetailPage() {
               >
                 <Sparkles className="h-4 w-4" />
                 {isGenerating ? "AI đang lên lịch..." : "Sinh lịch trình tự động"}
+              </Button>
+            )}
+
+            {trip.phase === "AFTER" && (
+              <Button
+                size="sm"
+                onClick={() => setIsReviewOpen(true)}
+                className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-semibold gap-1.5 shadow"
+              >
+                <ThumbsUp className="h-3.5 w-3.5" /> Đánh giá địa điểm
               </Button>
             )}
 
@@ -298,6 +351,13 @@ function TripDetailPage() {
         isOpen={isAiOpen}
         onClose={() => setIsAiOpen(false)}
         onProposalApplied={loadData}
+      />
+
+      {/* Place Review Modal */}
+      <PlaceReviewModal
+        tripId={tripId}
+        isOpen={isReviewOpen}
+        onClose={() => setIsReviewOpen(false)}
       />
     </div>
   )

@@ -2,6 +2,7 @@ package com.tripmind.domains.responses;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.tripmind.domains.models.GroupProfile;
+import com.tripmind.domains.models.TravelPlan;
 import com.tripmind.enums.BudgetPreference;
 import com.tripmind.enums.TravelStyle;
 import com.tripmind.enums.TripPhase;
@@ -38,6 +39,7 @@ public class TripResponse {
     private BudgetPreference budgetPreference;
     private List<String> preferences;
     private GroupProfile groupProfile;
+    private TravelPlan travelPlan;
 
     /** Giai đoạn hiệu lực: BEFORE · DURING · AFTER. */
     private TripPhase phase;

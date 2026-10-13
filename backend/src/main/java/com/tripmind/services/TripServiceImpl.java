@@ -2,6 +2,7 @@ package com.tripmind.services;
 
 import com.tripmind.configurations.properties.TripProperties;
 import com.tripmind.domains.models.GroupProfile;
+import com.tripmind.domains.models.TravelPlan;
 import com.tripmind.domains.requests.CreateTripRequest;
 import com.tripmind.domains.requests.UpdateTripRequest;
 import com.tripmind.domains.responses.TripResponse;
@@ -83,6 +84,7 @@ public class TripServiceImpl implements TripService {
                         : defaults == null ? null : defaults.getBudgetPreference())
                 .preferences(preferences)
                 .groupProfile(group)
+                .travelPlan(request.getTravelPlan() == null ? TravelPlan.empty() : request.getTravelPlan())
                 .days(new ArrayList<>())
                 .build();
 
@@ -161,6 +163,9 @@ public class TripServiceImpl implements TripService {
         }
         if (request.getGroupProfile() != null) {
             trip.setGroupProfile(request.getGroupProfile());
+        }
+        if (request.getTravelPlan() != null) {
+            trip.setTravelPlan(request.getTravelPlan());
         }
         validateGroup(trip.getGroupProfile(), trip.getTravelers());
 

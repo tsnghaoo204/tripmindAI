@@ -130,11 +130,7 @@ public class ChecklistSuggester {
     }
 
     private String sourceLabel(WeatherSource source) {
-        return switch (source) {
-            case FORECAST -> "dự báo";
-            case CLIMATE_NORMAL -> "theo trung bình khí hậu";
-            case OBSERVED -> "đã ghi nhận";
-        };
+        return source == null ? "" : source.getLabel();
     }
 
     private String label(ActivityEntity a) {

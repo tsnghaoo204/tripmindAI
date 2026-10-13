@@ -1,6 +1,7 @@
 package com.tripmind.services.ai;
 
 import com.tripmind.domains.models.GroupProfile;
+import com.tripmind.domains.models.TravelPlan;
 import com.tripmind.entities.TripEntity;
 import com.tripmind.enums.DietaryRestriction;
 import com.tripmind.enums.TripPhase;
@@ -29,6 +30,13 @@ public class SystemPromptBuilder {
             TripPhase.BEFORE, "chuyến đi chưa bắt đầu",
             TripPhase.DURING, "đang trong chuyến đi",
             TripPhase.AFTER, "chuyến đi đã kết thúc");
+    private static final Map<String, String> TRANSPORT = Map.of(
+            "AUTO", "chưa chọn, hãy đề xuất phương tiện hợp lý nhất", "BUS", "xe khách", "TRAIN", "tàu hỏa",
+            "FLIGHT", "máy bay", "CAR", "ô tô riêng", "MOTORBIKE", "xe máy");
+    private static final Map<String, String> LOCAL = Map.of(
+            "TAXI", "taxi/Grab", "MOTORBIKE_RENTAL", "thuê xe máy", "OWN_VEHICLE", "xe riêng", "WALK", "đi bộ");
+    private static final Map<String, String> LODGING = Map.of(
+            "HOMESTAY", "homestay", "HOTEL", "khách sạn", "RESORT", "resort", "BOOKED", "đã đặt sẵn");
     private static final Map<DietaryRestriction, String> DIETS = Map.of(
             DietaryRestriction.VEGETARIAN, "ăn chay",
             DietaryRestriction.VEGAN, "ăn thuần chay",
@@ -73,6 +81,34 @@ public class SystemPromptBuilder {
         if (trip.getPreferences() != null && !trip.getPreferences().isEmpty()) {
             parts.add("- Sở thích: " + String.join(", ", trip.getPreferences()));
         }
+        TravelPlan plan = trip.getTravelPlan();
+        if (plan != null) {
+            if (plan.hasOrigin()) {
+                parts.add("- Xuất phát từ: " + plan.origin().strip());
+            }
+            if (plan.transportMode() != null) {
+                parts.add("- Phương tiện đến/về: " + TRANSPORT.get(plan.transportMode()));
+            }
+            if (plan.arrivalTime() != null) {
+                parts.add("- Giờ có mặt tại điểm đến ngày đầu: " + plan.arrivalTime());
+            }
+            if (plan.departureTime() != null) {
+                parts.add("- Giờ rời điểm đến ngày cuối: " + plan.departureTime());
+            }
+            if (plan.localTransport() != null) {
+                parts.add("- Di chuyển tại chỗ: " + LOCAL.get(plan.localTransport()));
+            }
+            if (plan.lodgingType() != null || plan.lodgingName() != null) {
+                parts.add("- Nơi ở: " + (plan.lodgingType() == null ? "" : LODGING.get(plan.lodgingType()))
+                        + (plan.lodgingName() == null || plan.lodgingName().isBlank() ? "" : " " + plan.lodgingName().strip()));
+            }
+            if (plan.budgetIncludesTransport() != null) {
+                parts.add("- Ngân sách " + (plan.budgetIncludesTransport() ? "đã gồm" : "không gồm") + " vé đi/về");
+            }
+            if (plan.avoid() != null && !plan.avoid().isBlank()) {
+                parts.add("- Không muốn: " + plan.avoid().strip());
+            }
+        }
         return String.join("\n", parts);
     }
 
@@ -90,8 +126,17 @@ public class SystemPromptBuilder {
         if (group.seniorsCount() > 0) {
             parts.add(group.seniorsCount() + " người lớn tuổi");
         }
+        if (group.childAges() != null && !group.childAges().isEmpty()) {
+            parts.add("tuổi trẻ: " + group.childAges().stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(", ")));
+        }
         if (Boolean.TRUE.equals(group.limitedMobility())) {
             parts.add("có người đi lại khó khăn");
+        }
+        if (Boolean.TRUE.equals(group.motionSickness())) {
+            parts.add("có người say xe (tránh đường đèo dài)");
+        }
+        if (group.allergies() != null && !group.allergies().isBlank()) {
+            parts.add("dị ứng/kiêng: " + group.allergies().strip());
         }
         group.dietaryOrEmpty().forEach(d -> parts.add(DIETS.get(d)));
         String sentence = String.join(", ", parts) + ".";

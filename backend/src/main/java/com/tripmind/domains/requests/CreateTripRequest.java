@@ -1,6 +1,7 @@
 package com.tripmind.domains.requests;
 
 import com.tripmind.domains.models.GroupProfile;
+import com.tripmind.domains.models.TravelPlan;
 import com.tripmind.enums.BudgetPreference;
 import com.tripmind.enums.TravelStyle;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -76,6 +77,9 @@ public class CreateTripRequest {
 
     @Valid
     private GroupProfile groupProfile;
+
+    @Valid
+    private TravelPlan travelPlan;
 
     /**
      * Đúng một trong ba đường xác định điểm đến là đủ; không có đường nào thì chuyến đi

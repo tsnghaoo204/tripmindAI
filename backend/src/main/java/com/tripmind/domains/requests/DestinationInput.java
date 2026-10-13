@@ -1,7 +1,6 @@
 package com.tripmind.domains.requests;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,10 +34,9 @@ public class DestinationInput {
     @NotBlank(message = "Destination country is required")
     private String country;
 
-    @NotNull(message = "Destination latitude is required")
+    /** Bỏ trống thì tự tra theo tên. */
     private BigDecimal latitude;
 
-    @NotNull(message = "Destination longitude is required")
     private BigDecimal longitude;
 
     private String timezone;

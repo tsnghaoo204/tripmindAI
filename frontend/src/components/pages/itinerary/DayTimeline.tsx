@@ -45,9 +45,42 @@ export function DayTimeline({
   const [selectedDayNumber, setSelectedDayNumber] = useState(1)
   const [explainingActivityId, setExplainingActivityId] = useState<number | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [loadingAlts, setLoadingAlts] = useState<Record<number, boolean>>({})
+  const [selectingAltId, setSelectingAltId] = useState<number | null>(null)
 
   const activeDay = days.find((d) => d.dayNumber === selectedDayNumber) || days[0]
   const dayWeather = weather?.days?.find((w) => w.dayNumber === selectedDayNumber)
+
+  const totalEstimatedCost = days.reduce(
+    (sum, d) => sum + d.activities.reduce((s, a) => s + (a.estimatedCost || 0), 0),
+    0
+  )
+
+  const handleLoadAlternatives = async (activityId: number) => {
+    try {
+      setLoadingAlts((prev) => ({ ...prev, [activityId]: true }))
+      await itineraryApi.getAlternatives(activityId)
+      toast.success("Đã tìm 3 phương án lựa chọn theo ngân sách!")
+      onRefresh()
+    } catch (err: any) {
+      toast.error(err?.message || "Không thể tải phương án lựa chọn")
+    } finally {
+      setLoadingAlts((prev) => ({ ...prev, [activityId]: false }))
+    }
+  }
+
+  const handleSelectAlternative = async (activityId: number, altId: number) => {
+    try {
+      setSelectingAltId(altId)
+      const updated = await itineraryApi.selectAlternative(activityId, altId)
+      toast.success(`Đã đổi sang: ${updated.title}`)
+      onRefresh()
+    } catch (err: any) {
+      toast.error(err?.message || "Không thể chuyển phương án")
+    } finally {
+      setSelectingAltId(null)
+    }
+  }
 
   const handleExportIcs = () => {
     window.open(`/api/trips/${tripId}/export.ics`, "_blank")
@@ -213,6 +246,32 @@ export function DayTimeline({
         </div>
       </div>
 
+      {/* Budget & Alternatives Banner */}
+      <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-violet-500/10 border border-blue-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-blue-500/20 text-blue-600 dark:text-blue-400 shrink-0">
+            <Utensils className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="font-semibold text-foreground flex items-center gap-2">
+              <span>Đa phương án & Cân đối ngân sách</span>
+              <Badge variant="secondary" className="text-[10px] bg-blue-500/20 text-blue-600 dark:text-blue-400 border-none font-bold">
+                Mới
+              </Badge>
+            </div>
+            <p className="text-muted-foreground mt-0.5">
+              Các slot Ăn uống & Lưu trú có sẵn 3 lựa chọn (Tiết kiệm, Tiêu chuẩn, Cao cấp). Bấm chọn trực tiếp để tự động cập nhật ngân sách.
+            </p>
+          </div>
+        </div>
+        <div className="shrink-0 flex items-center gap-2 bg-background/80 px-3 py-1.5 rounded-xl border border-border/60">
+          <span className="text-muted-foreground font-medium">Ước tính lịch trình:</span>
+          <span className="font-extrabold text-blue-600 dark:text-blue-400">
+            {formatCurrency(totalEstimatedCost)}
+          </span>
+        </div>
+      </div>
+
       {/* Day Weather Banner */}
       {dayWeather && (
         <div className="p-3.5 rounded-xl bg-gradient-to-r from-sky-500/10 via-blue-500/10 to-indigo-500/10 border border-sky-500/20 flex items-center justify-between text-xs">
@@ -266,101 +325,183 @@ export function DayTimeline({
               </div>
 
               <Card className="hover:border-primary/40 transition-all hover:shadow-sm">
-                <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-muted/80 text-foreground shrink-0 mt-0.5">
-                      {getActivityIcon(activity.activityType)}
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-sm text-foreground">{activity.title}</span>
-                        {(activity.place?.name || activity.placeName) && (
-                          <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 flex items-center gap-1 font-semibold">
-                            <MapPin className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                            {activity.place?.name || activity.placeName}
-                          </Badge>
-                        )}
-                        {activity.place && (() => {
-                          const tag = getPlaceTagBadge(activity.place)
-                          if (!tag) return null
-                          return (
-                            <Badge variant="outline" className={`text-[11px] h-5 px-1.5 flex items-center gap-1 font-medium ${tag.color}`}>
-                              <span>{tag.icon}</span>
-                              <span>{tag.label}</span>
+                <CardContent className="p-4 flex flex-col gap-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 rounded-xl bg-muted/80 text-foreground shrink-0 mt-0.5">
+                        {getActivityIcon(activity.activityType)}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-sm text-foreground">{activity.title}</span>
+                          {(activity.place?.name || activity.placeName) && (
+                            <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 flex items-center gap-1 font-semibold">
+                              <MapPin className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+                              {activity.place?.name || activity.placeName}
                             </Badge>
-                          )
-                        })()}
-                        {activity.fromProposalId && (
-                          <Badge variant="outline" className="text-[10px] text-primary border-primary/30 bg-primary/5 flex items-center gap-1">
-                            <Sparkles className="h-2.5 w-2.5" /> AI Đề xuất
-                          </Badge>
+                          )}
+                          {activity.place && (() => {
+                            const tag = getPlaceTagBadge(activity.place)
+                            if (!tag) return null
+                            return (
+                              <Badge variant="outline" className={`text-[11px] h-5 px-1.5 flex items-center gap-1 font-medium ${tag.color}`}>
+                                <span>{tag.icon}</span>
+                                <span>{tag.label}</span>
+                              </Badge>
+                            )
+                          })()}
+                          {activity.fromProposalId && (
+                            <Badge variant="outline" className="text-[10px] text-primary border-primary/30 bg-primary/5 flex items-center gap-1">
+                              <Sparkles className="h-2.5 w-2.5" /> AI Đề xuất
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                          {(activity.startTime || activity.endTime) && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              <span>
+                                {activity.startTime || "--"} - {activity.endTime || "--"}
+                              </span>
+                            </div>
+                          )}
+                          {(activity.place?.formattedAddress || activity.place?.address) && (
+                            <div className="flex items-center gap-1 text-muted-foreground text-[11px]">
+                              <span>📍 {activity.place?.formattedAddress || activity.place?.address}</span>
+                            </div>
+                          )}
+                          {activity.place?.rating && (
+                            <div className="flex items-center gap-1 text-amber-500 font-semibold text-[11px]">
+                              <span>★ {activity.place.rating}</span>
+                              {activity.place.userRatingsTotal && (
+                                <span className="text-muted-foreground font-normal">({activity.place.userRatingsTotal})</span>
+                              )}
+                            </div>
+                          )}
+                          {activity.estimatedCost != null && (
+                            <Badge variant="secondary" className="text-[10px] font-medium flex items-center gap-1">
+                              <span>{activity.estimatedCost === 0 ? "Miễn phí" : formatCurrency(activity.estimatedCost)}</span>
+                              {activity.estimatedCost > 0 && (activity.estimatedCostSource === "AI" || activity.costSource === "AI") && (
+                                <span className="text-[9px] text-primary/80 font-normal" title="Ước tính AI theo giá thị trường địa phương">(Dự toán AI)</span>
+                              )}
+                              {activity.estimatedCost > 0 && (activity.estimatedCostSource === "PRICE_LEVEL" || activity.costSource === "PRICE_LEVEL") && (
+                                <span className="text-[9px] text-muted-foreground font-normal" title="Ước tính từ Google Places">(Google)</span>
+                              )}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {activity.notes && (
+                          <p className="text-[11px] text-muted-foreground italic mt-1">{activity.notes}</p>
                         )}
                       </div>
-
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                        {(activity.startTime || activity.endTime) && (
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            <span>
-                              {activity.startTime || "--"} - {activity.endTime || "--"}
-                            </span>
-                          </div>
-                        )}
-                        {(activity.place?.formattedAddress || activity.place?.address) && (
-                          <div className="flex items-center gap-1 text-muted-foreground text-[11px]">
-                            <span>📍 {activity.place?.formattedAddress || activity.place?.address}</span>
-                          </div>
-                        )}
-                        {activity.place?.rating && (
-                          <div className="flex items-center gap-1 text-amber-500 font-semibold text-[11px]">
-                            <span>★ {activity.place.rating}</span>
-                            {activity.place.userRatingsTotal && (
-                              <span className="text-muted-foreground font-normal">({activity.place.userRatingsTotal})</span>
-                            )}
-                          </div>
-                        )}
-                        {activity.estimatedCost != null && (
-                          <Badge variant="secondary" className="text-[10px] font-medium flex items-center gap-1">
-                            <span>{activity.estimatedCost === 0 ? "Miễn phí" : formatCurrency(activity.estimatedCost)}</span>
-                            {activity.estimatedCost > 0 && (activity.estimatedCostSource === "AI" || activity.costSource === "AI") && (
-                              <span className="text-[9px] text-primary/80 font-normal" title="Ước tính AI theo giá thị trường địa phương">(Dự toán AI)</span>
-                            )}
-                            {activity.estimatedCost > 0 && (activity.estimatedCostSource === "PRICE_LEVEL" || activity.costSource === "PRICE_LEVEL") && (
-                              <span className="text-[9px] text-muted-foreground font-normal" title="Ước tính từ Google Places">(Google)</span>
-                            )}
-                          </Badge>
-                        )}
-                      </div>
-
-                      {activity.notes && (
-                        <p className="text-[11px] text-muted-foreground italic mt-1">{activity.notes}</p>
-                      )}
                     </div>
-                  </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-                    {activity.fromProposalId && (
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                      {activity.fromProposalId && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => setExplainingActivityId(activity.id)}
+                          className="h-8 w-8 text-primary hover:bg-primary/10"
+                          title="Xem giải trình vì sao AI chọn điểm này"
+                        >
+                          <HelpCircle className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         size="icon"
                         variant="ghost"
-                        onClick={() => setExplainingActivityId(activity.id)}
-                        className="h-8 w-8 text-primary hover:bg-primary/10"
-                        title="Xem giải trình vì sao AI chọn điểm này"
+                        onClick={() => handleDeleteActivity(activity.id)}
+                        className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                        title="Xoá hoạt động"
                       >
-                        <HelpCircle className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                    )}
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => handleDeleteActivity(activity.id)}
-                      className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                      title="Xoá hoạt động"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    </div>
                   </div>
+
+                  {/* 3 Lựa chọn ngân sách (Alternatives) cho Ăn uống & Lưu trú */}
+                  {(activity.activityType === "FOOD" ||
+                    activity.activityType === "ACCOMMODATION" ||
+                    (activity.alternatives && activity.alternatives.length > 0)) && (
+                    <div className="mt-2 pt-2.5 border-t border-border/60 w-full">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                          <Sparkles className="h-3 w-3 text-amber-500" />
+                          <span>
+                            Lựa chọn theo ngân sách ({activity.activityType === "FOOD" ? "Ăn uống" : "Lưu trú"}):
+                          </span>
+                        </div>
+                        {(!activity.alternatives || activity.alternatives.length === 0) && (
+                          <button
+                            onClick={() => handleLoadAlternatives(activity.id)}
+                            disabled={loadingAlts[activity.id]}
+                            className="text-[11px] text-primary hover:underline font-semibold cursor-pointer flex items-center gap-1"
+                          >
+                            <span>💡 {loadingAlts[activity.id] ? "Đang tìm 3 lựa chọn..." : "Gợi ý 3 lựa chọn"}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {activity.alternatives && activity.alternatives.length > 0 && (
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          {activity.alternatives.map((alt) => {
+                            const isSelected = alt.isSelected ?? (alt as any).selected
+                            return (
+                              <button
+                                key={alt.id}
+                                onClick={() => handleSelectAlternative(activity.id, alt.id)}
+                                disabled={selectingAltId === alt.id}
+                                className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer relative flex flex-col justify-between ${
+                                  isSelected
+                                    ? "bg-primary/10 border-primary shadow-sm ring-1 ring-primary/40"
+                                    : "bg-muted/30 hover:bg-muted/70 border-border/80 hover:border-border"
+                                }`}
+                              >
+                                <div>
+                                  <div className="flex items-center justify-between gap-1 mb-1">
+                                    <span
+                                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                                        alt.tier === "BUDGET"
+                                          ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                          : alt.tier === "PREMIUM"
+                                          ? "bg-purple-500/15 text-purple-600 dark:text-purple-400"
+                                          : "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                                      }`}
+                                    >
+                                      {alt.tierLabel || alt.tier}
+                                    </span>
+                                    {isSelected && (
+                                      <span className="text-[10px] font-bold text-primary flex items-center gap-0.5">
+                                        ✓ Đang chọn
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-xs font-semibold text-foreground line-clamp-1">
+                                    {alt.placeName || alt.title}
+                                  </p>
+                                </div>
+
+                                <div className="mt-2 flex items-center justify-between text-[11px]">
+                                  <span className="font-bold text-foreground">
+                                    {alt.estimatedCost ? formatCurrency(alt.estimatedCost) : "Miễn phí"}
+                                  </span>
+                                  {alt.rating && (
+                                    <span className="text-amber-500 font-medium text-[10px]">
+                                      ★ {alt.rating}
+                                    </span>
+                                  )}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

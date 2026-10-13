@@ -12,25 +12,24 @@ import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Component;
 
-/**
- * Gemini qua lớp tương thích OpenAI (Spring AI). Dựng {@link OpenAiChatModel} bằng tay thay
- * vì dùng starter: không có khoá thì ứng dụng vẫn khởi động, chỉ trợ lý báo chưa cấu hình.
- */
+import java.util.List;
+
+/** Gọi LLM qua 9router, thử lần lượt các model trong {@code LLM_MODEL}. */
 @Slf4j
 @Component
 public class OpenAiLlmGateway implements LlmGateway {
 
-    private final OpenAiChatModel chatModel;
-    private final OpenAiChatModel fallbackChatModel;
+    private final List<NamedModel> chatModels;
+
+    private record NamedModel(String name, OpenAiChatModel model) {
+    }
 
     public OpenAiLlmGateway(AiProperties properties) {
         if (!properties.isConfigured()) {
-            log.warn("GEMINI_API_KEY chua dat: tro ly AI se tra 503 AI_NOT_CONFIGURED");
-            this.chatModel = null;
-            this.fallbackChatModel = null;
+            log.warn("LLM_API_KEY hoac LLM_MODEL chua dat: tro ly AI se tra 503 AI_NOT_CONFIGURED");
+            this.chatModels = List.of();
             return;
         }
-        io.netty.channel.ChannelOption.class.getName(); // verify class availability
         reactor.netty.http.client.HttpClient httpClient = reactor.netty.http.client.HttpClient.create()
                 .responseTimeout(java.time.Duration.ofSeconds(60))
                 .option(io.netty.channel.ChannelOption.CONNECT_TIMEOUT_MILLIS, 15000)
@@ -56,59 +55,46 @@ public class OpenAiLlmGateway implements LlmGateway {
                 .restClientBuilder(restClientBuilder)
                 .webClientBuilder(webClientBuilder)
                 .build();
-        this.chatModel = OpenAiChatModel.builder()
-                .openAiApi(api)
-                .defaultOptions(OpenAiChatOptions.builder()
-                        .model(properties.model())
-                        .temperature(properties.temperature())
-                        .build())
-                .retryTemplate(RetryTemplate.builder()
-                        .maxAttempts(3)
-                        .exponentialBackoff(1000, 2.0, 4000)
-                        .build())
-                .build();
+        this.chatModels = properties.models().stream()
+                .map(String::trim)
+                .filter(name -> !name.isEmpty())
+                .distinct()
+                .map(name -> new NamedModel(name, OpenAiChatModel.builder()
+                        .openAiApi(api)
+                        .defaultOptions(OpenAiChatOptions.builder()
+                                .model(name)
+                                .temperature(properties.temperature())
+                                .build())
+                        .retryTemplate(RetryTemplate.builder()
+                                .maxAttempts(2)
+                                .fixedBackoff(1000)
+                                .build())
+                        .build()))
+                .toList();
 
-        String fallbackModel = "gemini-3.5-flash-lite".equalsIgnoreCase(properties.model())
-                ? "gemini-3.1-flash-lite"
-                : "gemini-3.5-flash-lite";
-
-        this.fallbackChatModel = OpenAiChatModel.builder()
-                .openAiApi(api)
-                .defaultOptions(OpenAiChatOptions.builder()
-                        .model(fallbackModel)
-                        .temperature(properties.temperature())
-                        .build())
-                .retryTemplate(RetryTemplate.builder()
-                        .maxAttempts(2)
-                        .fixedBackoff(1000)
-                        .build())
-                .build();
-
-        log.info("Tro ly AI dung mo hinh chinh [{}] va du phong [{}] tai {}", properties.model(), fallbackModel, properties.baseUrl());
+        log.info("Tro ly AI dung cac mo hinh {} tai {}",
+                chatModels.stream().map(NamedModel::name).toList(), properties.baseUrl());
     }
 
     @Override
     public boolean isConfigured() {
-        return chatModel != null;
+        return !chatModels.isEmpty();
     }
 
     @Override
     public ChatResponse call(Prompt prompt) {
-        if (chatModel == null) {
+        if (chatModels.isEmpty()) {
             throw new AppException(ErrorCode.AI_NOT_CONFIGURED);
         }
-        try {
-            return chatModel.call(prompt);
-        } catch (RuntimeException e) {
-            log.warn("Mo hinh chinh loi ({}). Tu dong chuyen sang mo hinh du phong...", e.getMessage());
-            if (fallbackChatModel != null) {
-                try {
-                    return fallbackChatModel.call(prompt);
-                } catch (RuntimeException fe) {
-                    log.error("Mo hinh du phong cung loi: {}", fe.getMessage());
-                }
+        RuntimeException lastError = null;
+        for (NamedModel candidate : chatModels) {
+            try {
+                return candidate.model().call(prompt);
+            } catch (RuntimeException e) {
+                lastError = e;
+                log.warn("Mo hinh [{}] loi ({}), chuyen sang mo hinh tiep theo", candidate.name(), e.getMessage());
             }
-            throw new AppException(ErrorCode.AI_PROVIDER_ERROR, "AI model provider failed: " + e.getMessage());
         }
+        throw new AppException(ErrorCode.AI_PROVIDER_ERROR, "All AI models failed: " + lastError.getMessage());
     }
 }

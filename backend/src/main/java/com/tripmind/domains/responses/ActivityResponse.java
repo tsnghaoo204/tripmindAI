@@ -47,4 +47,6 @@ public class ActivityResponse {
     private String formattedTravelTimeToNext;
 
     private String idealTimingTip;
+
+    private java.util.List<ActivityAlternativeResponse> alternatives;
 }

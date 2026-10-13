@@ -25,7 +25,15 @@ export const checklistApi = {
   },
 
   createItem: async (tripId: number, data: CreateChecklistItemInput): Promise<ChecklistItem> => {
-    return request<ChecklistItem>(`/api/trips/${tripId}/checklist`, {
+    const res = await request<ChecklistItem[]>(`/api/trips/${tripId}/checklist`, {
+      method: "POST",
+      data: [data],
+    })
+    return res[0]
+  },
+
+  createItems: async (tripId: number, data: CreateChecklistItemInput[]): Promise<ChecklistItem[]> => {
+    return request<ChecklistItem[]>(`/api/trips/${tripId}/checklist`, {
       method: "POST",
       data,
     })

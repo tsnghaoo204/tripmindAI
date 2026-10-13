@@ -44,6 +44,8 @@ public class ItineraryServiceImpl implements ItineraryService {
     private final DistanceService distanceService;
     private final PlaceAdoptionService placeAdoptionService;
     private final CostEstimator costEstimator;
+    private final com.tripmind.repositories.ActivityAlternativeRepository alternativeRepository;
+    private final ActivityAlternativeService alternativeService;
 
     @Override
     @Transactional(readOnly = true)
@@ -309,6 +311,12 @@ public class ItineraryServiceImpl implements ItineraryService {
         long dayDistance = 0L;
         int dayTravelMinutes = 0;
 
+        List<Long> actIds = activities.stream().map(ActivityEntity::getId).toList();
+        Map<Long, List<com.tripmind.domains.responses.ActivityAlternativeResponse>> altMap = actIds.isEmpty() ? Map.of()
+                : alternativeRepository.findByActivityIdsWithPlace(actIds).stream()
+                .collect(java.util.stream.Collectors.groupingBy(a -> a.getActivity().getId(),
+                        java.util.stream.Collectors.mapping(alternativeService::toResponse, java.util.stream.Collectors.toList())));
+
         for (int i = 0; i < activities.size(); i++) {
             ActivityEntity current = activities.get(i);
             DistanceService.TravelEstimate estimate = null;
@@ -324,7 +332,7 @@ public class ItineraryServiceImpl implements ItineraryService {
                 }
             }
 
-            ActivityResponse response = toActivityResponse(current, estimate);
+            ActivityResponse response = toActivityResponse(current, estimate, altMap.getOrDefault(current.getId(), List.of()));
             actResponses.add(response);
 
             if (estimate != null && estimate.getDistanceMeters() != null) {
@@ -348,6 +356,15 @@ public class ItineraryServiceImpl implements ItineraryService {
     }
 
     private ActivityResponse toActivityResponse(ActivityEntity entity, DistanceService.TravelEstimate estimate) {
+        List<com.tripmind.domains.responses.ActivityAlternativeResponse> alts =
+                alternativeRepository.findByActivityIdWithPlace(entity.getId()).stream()
+                        .map(alternativeService::toResponse)
+                        .toList();
+        return toActivityResponse(entity, estimate, alts);
+    }
+
+    private ActivityResponse toActivityResponse(ActivityEntity entity, DistanceService.TravelEstimate estimate,
+                                                List<com.tripmind.domains.responses.ActivityAlternativeResponse> alternatives) {
         String idealTip = distanceService.getIdealTimingTip(entity.getPlace(), entity.getTitle());
 
         ActivityResponse.ActivityResponseBuilder builder = ActivityResponse.builder()
@@ -371,7 +388,8 @@ public class ItineraryServiceImpl implements ItineraryService {
                 .actualEnd(entity.getActualEnd())
                 .place(PlaceResponse.fromEntity(entity.getPlace()))
                 .placeName(entity.getPlace() != null ? entity.getPlace().getName() : null)
-                .idealTimingTip(idealTip);
+                .idealTimingTip(idealTip)
+                .alternatives(alternatives);
 
         if (estimate != null) {
             builder.distanceToNextMeters(estimate.getDistanceMeters())

@@ -1,6 +1,7 @@
 package com.tripmind.domains.requests;
 
 import com.tripmind.domains.models.GroupProfile;
+import com.tripmind.domains.models.TravelPlan;
 import com.tripmind.enums.BudgetPreference;
 import com.tripmind.enums.TravelStyle;
 import jakarta.validation.Valid;
@@ -55,4 +56,7 @@ public class UpdateTripRequest {
 
     @Valid
     private GroupProfile groupProfile;
+
+    @Valid
+    private TravelPlan travelPlan;
 }

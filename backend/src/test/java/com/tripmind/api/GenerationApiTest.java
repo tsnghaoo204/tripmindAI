@@ -66,11 +66,35 @@ class GenerationApiTest extends IntegrationTest {
         assertThat(itinerary.at("/days/0/activities/0/createdBy").asText()).isEqualTo("AI");
         JsonNode explanation = get("/api/activities/" + generated + "/explanation", token, 200).get("data");
         assertThat(explanation.get("known").asBoolean()).isTrue();
-        assertThat(explanation.get("tools")).hasSize(3);
+        assertThat(explanation.get("tools")).hasSize(8); // 5 lượt dựng kho địa điểm + 3 lượt đối soát
 
         assertThat(call(post("/api/trips/" + tripId + "/ai/generate"), token, null, 409).get("code").asText())
                 .isEqualTo("TRIP_NOT_EMPTY");
         get("/api/trips/" + tripId + "/ai/generate/" + jobId, registerUser(), 404);
+
+        // SSE stream: đã xong thì trả ngay event:done
+        org.springframework.test.web.servlet.MvcResult streamResult = mockMvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/trips/" + tripId + "/ai/generate/" + jobId + "/stream")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andReturn();
+        assertThat(streamResult.getResponse().getContentAsString()).contains("event:done");
+
+        // SSE stream: hỗ trợ xác thực qua query parameter ?token=
+        org.springframework.test.web.servlet.MvcResult streamParamResult = mockMvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/trips/" + tripId + "/ai/generate/" + jobId + "/stream?token=" + token))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
+                .andReturn();
+        assertThat(streamParamResult.getResponse().getContentAsString()).contains("event:done");
+
+        // SSE stream: người dùng khác không xem được
+        mockMvc.perform(
+                org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/trips/" + tripId + "/ai/generate/" + jobId + "/stream")
+                        .header("Authorization", "Bearer " + registerUser()))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
     }
 
     private JsonNode waitForJob(String token, long tripId, String jobId) throws Exception {

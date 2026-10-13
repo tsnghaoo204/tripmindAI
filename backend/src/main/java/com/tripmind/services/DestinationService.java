@@ -8,6 +8,7 @@ import com.tripmind.entities.DestinationEntity;
 import com.tripmind.exceptions.AppException;
 import com.tripmind.exceptions.ErrorCode;
 import com.tripmind.repositories.DestinationRepository;
+import com.tripmind.services.clients.GeocodingClient;
 import com.tripmind.services.clients.GooglePlacesClient;
 import com.tripmind.services.clients.GooglePlacesClient.GooglePlace;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +51,7 @@ public class DestinationService {
 
     private final DestinationRepository destinationRepository;
     private final GooglePlacesClient googlePlacesClient;
+    private final GeocodingClient geocodingClient;
     private final ObjectMapper objectMapper;
 
     /**
@@ -218,6 +220,16 @@ public class DestinationService {
         String externalId = input.getExternalId() == null || input.getExternalId().isBlank()
                 ? null
                 : input.getExternalId();
+        if (input.getLatitude() == null || input.getLongitude() == null) {
+            GeocodingClient.GeoPoint point = geocodingClient.search(input.getName(), input.getCountry())
+                    .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR,
+                            "Khong tim thay toa do cho '" + input.getName() + "', hay gui kem latitude/longitude"));
+            input.setLatitude(point.latitude());
+            input.setLongitude(point.longitude());
+            if (input.getTimezone() == null || input.getTimezone().isBlank()) {
+                input.setTimezone(point.timezone());
+            }
+        }
 
         // Bản ghi tự nhập không có external_id nên rơi vào khoá dự phòng (country, name).
         if (externalId == null) {

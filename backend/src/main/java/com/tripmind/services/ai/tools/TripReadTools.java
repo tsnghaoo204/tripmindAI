@@ -10,7 +10,9 @@ import com.tripmind.domains.responses.PlaceResponse;
 import com.tripmind.domains.responses.TripResponse;
 import com.tripmind.domains.responses.TripWeatherResponse;
 import com.tripmind.domains.responses.UserPreferencesResponse;
+import com.tripmind.domains.responses.KnowledgeResponse;
 import com.tripmind.services.BudgetService;
+import com.tripmind.services.DestinationKnowledgeService;
 import com.tripmind.services.ItineraryService;
 import com.tripmind.services.SavedPlaceService;
 import com.tripmind.services.TripService;
@@ -45,6 +47,7 @@ public class TripReadTools implements AgentToolSet {
     private final BudgetService budgetService;
     private final WeatherService weatherService;
     private final PlaceRatingLookup placeRatingLookup;
+    private final DestinationKnowledgeService destinationKnowledgeService;
     private final ObjectMapper objectMapper;
 
     @Tool(name = "get_current_trip", description = """
@@ -122,6 +125,23 @@ public class TripReadTools implements AgentToolSet {
                 .toList()));
     }
 
+    @Tool(name = "search_community_tips", description = """
+            Search practical local tips, forum reviews, best visiting hours, budget tricks, and warnings
+            for the destination. Call this when the user asks for recommendations, local advice, or tips.""")
+    public String searchCommunityTips(@ToolParam(description = "Keyword to search (e.g. food, seafood, sunset, warning)") String keyword,
+                                      ToolContext context) {
+        AgentTurn turn = ToolSupport.turn(context);
+        TripResponse trip = tripService.getTrip(turn.getUserId(), turn.getTripId());
+        String destName = trip.getDestination() != null ? trip.getDestination().getName() : "";
+        List<KnowledgeResponse> tips = destinationKnowledgeService.searchKnowledge(destName, keyword, 5);
+        if (tips.isEmpty()) {
+            return "Không tìm thấy kinh nghiệm cụ thể trong kho tri thức cho từ khóa: " + keyword;
+        }
+        return ToolSupport.json(objectMapper, tips.stream().map(t -> new CommunityTipView(
+                t.getCategory().name(), t.getTitle(), t.getContent(), t.getPlaceName(), t.getSourceName()
+        )).toList());
+    }
+
     private static ActivityView activityView(ActivityResponse a) {
         PlaceResponse p = a.getPlace();
         return new ActivityView(a.getId(), a.getTitle(), a.getActivityType().name(), a.getStartTime(), a.getEndTime(),
@@ -161,5 +181,9 @@ public class TripReadTools implements AgentToolSet {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     record WeatherDayView(Integer dayNumber, LocalDate date, String source, String summary, Double tempMin,
                           Double tempMax, Integer rainChance) {
+    }
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    record CommunityTipView(String category, String title, String content, String placeName, String sourceName) {
     }
 }

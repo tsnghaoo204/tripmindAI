@@ -311,11 +311,12 @@ GET /api/trips/{id}/ai/activity          # nhật ký chạy công cụ của ch
 ### 9.3 Sinh lịch trình tự động
 
 ```http
-POST /api/trips/{id}/ai/generate      → 202 { "jobId": "..." }
-GET  /api/trips/{id}/ai/generate/{jobId}  → { "state": "RUNNING", "step": "Đang tìm địa điểm...", "progress": 0.4 }
+POST /api/trips/{id}/ai/generate             → 202 { "jobId": "..." }
+GET  /api/trips/{id}/ai/generate/{jobId}         → { "state": "RUNNING", "step": "Đang tìm địa điểm...", "progress": 0.4 }
+GET  /api/trips/{id}/ai/generate/{jobId}/stream  → text/event-stream (SSE: event "progress", "done", "error")
 ```
 
-Chạy nền vì mất 30–90 giây. Trạng thái công việc nằm trong bộ nhớ tiến trình — khởi động lại thì mất, người dùng bấm lại.
+Chạy nền vì mất 30–90 giây. Trạng thái công việc nằm trong bộ nhớ tiến trình — khởi động lại thì mất, người dùng bấm lại. Khách hàng lắng nghe tiến trình qua SSE stream (hoặc thăm dò polling dự phòng qua GET). Hỗ trợ xác thực qua Bearer Header hoặc `?token=`.
 
 ---
 

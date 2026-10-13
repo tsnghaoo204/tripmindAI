@@ -79,4 +79,51 @@ export const adminApi = {
       method: "DELETE",
     })
   },
+
+  getKnowledgeList: async (params?: {
+    destination?: string
+    category?: string
+    search?: string
+    page?: number
+    size?: number
+  }): Promise<{ content: import("../types").DestinationKnowledge[]; totalElements: number; totalPages: number; number: number }> => {
+    const q = new URLSearchParams()
+    if (params?.destination) q.set("destination", params.destination)
+    if (params?.category) q.set("category", params.category)
+    if (params?.search) q.set("search", params.search)
+    if (params?.page !== undefined) q.set("page", String(params.page))
+    if (params?.size !== undefined) q.set("size", String(params.size))
+    return request<any>(`/api/admin/knowledge?${q.toString()}`)
+  },
+
+  getKnowledgeDestinations: async (): Promise<string[]> => {
+    return request<string[]>("/api/admin/knowledge/destinations")
+  },
+
+  createKnowledge: async (data: import("../types").KnowledgeRequest): Promise<import("../types").DestinationKnowledge> => {
+    return request<import("../types").DestinationKnowledge>("/api/admin/knowledge", {
+      method: "POST",
+      data,
+    })
+  },
+
+  updateKnowledge: async (id: number, data: import("../types").KnowledgeRequest): Promise<import("../types").DestinationKnowledge> => {
+    return request<import("../types").DestinationKnowledge>(`/api/admin/knowledge/${id}`, {
+      method: "PUT",
+      data,
+    })
+  },
+
+  deleteKnowledge: async (id: number): Promise<void> => {
+    return request<void>(`/api/admin/knowledge/${id}`, {
+      method: "DELETE",
+    })
+  },
+
+  toggleKnowledgeActive: async (id: number): Promise<import("../types").DestinationKnowledge> => {
+    return request<import("../types").DestinationKnowledge>(`/api/admin/knowledge/${id}/toggle`, {
+      method: "PATCH",
+    })
+  },
 }
+

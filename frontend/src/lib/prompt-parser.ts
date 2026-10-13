@@ -21,6 +21,14 @@ export interface ParsedTripPlan {
   seniorsCount: number
   hasVegetarian: boolean
   hasMobilityDifficulty: boolean
+  origin?: string | null
+  transportMode?: string | null
+  localTransport?: string | null
+  lodgingType?: string | null
+  interests?: string[]
+  childAges?: number[]
+  motionSickness?: boolean
+  avoid?: string | null
   summary: string
 }
 
@@ -83,7 +91,15 @@ export async function parseTripPromptWithAi(
         seniorsCount: data.seniorsCount || 0,
         hasVegetarian: !!data.hasVegetarian,
         hasMobilityDifficulty: !!data.hasMobilityDifficulty,
-        summary: `Điểm đến: ${destName} • ${days} ngày ${nights} đêm • ${travelers} người • Ngân sách: ${new Intl.NumberFormat("vi-VN").format(budget)}đ`,
+        origin: data.origin ?? null,
+        transportMode: data.transportMode ?? null,
+        localTransport: data.localTransport ?? null,
+        lodgingType: data.lodgingType ?? null,
+        interests: Array.isArray(data.interests) ? data.interests : [],
+        childAges: Array.isArray(data.childAges) ? data.childAges : [],
+        motionSickness: !!data.motionSickness,
+        avoid: data.avoid ?? null,
+        summary: `${data.origin ? `Từ ${data.origin} → ` : ""}Điểm đến: ${destName} • ${days} ngày ${nights} đêm • ${travelers} người • Ngân sách: ${new Intl.NumberFormat("vi-VN").format(budget)}đ`,
       }
     }
   } catch {

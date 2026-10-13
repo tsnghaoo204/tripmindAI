@@ -90,6 +90,36 @@ class ItineraryApiTest extends IntegrationTest {
         assertThat(activity.get("estimatedCost").isNull() || activity.get("estimatedCost").isMissingNode()).isTrue();
     }
 
+    @Test
+    @DisplayName("Lấy và chọn phương án thay thế theo ngân sách (3 lựa chọn cho Ăn uống)")
+    void getAndSelectActivityAlternatives() throws Exception {
+        String token = registerUser();
+        long tripId = createTrip(token, start.toString(), start.toString()).get("id").asLong();
+
+        JsonNode activity = call(post("/api/trips/" + tripId + "/itinerary/activities"), token, Map.of(
+                "dayNumber", 1, "title", "An trua quan com", "activityType", "FOOD",
+                "estimatedCost", 150000), 201).get("data");
+        long actId = activity.get("id").asLong();
+
+        // 1. Lấy 3 lựa chọn
+        JsonNode alts = get("/api/activities/" + actId + "/alternatives", token, 200).get("data");
+        assertThat(alts).hasSize(3);
+        assertThat(alts.get(0).get("tier").asText()).isEqualTo("BUDGET");
+        assertThat(alts.get(1).get("tier").asText()).isEqualTo("BALANCED");
+        assertThat(alts.get(2).get("tier").asText()).isEqualTo("PREMIUM");
+        assertThat(alts.get(1).get("isSelected").asBoolean()).isTrue();
+
+        // 2. Chọn phương án 1 (BUDGET)
+        long budgetAltId = alts.get(0).get("id").asLong();
+        JsonNode updated = call(put("/api/activities/" + actId + "/alternatives/" + budgetAltId + "/select"), token, null, 200).get("data");
+        assertThat(updated.get("title").asText()).contains("Ẩm thực bình dân");
+        assertThat(updated.get("estimatedCost").asLong()).isLessThanOrEqualTo(alts.get(1).get("estimatedCost").asLong());
+
+        // 3. Người dùng khác không được truy cập
+        get("/api/activities/" + actId + "/alternatives", registerUser(), 404);
+        call(put("/api/activities/" + actId + "/alternatives/" + budgetAltId + "/select"), registerUser(), null, 404);
+    }
+
     private JsonNode addActivity(String token, long tripId, String title) throws Exception {
         return call(post("/api/trips/" + tripId + "/itinerary/activities"), token,
                 Map.of("dayNumber", 1, "title", title, "activityType", "SIGHTSEEING"), 201).get("data");

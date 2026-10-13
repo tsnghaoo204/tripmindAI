@@ -208,6 +208,52 @@ thêm nguồn nào.
 nghĩa là đã sang hôm sau, cộng 1440 phút. Không có quy ước này thì hoạt động 22:00–01:30
 cho ra âm 1230 phút.
 
+#### 2.7.2 `activity_alternatives` (Đa phương án ngân sách: Tiết kiệm, Tiêu chuẩn, Trải nghiệm)
+
+Bảng phương án thay thế trực tiếp cho từng hoạt động (đặc biệt cho Ăn uống & Lưu trú):
+
+| Cột | Kiểu | Ràng buộc | Nghĩa |
+|---|---|---|---|
+| `id` | `BIGINT` | PK | |
+| `activity_id` | `BIGINT` | `NOT NULL`, FK `activities.id` ON DELETE CASCADE | Hoạt động gốc |
+| `place_id` | `BIGINT` | FK `places.id` ON DELETE SET NULL | Địa điểm tương ứng |
+| `place_name` | `VARCHAR(200)` | | Tên địa điểm |
+| `title` | `VARCHAR(200)` | `NOT NULL` | Tiêu đề phương án |
+| `tier` | `VARCHAR(20)` | `NOT NULL`, `CHECK IN ('BUDGET','BALANCED','PREMIUM')` | Phân khúc ngân sách |
+| `tier_label` | `VARCHAR(60)` | | Nhãn hiển thị ("Tiết kiệm", "Tiêu chuẩn", "Trải nghiệm") |
+| `estimated_cost` | `BIGINT` | | Chi phí ước tính phương án |
+| `rating` | `NUMERIC(2,1)` | | Điểm đánh giá |
+| `user_ratings_total` | `INTEGER` | | Số lượng đánh giá |
+| `address` | `TEXT` | | Địa chỉ |
+| `photo_url` | `TEXT` | | Ảnh đại diện |
+| `is_selected` | `BOOLEAN` | `NOT NULL DEFAULT false` | Đang được chọn hay không |
+| `created_at` | `TIMESTAMPTZ` | `NOT NULL DEFAULT now()` | |
+
+**Chỉ mục:** `idx_activity_alternatives_activity (activity_id, is_selected)`
+
+#### 2.7.3 `destination_knowledge` (Tri thức du lịch & Mẹo cộng đồng cho AI)
+
+Kho tri thức được Admin kiểm duyệt hoặc trích xuất từ các diễn đàn (Facebook, TikTok, blog):
+
+| Cột | Kiểu | Ràng buộc | Nghĩa |
+|---|---|---|---|
+| `id` | `BIGINT` | PK | |
+| `destination_id` | `BIGINT` | FK `destinations.id` ON DELETE SET NULL | Điểm đến (nếu liên kết) |
+| `destination_name` | `VARCHAR(160)` | `NOT NULL` | Tên điểm đến ("Đà Nẵng", "Hà Nội"...) |
+| `category` | `VARCHAR(32)` | `NOT NULL`, `CHECK IN ('FOOD','ACCOMMODATION','TRANSPORT','SIGHTSEEING','TIP','WARNING')` | Chuyên mục mẹo |
+| `title` | `VARCHAR(255)` | `NOT NULL` | Tiêu đề tóm tắt |
+| `content` | `TEXT` | `NOT NULL` | Chi tiết kinh nghiệm |
+| `place_name` | `VARCHAR(200)` | | Địa điểm cụ thể (nếu có) |
+| `source_name` | `VARCHAR(100)` | | Nguồn ("Review Đà Nẵng", "TikTok", v.v.) |
+| `source_url` | `TEXT` | | Link gốc bài viết |
+| `tags` | `JSONB` | `NOT NULL DEFAULT '[]'` | Thẻ từ khóa |
+| `priority` | `INTEGER` | `NOT NULL DEFAULT 1`, `CHECK 1..3` | Trọng số ưu tiên cho AI |
+| `is_active` | `BOOLEAN` | `NOT NULL DEFAULT true` | Bật/tắt sử dụng |
+| `created_at` / `updated_at` | `TIMESTAMPTZ` | `NOT NULL DEFAULT now()` | |
+
+**Chỉ mục:** `(destination_name, is_active)`, `(category)`, `(priority DESC, created_at DESC)`
+
+
 ### 2.8 `places`
 
 Địa điểm có thật. Bảng dùng chung.

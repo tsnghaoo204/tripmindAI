@@ -28,11 +28,26 @@ export type BudgetPreference = "BUDGET" | "MODERATE" | "LUXURY"
 export type TripPhase = "BEFORE" | "DURING" | "AFTER"
 
 export interface GroupProfile {
-  childrenCount: number
-  seniorsCount: number
-  hasVegetarian: boolean
-  hasHalal: boolean
-  hasMobilityDifficulty: boolean
+  children?: number
+  seniors?: number
+  dietary?: Array<"VEGETARIAN" | "VEGAN" | "HALAL" | "NO_SEAFOOD" | "NO_PORK">
+  limitedMobility?: boolean
+  note?: string
+  childAges?: number[]
+  motionSickness?: boolean
+  allergies?: string
+}
+
+export interface TravelPlan {
+  origin?: string
+  arrivalTime?: string
+  departureTime?: string
+  transportMode?: "AUTO" | "BUS" | "TRAIN" | "FLIGHT" | "CAR" | "MOTORBIKE"
+  localTransport?: "TAXI" | "MOTORBIKE_RENTAL" | "OWN_VEHICLE" | "WALK"
+  lodgingType?: "HOMESTAY" | "HOTEL" | "RESORT" | "BOOKED"
+  lodgingName?: string
+  budgetIncludesTransport?: boolean
+  avoid?: string
 }
 
 export interface Trip {
@@ -54,6 +69,8 @@ export interface Trip {
   travelStyle?: TravelStyle
   budgetPreference?: BudgetPreference
   groupProfile?: GroupProfile
+  travelPlan?: TravelPlan
+  preferences?: string[]
   phase: TripPhase
   planningProgress: number
   isOwner?: boolean
@@ -104,6 +121,22 @@ export interface Activity {
   notes?: string
   status: "PLANNED" | "COMPLETED" | "SKIPPED"
   fromProposalId?: number
+  alternatives?: ActivityAlternative[]
+}
+
+export interface ActivityAlternative {
+  id: number
+  placeId?: number
+  placeName?: string
+  title: string
+  tier: "BUDGET" | "BALANCED" | "PREMIUM"
+  tierLabel?: string
+  estimatedCost?: number
+  rating?: number
+  userRatingsTotal?: number
+  address?: string
+  photoUrl?: string
+  isSelected: boolean
 }
 
 export interface ItineraryDay {
@@ -179,3 +212,38 @@ export interface TripWeather {
   days: DayWeather[]
   reason?: "WEATHER_UNAVAILABLE" | "PARTIAL"
 }
+
+export type KnowledgeCategory = "FOOD" | "ACCOMMODATION" | "TRANSPORT" | "SIGHTSEEING" | "TIP" | "WARNING"
+
+export interface DestinationKnowledge {
+  id: number
+  destinationId?: number | null
+  destinationName: string
+  category: KnowledgeCategory
+  categoryLabel?: string
+  title: string
+  content: string
+  placeName?: string | null
+  sourceName?: string | null
+  sourceUrl?: string | null
+  tags: string[]
+  priority: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface KnowledgeRequest {
+  destinationId?: number | null
+  destinationName: string
+  category: KnowledgeCategory
+  title: string
+  content: string
+  placeName?: string | null
+  sourceName?: string | null
+  sourceUrl?: string | null
+  tags?: string[]
+  priority?: number
+  active?: boolean
+}
+
