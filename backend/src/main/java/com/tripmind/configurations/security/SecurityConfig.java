@@ -111,7 +111,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/health").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/api-docs/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/places/**", "/api/destinations/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/places/**", "/api/destinations/**", "/api/blog/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/trips/parse-prompt").permitAll()
                         // Admin endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

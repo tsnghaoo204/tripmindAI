@@ -1,5 +1,6 @@
 package com.tripmind.services;
 
+import com.tripmind.domains.proposals.ProposalChange;
 import com.tripmind.entities.PlaceEntity;
 import com.tripmind.enums.PlaceAdoption;
 import com.tripmind.exceptions.AppException;
@@ -12,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -26,6 +28,7 @@ import java.util.Optional;
 public class PlaceAdoptionService {
 
     public static final String PROVIDER_GOOGLE = "GOOGLE";
+    public static final String PROVIDER_COMMUNITY = "COMMUNITY";
 
     private final PlaceRepository placeRepository;
     private final GooglePlacesClient googlePlacesClient;
@@ -47,12 +50,59 @@ public class PlaceAdoptionService {
         return null;
     }
 
+    /**
+     * Nạp địa điểm từ tham chiếu {@link ProposalChange.PlaceRef}. Hỗ trợ cả Google Places và Community Places.
+     */
+    @Transactional
+    public PlaceEntity adopt(ProposalChange.PlaceRef ref, PlaceAdoption via) {
+        if (ref == null) {
+            return null;
+        }
+        String normalizedProvider = ref.provider() != null ? ref.provider().toUpperCase() : PROVIDER_GOOGLE;
+        Optional<PlaceEntity> existing = placeRepository.findByProviderAndExternalId(normalizedProvider, ref.externalId());
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        if (PROVIDER_COMMUNITY.equals(normalizedProvider)) {
+            return save(PlaceEntity.builder()
+                    .provider(PROVIDER_COMMUNITY)
+                    .externalId(ref.externalId())
+                    .name(truncate(ref.name(), 255))
+                    .category(truncate("COMMUNITY", 64))
+                    .latitude(ref.lat() != null ? ref.lat() : new BigDecimal("21.0285"))
+                    .longitude(ref.lng() != null ? ref.lng() : new BigDecimal("105.8542"))
+                    .rating(new BigDecimal("5.0"))
+                    .userRatingsTotal(1)
+                    .priceLevel(ref.priceLevel() == null ? null : ref.priceLevel().shortValue())
+                    .adoptedVia(via)
+                    .adoptedAt(Instant.now())
+                    .fetchedAt(Instant.now())
+                    .build());
+        }
+        return adopt(ref.provider(), ref.externalId(), via);
+    }
+
     @Transactional
     public PlaceEntity adopt(String provider, String externalId, PlaceAdoption via) {
         String normalizedProvider = provider.toUpperCase();
         Optional<PlaceEntity> existing = placeRepository.findByProviderAndExternalId(normalizedProvider, externalId);
         if (existing.isPresent()) {
             return existing.get();
+        }
+        if (PROVIDER_COMMUNITY.equals(normalizedProvider)) {
+            return save(PlaceEntity.builder()
+                    .provider(PROVIDER_COMMUNITY)
+                    .externalId(externalId)
+                    .name(truncate(externalId, 255))
+                    .category("COMMUNITY")
+                    .latitude(new BigDecimal("21.0285"))
+                    .longitude(new BigDecimal("105.8542"))
+                    .rating(new BigDecimal("5.0"))
+                    .userRatingsTotal(1)
+                    .adoptedVia(via)
+                    .adoptedAt(Instant.now())
+                    .fetchedAt(Instant.now())
+                    .build());
         }
         if (!PROVIDER_GOOGLE.equals(normalizedProvider)) {
             throw new AppException(ErrorCode.RESOURCE_NOT_FOUND,

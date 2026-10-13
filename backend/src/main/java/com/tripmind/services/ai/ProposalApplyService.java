@@ -187,11 +187,11 @@ public class ProposalApplyService {
         if (a.place() != null) {
             boolean existed = placeRepository.findByProviderAndExternalId(a.place().provider(), a.place().externalId()).isPresent();
             try {
-                place = placeAdoptionService.adopt(a.place().provider(), a.place().externalId(), via);
+                place = placeAdoptionService.adopt(a.place(), via);
             } catch (AppException e) {
                 return "PLACE_UNAVAILABLE";
             }
-            if (!existed) {
+            if (!existed && place != null) {
                 adoptedPlaces.add(place.getName());
             }
         }

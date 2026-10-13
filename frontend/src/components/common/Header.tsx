@@ -23,6 +23,9 @@ export function Header() {
             <Link to="/places" className="hover:text-foreground transition-colors [&.active]:text-primary [&.active]:font-semibold">
               Khám phá địa điểm
             </Link>
+            <Link to="/community" className="hover:text-foreground transition-colors [&.active]:text-primary [&.active]:font-semibold">
+              Cộng đồng &amp; Review
+            </Link>
             {user?.role === "ADMIN" && (
               <Link
                 to="/admin"

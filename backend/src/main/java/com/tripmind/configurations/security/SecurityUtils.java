@@ -22,6 +22,18 @@ public final class SecurityUtils {
         return getCurrentUserPrincipal().getId();
     }
 
+    public static Long getOptionalUserId() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()
+                    && (authentication.getPrincipal() instanceof UserPrincipal principal)) {
+                return principal.getId();
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
     public static String getCurrentUserEmail() {
         return getCurrentUserPrincipal().getEmail();
     }

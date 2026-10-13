@@ -171,6 +171,17 @@ public class DestinationKnowledgeService {
     }
 
     /**
+     * Lấy các thực thể tri thức đang kích hoạt cho điểm đến.
+     */
+    @Transactional(readOnly = true)
+    public List<DestinationKnowledgeEntity> getActiveKnowledgeEntities(String destinationName) {
+        if (destinationName == null || destinationName.isBlank()) {
+            return List.of();
+        }
+        return knowledgeRepository.findActiveForAiPrompt(destinationName.trim(), PageRequest.of(0, 10));
+    }
+
+    /**
      * Phục vụ công cụ tra cứu tự động cho AI Agent trong lúc chat.
      */
     @Transactional(readOnly = true)

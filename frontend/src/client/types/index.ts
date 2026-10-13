@@ -247,3 +247,58 @@ export interface KnowledgeRequest {
   active?: boolean
 }
 
+export interface BlogPost {
+  id: number
+  user: User
+  tripId?: number | null
+  destinationName: string
+  title: string
+  content: string
+  photoUrls: string[]
+  upvoteCount: number
+  commentCount: number
+  isUpvoted?: boolean
+  upvoted?: boolean
+  isConvertedToKnowledge?: boolean
+  convertedToKnowledge?: boolean
+  convertedKnowledgeId?: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BlogComment {
+  id: number
+  postId: number
+  user: User
+  content: string
+  upvoteCount: number
+  isUpvoted?: boolean
+  upvoted?: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BlogPostRequest {
+  destinationName: string
+  title: string
+  content: string
+  tripId?: number | null
+  photoUrls?: string[]
+}
+
+export interface ExtractedKnowledge {
+  destinationName: string
+  category: KnowledgeCategory
+  categoryLabel?: string
+  title: string
+  content: string
+  placeName?: string
+  sourceName?: string
+  sourceUrl?: string
+  tags: string[]
+  priority: number
+  active: boolean
+  reasoning?: string
+}
+
+

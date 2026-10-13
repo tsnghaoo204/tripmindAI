@@ -12,6 +12,7 @@ import com.tripmind.entities.ActivityEntity;
 import com.tripmind.entities.AiProposalEntity;
 import com.tripmind.entities.AiToolExecutionEntity;
 import com.tripmind.entities.ConversationEntity;
+import com.tripmind.entities.DestinationKnowledgeEntity;
 import com.tripmind.entities.TripEntity;
 import com.tripmind.enums.*;
 import com.tripmind.exceptions.AppException;
@@ -34,8 +35,18 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.tripmind.domains.ai.ItineraryJobPayload;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import org.redisson.api.RBlockingQueue;
+import org.redisson.api.RBucket;
+import org.redisson.api.RLock;
+import org.redisson.api.RTopic;
+import org.redisson.api.RedissonClient;
+
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.time.Duration;
@@ -45,6 +56,8 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -60,10 +73,9 @@ import java.util.stream.Collectors;
 public class ItineraryGenerationService {
 
     private static final Map<TravelStyle, Integer> PACE = Map.of(
-            TravelStyle.RELAXED, 3, TravelStyle.BALANCED, 4, TravelStyle.FAST_PACED, 6);
+            TravelStyle.RELAXED, 4, TravelStyle.BALANCED, 5, TravelStyle.FAST_PACED, 7);
     private static final Set<ActivityType> PLACELESS = Set.of(ActivityType.REST, ActivityType.TRANSPORT, ActivityType.OTHER);
     private static final double MIN_NAME_MATCH = 0.5;
-    private static final Duration JOB_RETENTION = Duration.ofHours(1);
 
     private final LlmGateway llm;
     private final TripService tripService;
@@ -83,9 +95,16 @@ public class ItineraryGenerationService {
     private final ExecutorService executor;
     private final ActivityAlternativeService alternativeService;
     private final DestinationKnowledgeService destinationKnowledgeService;
+    private final RedissonClient redissonClient;
     private final String template;
 
-    private final Map<String, Job> jobs = new ConcurrentHashMap<>();
+    private static final String QUEUE_NAME = "tripmind:itinerary:queue";
+    private static final String JOB_KEY_PREFIX = "tripmind:itinerary:job:";
+    private static final String TOPIC_PREFIX = "tripmind:itinerary:topic:";
+    private static final String LOCK_PREFIX = "tripmind:itinerary:lock:";
+    private static final Duration JOB_RETENTION = Duration.ofHours(2);
+
+    private volatile boolean stopped = false;
 
     public ItineraryGenerationService(LlmGateway llm, TripService tripService, ActivityRepository activityRepository,
                                       AiProposalRepository proposalRepository, AiToolExecutionRepository executionRepository,
@@ -96,6 +115,7 @@ public class ItineraryGenerationService {
                                       @Qualifier("aiExecutor") ExecutorService executor,
                                       ActivityAlternativeService alternativeService,
                                       DestinationKnowledgeService destinationKnowledgeService,
+                                      RedissonClient redissonClient,
                                       @Value("classpath:prompts/generate-itinerary.md") Resource template) {
         this.llm = llm;
         this.tripService = tripService;
@@ -115,6 +135,7 @@ public class ItineraryGenerationService {
         this.executor = executor;
         this.alternativeService = alternativeService;
         this.destinationKnowledgeService = destinationKnowledgeService;
+        this.redissonClient = redissonClient;
         try {
             this.template = template.getContentAsString(StandardCharsets.UTF_8);
         } catch (IOException e) {
@@ -122,92 +143,60 @@ public class ItineraryGenerationService {
         }
     }
 
-    /** Trạng thái một lần sinh; giữ trong bộ nhớ tiến trình, khởi động lại thì mất (ADS-30 §9.3). */
-    public static final class Job {
-        private final String id;
-        private final Long userId;
-        private final Long tripId;
-        private final Instant createdAt = Instant.now();
-        private volatile String state = "QUEUED";
-        private volatile String step = "Đang xếp hàng...";
-        private volatile double progress;
-        private volatile Map<String, Object> result;
-        private volatile String error;
-        private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
-
-        Job(String id, Long userId, Long tripId) {
-            this.id = id;
-            this.userId = userId;
-            this.tripId = tripId;
+    @PostConstruct
+    public void startWorkers() {
+        // Chạy worker lắng nghe hàng đợi Redisson bằng luồng ảo (Virtual Threads)
+        int workerCount = 2;
+        for (int i = 0; i < workerCount; i++) {
+            executor.submit(this::workerLoop);
         }
+    }
 
-        synchronized void update(String state, String step, double progress) {
-            this.state = state;
-            this.step = step;
-            this.progress = progress;
-            broadcast();
-        }
+    @PreDestroy
+    public void stopWorkers() {
+        this.stopped = true;
+    }
 
-        synchronized void subscribe(SseEmitter emitter) {
+    private void workerLoop() {
+        RBlockingQueue<String> queue = redissonClient.getBlockingQueue(QUEUE_NAME);
+        while (!stopped && !Thread.currentThread().isInterrupted()) {
             try {
-                String eventName = switch (state) {
-                    case "DONE" -> "done";
-                    case "FAILED" -> "error";
-                    default -> "progress";
-                };
-                emitter.send(SseEmitter.event().name(eventName).data(view(), MediaType.APPLICATION_JSON));
-                if ("DONE".equals(state) || "FAILED".equals(state)) {
-                    emitter.complete();
-                    return;
+                String jobId = queue.poll(1, TimeUnit.SECONDS);
+                if (jobId != null) {
+                    processJob(jobId);
                 }
-                emitters.add(emitter);
-            } catch (IOException | IllegalStateException e) {
-                // Client đã đóng kết nối
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            } catch (Exception e) {
+                log.error("Loi trong worker loop cua Redisson queue: {}", e.getMessage());
             }
         }
+    }
 
-        void removeEmitter(SseEmitter emitter) {
-            emitters.remove(emitter);
+    private void processJob(String jobId) {
+        ItineraryJobPayload job = getJob(jobId);
+        if (job == null) {
+            log.warn("Khong tim thay job ID={} trong Redis de xu ly", jobId);
+            return;
         }
 
-        private void broadcast() {
-            if (emitters.isEmpty()) {
+        RLock lock = redissonClient.getLock(LOCK_PREFIX + job.getTripId());
+        try {
+            // Thử lấy lock trong 2 giây, giữ lock tối đa 3 phút
+            if (!lock.tryLock(2, 180, TimeUnit.SECONDS)) {
+                job.setError("Lịch trình cho chuyến đi này đang được xử lý ở một tác vụ khác.");
+                updateJob(job, "FAILED", "Chuyến đi đang được xử lý", job.getProgress());
                 return;
             }
-            String eventName = switch (state) {
-                case "DONE" -> "done";
-                case "FAILED" -> "error";
-                default -> "progress";
-            };
-            Map<String, Object> view = view();
-            for (SseEmitter emitter : emitters) {
-                try {
-                    emitter.send(SseEmitter.event().name(eventName).data(view, MediaType.APPLICATION_JSON));
-                    if ("DONE".equals(state) || "FAILED".equals(state)) {
-                        emitter.complete();
-                    }
-                } catch (IOException | IllegalStateException e) {
-                    emitters.remove(emitter);
-                }
-            }
-            if ("DONE".equals(state) || "FAILED".equals(state)) {
-                emitters.clear();
-            }
-        }
 
-        public Map<String, Object> view() {
-            Map<String, Object> view = new LinkedHashMap<>();
-            view.put("jobId", id);
-            view.put("state", state);
-            view.put("step", step);
-            view.put("progress", progress);
-            if (result != null) {
-                view.put("result", result);
+            run(job);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
             }
-            if (error != null) {
-                view.put("error", error);
-            }
-            return view;
         }
     }
 
@@ -220,37 +209,137 @@ public class ItineraryGenerationService {
             throw new AppException(ErrorCode.TRIP_NOT_EMPTY, "Itinerary can only be generated for an empty trip");
         }
         rateLimiter.check("ai", userId, properties.rateLimitPerHour(), Duration.ofHours(1));
-        jobs.values().removeIf(j -> j.createdAt.isBefore(Instant.now().minus(JOB_RETENTION)));
 
-        Job job = new Job(UUID.randomUUID().toString(), userId, tripId);
-        jobs.put(job.id, job);
-        executor.submit(() -> run(job));
-        return job.view();
+        String jobId = UUID.randomUUID().toString();
+        ItineraryJobPayload job = ItineraryJobPayload.builder()
+                .id(jobId)
+                .userId(userId)
+                .tripId(tripId)
+                .createdAt(Instant.now())
+                .state("QUEUED")
+                .step("Đang xếp hàng trong hệ thống...")
+                .progress(0.0)
+                .build();
+
+        saveJob(job);
+        RBlockingQueue<String> queue = redissonClient.getBlockingQueue(QUEUE_NAME);
+        queue.add(jobId);
+        log.info("Pushed itinerary generation job ID={} to Redisson queue for trip ID={}", jobId, tripId);
+
+        return job.toView();
     }
 
     public Map<String, Object> status(Long userId, Long tripId, String jobId) {
-        Job job = jobs.get(jobId);
-        if (job == null || !job.userId.equals(userId) || !job.tripId.equals(tripId)) {
+        ItineraryJobPayload job = getJob(jobId);
+        if (job == null || !job.getUserId().equals(userId) || !job.getTripId().equals(tripId)) {
             throw new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Generation job not found: " + jobId);
         }
-        return job.view();
+        return job.toView();
     }
 
     public SseEmitter subscribe(Long userId, Long tripId, String jobId) {
-        Job job = jobs.get(jobId);
-        if (job == null || !job.userId.equals(userId) || !job.tripId.equals(tripId)) {
+        ItineraryJobPayload job = getJob(jobId);
+        if (job == null || !job.getUserId().equals(userId) || !job.getTripId().equals(tripId)) {
             throw new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Generation job not found: " + jobId);
         }
-        SseEmitter emitter = new SseEmitter(120_000L);
-        emitter.onCompletion(() -> job.removeEmitter(emitter));
+        SseEmitter emitter = new SseEmitter(180_000L);
+
+        // Snapshot ban đầu
+        try {
+            String eventName = switch (job.getState()) {
+                case "DONE" -> "done";
+                case "FAILED" -> "error";
+                default -> "progress";
+            };
+            emitter.send(SseEmitter.event().name(eventName).data(job.toView(), MediaType.APPLICATION_JSON));
+            if ("DONE".equals(job.getState()) || "FAILED".equals(job.getState())) {
+                emitter.complete();
+                return emitter;
+            }
+        } catch (IOException | IllegalStateException e) {
+            return emitter;
+        }
+
+        RTopic topic = redissonClient.getTopic(TOPIC_PREFIX + jobId);
+        final int[] listenerId = new int[1];
+        final AtomicBoolean completed = new AtomicBoolean(false);
+
+        Runnable cleanup = () -> {
+            if (completed.compareAndSet(false, true)) {
+                try {
+                    topic.removeListener(listenerId[0]);
+                } catch (Exception ignored) {
+                }
+            }
+        };
+
+        emitter.onCompletion(cleanup);
         emitter.onTimeout(() -> {
-            job.removeEmitter(emitter);
+            cleanup.run();
             emitter.complete();
         });
-        emitter.onError(e -> job.removeEmitter(emitter));
+        emitter.onError(e -> cleanup.run());
 
-        job.subscribe(emitter);
+        listenerId[0] = topic.addListener(String.class, (channel, msgJson) -> {
+            try {
+                ItineraryJobPayload updated = objectMapper.readValue(msgJson, ItineraryJobPayload.class);
+                String eventName = switch (updated.getState()) {
+                    case "DONE" -> "done";
+                    case "FAILED" -> "error";
+                    default -> "progress";
+                };
+                emitter.send(SseEmitter.event().name(eventName).data(updated.toView(), MediaType.APPLICATION_JSON));
+                if ("DONE".equals(updated.getState()) || "FAILED".equals(updated.getState())) {
+                    cleanup.run();
+                    emitter.complete();
+                }
+            } catch (IOException | IllegalStateException ex) {
+                cleanup.run();
+            }
+        });
+
         return emitter;
+    }
+
+    private void updateJob(ItineraryJobPayload job, String state, String step, double progress) {
+        job.setState(state);
+        job.setStep(step);
+        job.setProgress(progress);
+        saveJob(job);
+        publishJobEvent(job);
+    }
+
+    private void saveJob(ItineraryJobPayload job) {
+        try {
+            RBucket<String> bucket = redissonClient.getBucket(JOB_KEY_PREFIX + job.getId());
+            String json = objectMapper.writeValueAsString(job);
+            bucket.set(json, JOB_RETENTION);
+        } catch (Exception e) {
+            log.error("Loi khi luu job vao Redisson: {}", e.getMessage());
+        }
+    }
+
+    private ItineraryJobPayload getJob(String jobId) {
+        try {
+            RBucket<String> bucket = redissonClient.getBucket(JOB_KEY_PREFIX + jobId);
+            String json = bucket.get();
+            if (json != null) {
+                return objectMapper.readValue(json, ItineraryJobPayload.class);
+            }
+        } catch (Exception e) {
+            log.error("Loi khi doc job tu Redisson: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    private void publishJobEvent(ItineraryJobPayload job) {
+        try {
+            RTopic topic = redissonClient.getTopic(TOPIC_PREFIX + job.getId());
+            String json = objectMapper.writeValueAsString(job);
+            topic.publish(json);
+        } catch (Exception e) {
+            log.warn("Loi khi publish event len Redisson topic: {}", e.getMessage());
+        }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -279,31 +368,31 @@ public class ItineraryGenerationService {
     private static final double PRIOR_RATING = 4.0;
     private static final int PRIOR_VOTES = 30;
 
-    void run(Job job) {
+    void run(ItineraryJobPayload job) {
         try {
-            job.update("RUNNING", "Đang đọc thông tin chuyến đi...", 0.1);
-            TripEntity trip = tripService.getOwnedTrip(job.userId, job.tripId);
-            ConversationEntity conversation = conversationService.openOrCreate(job.userId, job.tripId, null,
+            updateJob(job, "RUNNING", "Đang đọc thông tin chuyến đi...", 0.1);
+            TripEntity trip = tripService.getOwnedTrip(job.getUserId(), job.getTripId());
+            ConversationEntity conversation = conversationService.openOrCreate(job.getUserId(), job.getTripId(), null,
                     "Sinh lịch trình tự động");
             int pace = trip.getTravelStyle() == null ? PACE.get(TravelStyle.BALANCED) : PACE.get(trip.getTravelStyle());
-            int maxPerDay = Math.max(2, pace
+            int maxPerDay = Math.max(3, pace
                     - (trip.getGroupProfile() != null && trip.getGroupProfile().needsGentlePace() ? 1 : 0));
 
-            job.update("RUNNING", "Đang tìm địa điểm nổi bật từ Google Places...", 0.2);
+            updateJob(job, "RUNNING", "Đang tìm địa điểm nổi bật từ Google Places...", 0.2);
             List<Long> executionIds = new ArrayList<>();
             Map<String, PoolPlace> pool = buildPool(trip, conversation.getId(), executionIds);
 
-            job.update("RUNNING", "Đang lên ý tưởng lịch trình...", 0.4);
+            updateJob(job, "RUNNING", "Đang lên ý tưởng lịch trình...", 0.4);
             Plan plan = askModel(trip, maxPerDay, pool);
 
-            job.update("RUNNING", "Đang tìm địa điểm có thật...", 0.6);
+            updateJob(job, "RUNNING", "Đang tìm địa điểm có thật...", 0.6);
             List<Rejected> rejected = new ArrayList<>();
             List<ProposalChange> changes = verify(trip, plan, pool, maxPerDay, conversation.getId(), executionIds, rejected);
             if (changes.isEmpty()) {
                 throw new AppException(ErrorCode.AI_PROVIDER_ERROR, "No verifiable activity in the generated plan");
             }
 
-            job.update("RUNNING", "Đang ghi lịch trình...", 0.9);
+            updateJob(job, "RUNNING", "Đang ghi lịch trình...", 0.9);
             Map<String, Object> evidence = new LinkedHashMap<>();
             evidence.put("reason", "Sinh lịch trình tự động cho chuyến mới");
             evidence.put("toolExecutionIds", executionIds);
@@ -323,7 +412,7 @@ public class ItineraryGenerationService {
             if (activityRepository.countByItineraryDayTripId(trip.getId()) > 0) {
                 throw new AppException(ErrorCode.TRIP_NOT_EMPTY, "Trip received activities while generating");
             }
-            ApplyProposalResponse applied = applyService.apply(job.userId, job.tripId, proposal.getId(), PlaceAdoption.AI_GENERATE);
+            ApplyProposalResponse applied = applyService.apply(job.getUserId(), job.getTripId(), proposal.getId(), PlaceAdoption.AI_GENERATE);
 
             // Tự động tạo 3 lựa chọn ngân sách (Alternatives) cho các hoạt động ăn uống và lưu trú
             try {
@@ -343,16 +432,16 @@ public class ItineraryGenerationService {
             result.put("rejectedCount", rejected.size());
             result.put("rejected", rejected);
             result.put("undoAvailableUntil", applied.getUndoAvailableUntil());
-            job.result = result;
-            job.update("DONE", "Hoàn tất", 1.0);
+            job.setResult(result);
+            updateJob(job, "DONE", "Hoàn tất", 1.0);
             log.info("Generated {} activities for trip ID={} ({} rejected)", applied.getApplied(), trip.getId(), rejected.size());
         } catch (AppException e) {
-            job.error = e.getErrorCode().name() + ": " + e.getMessage();
-            job.update("FAILED", "Không sinh được lịch trình", job.progress);
-            log.warn("Sinh lich trinh that bai cho trip ID={}: {}", job.tripId, e.getMessage());
+            job.setError(e.getErrorCode().name() + ": " + e.getMessage());
+            updateJob(job, "FAILED", "Không sinh được lịch trình", job.getProgress());
+            log.warn("Sinh lich trinh that bai cho trip ID={}: {}", job.getTripId(), e.getMessage());
         } catch (Exception e) {
-            job.error = "INTERNAL_SERVER_ERROR";
-            job.update("FAILED", "Không sinh được lịch trình", job.progress);
+            job.setError("INTERNAL_SERVER_ERROR");
+            updateJob(job, "FAILED", "Không sinh được lịch trình", job.getProgress());
             log.error("Sinh lich trinh loi", e);
         }
     }
@@ -406,8 +495,65 @@ public class ItineraryGenerationService {
             executionIds.add(saved.getId());
         }
 
+        // Tra cứu địa điểm từ tri thức cộng đồng (Destination Knowledge / Dataset)
+        Map<String, PlaceResponse> communityCandidates = new LinkedHashMap<>();
+        try {
+            List<DestinationKnowledgeEntity> activeKnowledge = destinationKnowledgeService.getActiveKnowledgeEntities(destination);
+            for (DestinationKnowledgeEntity k : activeKnowledge) {
+                String pName = k.getPlaceName();
+                if (pName != null && !pName.isBlank()) {
+                    PlaceResponse matched = null;
+                    try {
+                        List<PlaceResponse> found = placeService.searchPlaces(pName.trim(), destination);
+                        for (PlaceResponse p : found) {
+                            if (p.getExternalId() != null && !disliked.contains(p.getExternalId())) {
+                                if (nameMatch(pName, p.getName()) >= 0.3 || p.getName().toLowerCase(Locale.ROOT).contains(pName.toLowerCase(Locale.ROOT))) {
+                                    matched = p;
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (Exception ignored) {
+                    }
+                    if (matched != null) {
+                        communityCandidates.put(matched.getExternalId(), matched);
+                    } else {
+                        // Không có trên Google Places -> Vẫn tạo thực thể COMMUNITY Place với tọa độ điểm đến!
+                        String commId = "comm-know-" + k.getId();
+                        BigDecimal lat = trip.getDestination() != null && trip.getDestination().getLatitude() != null
+                                ? trip.getDestination().getLatitude() : new BigDecimal("21.0285");
+                        BigDecimal lng = trip.getDestination() != null && trip.getDestination().getLongitude() != null
+                                ? trip.getDestination().getLongitude() : new BigDecimal("105.8542");
+                        PlaceResponse synthetic = PlaceResponse.builder()
+                                .provider("COMMUNITY")
+                                .externalId(commId)
+                                .name(pName.trim())
+                                .category(k.getCategory() != null ? k.getCategory().name() : "COMMUNITY")
+                                .latitude(lat)
+                                .longitude(lng)
+                                .rating(new BigDecimal("5.0"))
+                                .userRatingsTotal(1)
+                                .address(destination)
+                                .build();
+                        communityCandidates.put(commId, synthetic);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Loi khi tra cuu dia diem tu tri thuc cong dong cho trip ID={}: {}", trip.getId(), ex.getMessage());
+        }
+
         Map<String, PoolPlace> pool = new LinkedHashMap<>();
         Set<String> taken = new HashSet<>();
+
+        // 1. Ưu tiên đưa các địa điểm từ cộng đồng/dataset vào đầu danh sách pool với mã P1, P2...
+        for (PlaceResponse cp : communityCandidates.values()) {
+            taken.add(cp.getExternalId());
+            String code = "P" + (pool.size() + 1);
+            pool.put(code, new PoolPlace(code, "gợi ý cộng đồng", cp, 1000.0));
+        }
+
+        // 2. Tiếp tục đưa các địa điểm tìm được từ Google Places theo các nhóm
         for (Map.Entry<String, Map<String, PlaceResponse>> entry : byCategory.entrySet()) {
             PoolQuery q = limits.get(entry.getKey());
             entry.getValue().values().stream()
@@ -420,7 +566,8 @@ public class ItineraryGenerationService {
                         pool.put(code, new PoolPlace(code, q.label(), p, popularity(p)));
                     });
         }
-        log.info("Kho dia diem cho trip ID={}: {} dia diem", trip.getId(), pool.size());
+        log.info("Kho dia diem cho trip ID={}: {} dia diem (trong do {} tu dataset cong dong)",
+                trip.getId(), pool.size(), communityCandidates.size());
         return pool;
     }
 
@@ -446,8 +593,10 @@ public class ItineraryGenerationService {
         return pool.values().stream()
                 .map(pp -> {
                     PlaceResponse p = pp.place();
+                    boolean isComm = "COMMUNITY".equalsIgnoreCase(p.getProvider()) || pp.category().contains("cộng đồng");
                     return pp.code() + " [" + pp.category() + "] " + p.getName()
-                            + " — " + p.getRating() + "★, " + (p.getUserRatingsTotal() == null ? 0 : p.getUserRatingsTotal()) + " đánh giá"
+                            + (isComm ? " (Kinh nghiệm thực tế từ cộng đồng du lịch)" : "")
+                            + (p.getRating() != null && !isComm ? " — " + p.getRating() + "★, " + (p.getUserRatingsTotal() == null ? 0 : p.getUserRatingsTotal()) + " đánh giá" : "")
                             + (p.getPriceLevel() == null ? "" : ", mức giá " + p.getPriceLevel() + "/4")
                             + (p.getAddress() == null ? "" : ", " + p.getAddress());
                 })
@@ -521,23 +670,35 @@ public class ItineraryGenerationService {
                     pooled = null;
                 }
                 PlaceRef place = null;
-                if (pooled == null && query == null) {
-                    if (!PLACELESS.contains(type)) {
-                        rejected.add(new Rejected(day.dayNumber(), item.title(), null, "NO_PLACE"));
-                        continue;
-                    }
-                } else {
-                    Optional<PlaceResponse> match = pooled != null ? Optional.of(pooled.place())
-                            : findReal(trip, query, item.placeName(), type, item.title(), item.notes(), disliked, used,
-                            conversationId, executionIds);
-                    if (match.isEmpty()) {
-                        rejected.add(new Rejected(day.dayNumber(), item.title(), item.placeName(), "PLACE_NOT_FOUND"));
-                        continue;
-                    }
-                    PlaceResponse p = match.get();
+                if (pooled != null) {
+                    PlaceResponse p = pooled.place();
                     used.add(p.getExternalId());
                     place = new PlaceRef(p.getProvider(), p.getExternalId(), p.getName(), p.getLatitude(), p.getLongitude(),
                             p.getPriceLevel());
+                } else if (query != null || (item.placeName() != null && !item.placeName().isBlank())) {
+                    Optional<PlaceResponse> match = findReal(trip, query, item.placeName(), type, item.title(), item.notes(),
+                            disliked, used, conversationId, executionIds);
+                    if (match.isPresent()) {
+                        PlaceResponse p = match.get();
+                        used.add(p.getExternalId());
+                        place = new PlaceRef(p.getProvider(), p.getExternalId(), p.getName(), p.getLatitude(), p.getLongitude(),
+                                p.getPriceLevel());
+                    } else {
+                        // HYBRID AGENTIC: Không tìm thấy trên Google Places -> Tự động chuyển thành Trải nghiệm Cộng đồng!
+                        String placeName = firstNonBlank(item.placeName(), item.title());
+                        BigDecimal lat = trip.getDestination() != null && trip.getDestination().getLatitude() != null
+                                ? trip.getDestination().getLatitude() : new BigDecimal("21.0285");
+                        BigDecimal lng = trip.getDestination() != null && trip.getDestination().getLongitude() != null
+                                ? trip.getDestination().getLongitude() : new BigDecimal("105.8542");
+                        String commExtId = "comm-" + Math.abs((trip.getDestination().getName() + "_" + placeName).hashCode());
+                        place = new PlaceRef("COMMUNITY", commExtId, placeName, lat, lng, null);
+                        used.add(commExtId);
+                    }
+                } else {
+                    if (!PLACELESS.contains(type) && type != ActivityType.SIGHTSEEING) {
+                        rejected.add(new Rejected(day.dayNumber(), item.title(), null, "NO_PLACE"));
+                        continue;
+                    }
                 }
                 LocalTime start = parseTime(item.startTime());
                 LocalTime end = parseTime(item.endTime());
@@ -590,14 +751,18 @@ public class ItineraryGenerationService {
                 }
 
                 String activityTitle = truncate(item.title().strip(), 200);
-                if (place != null && !activityTitle.toLowerCase().contains(place.name().toLowerCase())) {
+                if (place != null && !activityTitle.toLowerCase().contains(place.name().toLowerCase()) && !"COMMUNITY".equalsIgnoreCase(place.provider())) {
                     activityTitle = activityTitle + " (" + place.name() + ")";
                 }
+                String reasonStr = place == null ? null : pooled != null
+                        ? (pooled.category().contains("cộng đồng")
+                                ? "Gợi ý từ cộng đồng: " + pooled.place().getName()
+                                : "Google Places: " + pooled.place().getRating() + "★, " + pooled.place().getUserRatingsTotal() + " đánh giá")
+                        : ("COMMUNITY".equalsIgnoreCase(place.provider())
+                                ? "Trải nghiệm cộng đồng / Địa phương: " + place.name()
+                                : "Khớp địa điểm thật: " + place.name());
                 changes.add(new ProposalChange.Add(day.dayNumber(), activityTitle, type, place, start,
-                        end, cost, costSource, item.notes(),
-                        place == null ? null : pooled != null
-                                ? "Google Places: " + pooled.place().getRating() + "★, " + pooled.place().getUserRatingsTotal() + " đánh giá"
-                                : "Khớp địa điểm thật: " + place.name()));
+                        end, cost, costSource, item.notes(), reasonStr));
                 kept++;
             }
         }
@@ -605,7 +770,8 @@ public class ItineraryGenerationService {
     }
 
     private static final Set<String> CAFE_TAGS = Set.of(
-            "cafe", "coffee_shop", "tea_house", "bubble_tea_store", "juice_shop", "bar", "pub", "wine_bar"
+            "cafe", "coffee_shop", "tea_house", "bubble_tea_store", "juice_shop", "bar", "pub", "wine_bar",
+            "performing_arts_theater", "event_venue", "night_club", "entertainment"
     );
 
     private static final Set<String> RESTAURANT_TAGS = Set.of(
@@ -669,7 +835,9 @@ public class ItineraryGenerationService {
                 || text.contains("uống nước") || text.contains("quán nước") || text.contains("trà")
                 || text.contains("đồ uống") || text.contains("chill") || text.contains("ngắm hoàng hôn")
                 || text.contains("ngắm mây") || text.contains("ngắm cảnh") || text.contains("bar")
-                || text.contains("pub");
+                || text.contains("pub") || text.contains("show") || text.contains("nhạc")
+                || text.contains("ca nhạc") || text.contains("âm nhạc") || text.contains("hát")
+                || text.contains("lala");
     }
 
     private static boolean isMainMealActivity(String title, String notes, ActivityType type) {

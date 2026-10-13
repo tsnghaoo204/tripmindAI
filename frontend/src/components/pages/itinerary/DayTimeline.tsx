@@ -118,9 +118,23 @@ export function DayTimeline({
     types?: string[]
   }) => {
     if (!place) return null
-    const rawType = (place.primaryType || place.category || "").toLowerCase()
+    const rawType = (place.category || "").toLowerCase()
     const types = (place.types || []).map((t) => t.toLowerCase())
     const displayName = place.primaryTypeDisplayName
+
+    // 0. Trải nghiệm từ Dataset cộng đồng
+    if (
+      (place as any).provider === "COMMUNITY" ||
+      rawType === "community" ||
+      rawType.includes("cộng đồng") ||
+      types.includes("community")
+    ) {
+      return {
+        label: "Gợi ý cộng đồng",
+        icon: "✨",
+        color: "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/25",
+      }
+    }
 
     // 1. Quán cà phê / Quán nước / Đồ uống
     if (
@@ -355,6 +369,11 @@ export function DayTimeline({
                               <Sparkles className="h-2.5 w-2.5" /> AI Đề xuất
                             </Badge>
                           )}
+                          {((activity as any).place?.provider === "COMMUNITY" || (activity.notes && (activity.notes.includes("cộng đồng") || activity.notes.includes("Facebook") || activity.notes.includes("TikTok") || activity.notes.includes("Review") || activity.notes.includes("mẹo") || activity.notes.includes("Lala")))) && (
+                            <Badge variant="outline" className="text-[10px] text-purple-600 dark:text-purple-400 border-purple-500/30 bg-purple-500/10 flex items-center gap-1 font-semibold">
+                              <span>✨</span> Mẹo cộng đồng
+                            </Badge>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
@@ -424,15 +443,15 @@ export function DayTimeline({
                   </div>
 
                   {/* 3 Lựa chọn ngân sách (Alternatives) cho Ăn uống & Lưu trú */}
-                  {(activity.activityType === "FOOD" ||
-                    activity.activityType === "ACCOMMODATION" ||
+                  {(activity.activityType === "RESTAURANT" ||
+                    activity.activityType === "HOTEL" ||
                     (activity.alternatives && activity.alternatives.length > 0)) && (
                     <div className="mt-2 pt-2.5 border-t border-border/60 w-full">
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
                           <Sparkles className="h-3 w-3 text-amber-500" />
                           <span>
-                            Lựa chọn theo ngân sách ({activity.activityType === "FOOD" ? "Ăn uống" : "Lưu trú"}):
+                            Lựa chọn theo ngân sách ({activity.activityType === "RESTAURANT" ? "Ăn uống" : "Lưu trú"}):
                           </span>
                         </div>
                         {(!activity.alternatives || activity.alternatives.length === 0) && (
