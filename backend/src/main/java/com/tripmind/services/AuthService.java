@@ -47,15 +47,7 @@ public class AuthService {
         user = userRepository.save(user);
         log.info("Successfully registered new user: ID={}, email={}", user.getId(), user.getEmail());
 
-        UserPrincipal principal = UserPrincipal.fromEntity(user);
-        String token = jwtTokenProvider.generateToken(principal);
-
-        return AuthResponse.builder()
-                .accessToken(token)
-                .tokenType("Bearer")
-                .expiresInMs(jwtProperties.getExpirationMs())
-                .user(UserResponse.fromEntity(user))
-                .build();
+        return toAuthResponse(user);
     }
 
     @Transactional(readOnly = true)
@@ -75,9 +67,19 @@ public class AuthService {
 
         log.info("User successfully logged in: ID={}, email={}", user.getId(), user.getEmail());
 
-        UserPrincipal principal = UserPrincipal.fromEntity(user);
-        String token = jwtTokenProvider.generateToken(principal);
+        return toAuthResponse(user);
+    }
 
+    /** Cấp phiếu mới cho người dùng hiện tại, ví dụ sau khi đổi mật khẩu làm phiếu cũ hết hiệu lực. */
+    @Transactional(readOnly = true)
+    public AuthResponse issueToken(Long userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "User not found"));
+        return toAuthResponse(user);
+    }
+
+    private AuthResponse toAuthResponse(UserEntity user) {
+        String token = jwtTokenProvider.generateToken(UserPrincipal.fromEntity(user));
         return AuthResponse.builder()
                 .accessToken(token)
                 .tokenType("Bearer")

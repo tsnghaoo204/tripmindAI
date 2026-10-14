@@ -81,13 +81,11 @@ class GenerationApiTest extends IntegrationTest {
                 .andReturn();
         assertThat(streamResult.getResponse().getContentAsString()).contains("event:done");
 
-        // SSE stream: hỗ trợ xác thực qua query parameter ?token=
-        org.springframework.test.web.servlet.MvcResult streamParamResult = mockMvc.perform(
+        // SSE stream: không còn nhận phiếu qua query parameter ?token=
+        mockMvc.perform(
                 org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .get("/api/trips/" + tripId + "/ai/generate/" + jobId + "/stream?token=" + token))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk())
-                .andReturn();
-        assertThat(streamParamResult.getResponse().getContentAsString()).contains("event:done");
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isUnauthorized());
 
         // SSE stream: người dùng khác không xem được
         mockMvc.perform(
