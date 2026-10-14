@@ -19,7 +19,7 @@ buildNumber.properties
 *.war
 *.ear
 *.nar
-# Ngoai le: maven wrapper phai duoc commit thi `./mvnw` moi chay duoc tren may khac
+# Wrapper dang dung che do only-script (khong co jar); giu ngoai le neu sau nay doi sang jar
 !.mvn/wrapper/maven-wrapper.jar
 
 # --- Cau hinh cuc bo & bi mat ------------------------------------------------
@@ -75,3 +75,17 @@ Thumbs.db
 *.zip
 *.tar.gz
 *.rar
+
+# --- Frontend / Node ---------------------------------------------------------
+node_modules/
+dist/
+dist-ssr/
+coverage/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+
+# --- Python (scratch/) -------------------------------------------------------
+__pycache__/
+*.pyc
+.venv/

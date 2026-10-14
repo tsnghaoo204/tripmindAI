@@ -1,17 +1,19 @@
 # Ha tang chay local: PostgreSQL + Redis (+ backend, xem service `backend`).
 # Bien moi truong doc tu file .env o thu muc goc (xem .env.example).
+# Cong Postgres/Redis chi mo tren 127.0.0.1, khong lo ra mang ngoai.
 #
 #   docker compose up -d postgres redis     # chi ha tang, backend chay bang mvn
 #   docker compose up -d --build            # ca backend
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16.10-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_NAME:-tripmind}
       POSTGRES_USER: ${DB_USER:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Dat DB_PASSWORD trong .env}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -21,9 +23,13 @@ services:
       retries: 10
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:7.4.5-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?Dat REDIS_PASSWORD trong .env}"]
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -34,12 +40,16 @@ services:
 
   backend:
     build: ./backend
+    restart: unless-stopped
     env_file: .env
     environment:
+      SERVER_PORT: 8088
       DB_HOST: postgres
       DB_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # application.yml khong map REDIS_PASSWORD, dung khoa Spring truc tiep
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
     ports:
       - "${SERVER_PORT:-8088}:8088"
     depends_on:
@@ -47,6 +57,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8088/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
 
 volumes:
   pgdata:
