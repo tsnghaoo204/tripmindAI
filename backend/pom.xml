@@ -24,6 +24,13 @@
         <spring-ai.version>1.0.9</spring-ai.version>
         <!-- 1.20.x cua Boot 3.4.3 dung Docker API 1.32, Docker Engine 29 da bo. -->
         <testcontainers.version>1.21.4</testcontainers.version>
+
+        <!-- Thong tin ket noi CSDL mac dinh cho flyway-maven-plugin -->
+        <db.host>localhost</db.host>
+        <db.port>5432</db.port>
+        <db.name>tripmind</db.name>
+        <db.user>postgres</db.user>
+        <db.password>password</db.password>
     </properties>
 
     <dependencyManagement>
@@ -193,6 +200,24 @@
                         </exclude>
                     </excludes>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <configuration>
+                    <url>jdbc:postgresql://${db.host}:${db.port}/${db.name}</url>
+                    <user>${db.user}</user>
+                    <password>${db.password}</password>
+                    <baselineOnMigrate>true</baselineOnMigrate>
+                    <baselineVersion>1</baselineVersion>
+                </configuration>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.flywaydb</groupId>
+                        <artifactId>flyway-database-postgresql</artifactId>
+                        <version>${flyway.version}</version>
+                    </dependency>
+                </dependencies>
             </plugin>
         </plugins>
     </build>

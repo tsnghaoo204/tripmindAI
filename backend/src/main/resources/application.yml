@@ -53,7 +53,7 @@ spring:
   # Lược đồ do Flyway quản lý: db/migration/V<n>__*.sql là nguồn sự thật duy nhất (không còn schemas.sql).
   # CSDL cũ đã có bảng nhưng chưa có lịch sử Flyway thì được nhận làm mốc V1.
   flyway:
-    enabled: true
+    enabled: ${FLYWAY_ENABLED:false}
     baseline-on-migrate: true
     baseline-version: 1
 
