@@ -37,6 +37,7 @@ public class CreateTripRequest {
      * Google {@code place_id} khi người dùng chọn một thành phố mới từ kết quả Places.
      * Máy chủ gọi Place Details rồi tự ghi thêm dòng vào {@code destinations}.
      */
+    @Size(max = ValidationLimits.EXTERNAL_ID_MAX)
     private String destinationPlaceId;
 
     /**
@@ -47,6 +48,7 @@ public class CreateTripRequest {
     private DestinationInput destinationData;
 
     @NotBlank(message = "Trip name is required")
+    @Size(max = 160, message = "Trip name cannot exceed 160 characters")
     private String name;
 
     @NotNull(message = "Start date is required")

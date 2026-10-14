@@ -37,8 +37,10 @@ public class CreateActivityRequest {
 
     private Long placeId;
 
+    @Size(max = 16)
     private String placeProvider;
 
+    @Size(max = ValidationLimits.EXTERNAL_ID_MAX)
     private String placeExternalId;
 
     @NotNull(message = "Activity type is required")
@@ -58,5 +60,6 @@ public class CreateActivityRequest {
     @Size(max = 16)
     private String transportationMode;
 
+    @Size(max = ValidationLimits.NOTES_MAX, message = "Notes cannot exceed 2000 characters")
     private String notes;
 }

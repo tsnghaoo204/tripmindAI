@@ -33,6 +33,7 @@ public class KnowledgeRequest {
     private String title;
 
     @NotBlank(message = "Nội dung kinh nghiệm không được để trống")
+    @Size(max = 20000, message = "Nội dung tối đa 20000 ký tự")
     private String content;
 
     @Size(max = 200, message = "Tên địa điểm tối đa 200 ký tự")
@@ -41,9 +42,11 @@ public class KnowledgeRequest {
     @Size(max = 100, message = "Tên nguồn tối đa 100 ký tự")
     private String sourceName;
 
+    @Size(max = ValidationLimits.URL_MAX)
     private String sourceUrl;
 
-    private List<String> tags;
+    @Size(max = 20, message = "Tối đa 20 tag")
+    private List<@Size(max = 40) String> tags;
 
     @Min(value = 1, message = "Độ ưu tiên tối thiểu là 1")
     @Max(value = 3, message = "Độ ưu tiên tối đa là 3")

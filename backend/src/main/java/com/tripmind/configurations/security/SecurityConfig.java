@@ -5,6 +5,7 @@ import com.tripmind.domains.responses.ApiResponse;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -40,6 +41,9 @@ public class SecurityConfig {
     private final ApiRateLimitFilter apiRateLimitFilter;
     private final ObjectMapper objectMapper;
 
+    @Value("${app.cors.allowed-origins:http://localhost:5173,http://localhost:3000}")
+    private List<String> allowedOrigins;
+
     /** Filter chỉ chạy trong chuỗi Security (sau xác thực), không đăng ký thêm ở tầng servlet. */
     @Bean
     public FilterRegistrationBean<ApiRateLimitFilter> apiRateLimitFilterRegistration(ApiRateLimitFilter filter) {
@@ -64,7 +68,7 @@ public class SecurityConfig {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
-            ApiResponse<Void> apiResponse = ApiResponse.fail("UNAUTHORIZED", "Unauthorized: " + authException.getMessage(), null);
+            ApiResponse<Void> apiResponse = ApiResponse.fail("UNAUTHORIZED", "Authentication required", null);
             objectMapper.writeValue(response.getOutputStream(), apiResponse);
         };
     }
@@ -75,7 +79,7 @@ public class SecurityConfig {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.setCharacterEncoding("UTF-8");
-            ApiResponse<Void> apiResponse = ApiResponse.fail("FORBIDDEN", "Forbidden: " + accessDeniedException.getMessage(), null);
+            ApiResponse<Void> apiResponse = ApiResponse.fail("FORBIDDEN", "Access denied", null);
             objectMapper.writeValue(response.getOutputStream(), apiResponse);
         };
     }
@@ -83,7 +87,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        // Danh sách cố định từ cấu hình; không dùng "*" vì cho phép gửi kèm thông tin xác thực
+        configuration.setAllowedOrigins(allowedOrigins.stream().map(String::trim).filter(o -> !o.isEmpty() && !o.equals("*")).toList());
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "X-Requested-With"));
         configuration.setAllowCredentials(true);
@@ -110,9 +115,9 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/api/auth/health").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/api-docs/**").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/places/**", "/api/destinations/**", "/api/blog/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/trips/parse-prompt").permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        // Places/destinations gọi Google có tính phí nên phải đăng nhập; blog chỉ đọc là công khai
+                        .requestMatchers(HttpMethod.GET, "/api/blog/**").permitAll()
                         // Admin endpoints
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // All other API endpoints require authentication
