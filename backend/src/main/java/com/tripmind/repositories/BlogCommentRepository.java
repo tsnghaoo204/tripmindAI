@@ -12,7 +12,9 @@ public interface BlogCommentRepository extends JpaRepository<BlogCommentEntity, 
 
     List<BlogCommentEntity> findByPostIdOrderByCreatedAtAsc(Long postId);
 
+    /** Đếm lại từ bảng upvote rồi ghi vào bình luận. */
     @Modifying
-    @Query("UPDATE BlogCommentEntity c SET c.upvoteCount = GREATEST(0, c.upvoteCount + :delta) WHERE c.id = :commentId")
-    void updateUpvoteCount(@Param("commentId") Long commentId, @Param("delta") int delta);
+    @Query(value = "UPDATE blog_comments SET upvote_count = (SELECT COUNT(*) FROM blog_comment_upvotes WHERE comment_id = :commentId) "
+            + "WHERE id = :commentId", nativeQuery = true)
+    int syncUpvoteCount(@Param("commentId") Long commentId);
 }
