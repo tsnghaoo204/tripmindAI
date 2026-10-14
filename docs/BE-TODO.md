@@ -111,8 +111,8 @@ Migration `V1`. Toàn bộ `FR-0xx`.
 | `BE-1.4` | `POST /api/auth/login` — phát cặp phiếu, lưu **băm SHA-256** của phiếu làm mới kèm `family_id` | `BR-002` |
 | `BE-1.5` | `JwtService`: ký/kiểm HS256, `access` 15 phút, `refresh` 7 ngày, khoá ≥ 256 bit từ biến môi trường | `NFR-06` |
 | `BE-1.6` | `JwtAuthenticationFilter` + `SecurityConfig`: không session, `permitAll` cho `/api/auth/**` và Swagger, còn lại `authenticated` | |
-| `BE-1.7` | `POST /api/auth/refresh` — **xoay vòng**: cấp mới, thu hồi cũ trong một giao dịch | `BR-003` |
-| `BE-1.8` | Phát hiện dùng lại phiếu đã thu hồi → thu hồi **cả họ** `family_id` → `401` | `BR-004` |
+| `BE-1.7` | ~~`POST /api/auth/refresh` — xoay vòng~~ **Chưa làm.** Thiết kế hiện tại: một access token 24 giờ, không có phiếu làm mới | `BR-003` |
+| `BE-1.8` | ~~Thu hồi cả họ `family_id`~~ **Chưa làm.** Thay bằng `users.token_version` (đang bổ sung): tăng số này thì mọi phiếu cũ bị `401` | `BR-004` |
 | `BE-1.9` | `POST /api/auth/logout` — thu hồi phiếu làm mới được gửi lên | `FR-004` |
 | `BE-1.10` | RBAC: `USER` / `ADMIN`, một tài khoản một vai trò, `@PreAuthorize("hasRole('ADMIN')")` sẵn sàng | `BR-005` · `BR-006` |
 | `BE-1.11` | `CurrentUser` — helper đọc `userId` từ `SecurityContext`. **Nguồn danh tính duy nhất của cả hệ thống, kể cả công cụ AI** | `QĐ-03` |
@@ -309,7 +309,7 @@ Mỗi luật một ca kiểm thử. Cột cuối là gói phải làm xong ca đ
 | Luật | Kiểm gì | Gói |
 |---|---|---|
 | `BR-001` `BR-002` | Email trùng bị từ chối · băm không lộ ra ngoài | `BE-1` |
-| `BR-003` `BR-004` | Xoay vòng phiếu · dùng lại phiếu thu hồi giết cả họ | `BE-1` |
+| `BR-003` `BR-004` | **Chưa áp dụng** (không có phiếu làm mới). Thay thế: thu hồi qua `token_version` | `BE-1` |
 | `BR-005` `BR-006` | Một vai trò · điểm cuối quản trị từ chối `USER` | `BE-1` · `BE-8` |
 | `BR-101` `BR-102` `BR-104` | Sở hữu chuyến · truy ngược qua ngày · không quyền trả `404` | `BE-2` · `BE-3` |
 | `BR-103` | **Đường AI chịu cùng luật sở hữu** | `BE-6` |
