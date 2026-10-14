@@ -14,6 +14,7 @@ import com.tripmind.enums.ActivityType;
 import com.tripmind.enums.ActivityStatus;
 import com.tripmind.exceptions.AppException;
 import com.tripmind.exceptions.ErrorCode;
+import com.tripmind.repositories.ActivityAlternativeRepository;
 import com.tripmind.repositories.ActivityRepository;
 import com.tripmind.repositories.ItineraryDayRepository;
 import com.tripmind.repositories.PlaceRepository;
@@ -59,6 +60,12 @@ class ItineraryServiceTest {
 
     @Mock
     private CostEstimator costEstimator;
+
+    @Mock
+    private ActivityAlternativeRepository alternativeRepository;
+
+    @Mock
+    private ActivityAlternativeService alternativeService;
 
     @Spy
     private DistanceService distanceService = new DistanceService();

@@ -3,35 +3,30 @@ package com.tripmind.configurations;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.data.redis.RedisConnectionDetails;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class RedissonConfig {
 
-    @Value("${spring.data.redis.host:localhost}")
-    private String redisHost;
-
-    @Value("${spring.data.redis.port:6379}")
-    private int redisPort;
-
-    @Value("${spring.data.redis.password:}")
-    private String redisPassword;
-
+    // Dùng RedisConnectionDetails để Testcontainers @ServiceConnection cũng áp dụng cho Redisson
     @Bean(destroyMethod = "shutdown")
-    public RedissonClient redissonClient() {
+    public RedissonClient redissonClient(RedisConnectionDetails details) {
+        RedisConnectionDetails.Standalone standalone = details.getStandalone();
         Config config = new Config();
-        String address = "redis://" + redisHost + ":" + redisPort;
+        String address = "redis://" + standalone.getHost() + ":" + standalone.getPort();
         var serverConfig = config.useSingleServer()
                 .setAddress(address)
+                .setDatabase(standalone.getDatabase())
                 .setConnectionMinimumIdleSize(5)
                 .setConnectionPoolSize(20)
                 .setConnectTimeout(5000)
                 .setTimeout(3000);
 
-        if (redisPassword != null && !redisPassword.isBlank()) {
-            serverConfig.setPassword(redisPassword);
+        String password = details.getPassword();
+        if (password != null && !password.isBlank()) {
+            serverConfig.setPassword(password);
         }
         return Redisson.create(config);
     }
