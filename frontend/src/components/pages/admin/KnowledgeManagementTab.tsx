@@ -4,6 +4,7 @@ import type { DestinationKnowledge, KnowledgeCategory } from "@/client/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { queryKeys } from "@/hooks/query-keys"
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -28,6 +29,7 @@ export function KnowledgeManagementTab() {
   const [page, setPage] = useState(0)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<DestinationKnowledge | null>(null)
+  const [deletingItem, setDeletingItem] = useState<DestinationKnowledge | null>(null)
 
   const filters = {
     destination: selectedDest === "ALL" ? undefined : selectedDest,
@@ -63,6 +65,7 @@ export function KnowledgeManagementTab() {
   const deleteMutation = useMutation({
     mutationFn: (item: DestinationKnowledge) => adminApi.deleteKnowledge(item.id),
     onSuccess: () => {
+      setDeletingItem(null)
       toast.success("Đã xoá tri thức thành công!")
       invalidate()
     },
@@ -211,11 +214,7 @@ export function KnowledgeManagementTab() {
             busy={toggleMutation.isPending || deleteMutation.isPending}
             onEdit={openForm}
             onToggle={(item) => toggleMutation.mutate(item)}
-            onDelete={(item) => {
-              if (window.confirm(`Bạn có chắc muốn xoá tri thức "${item.title}" khỏi dataset?`)) {
-                deleteMutation.mutate(item)
-              }
-            }}
+            onDelete={(item) => setDeletingItem(item)}
           />
 
           {totalElements > PAGE_SIZE && (
@@ -253,6 +252,19 @@ export function KnowledgeManagementTab() {
         item={editingItem}
         defaultDestination={selectedDest !== "ALL" ? selectedDest : destinations[0] || "Da Nang"}
         onClose={() => setIsFormOpen(false)}
+      />
+
+      <ConfirmDialog
+        open={deletingItem !== null}
+        onOpenChange={(open) => !open && setDeletingItem(null)}
+        title="Xoá tri thức khỏi dataset"
+        description={`Bạn có chắc muốn xoá tri thức "${deletingItem?.title}" khỏi dataset AI? Thao tác này không thể hoàn tác.`}
+        confirmText="Xoá tri thức"
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deletingItem) deleteMutation.mutate(deletingItem)
+        }}
       />
     </div>
   )

@@ -5,6 +5,7 @@ import { CreateTripModal } from "@/components/pages/trips/CreateTripModal"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { queryKeys } from "@/hooks/query-keys"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -32,6 +33,7 @@ export function TripsTab() {
   const [search, setSearch] = useState("")
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingTrip, setEditingTrip] = useState<AdminTripRow | null>(null)
+  const [deletingTrip, setDeletingTrip] = useState<AdminTripRow | null>(null)
 
   const trips = data?.content ?? []
   const filtered = useMemo(() => {
@@ -49,6 +51,7 @@ export function TripsTab() {
   const deleteMutation = useMutation({
     mutationFn: (tripId: number) => adminApi.deleteTrip(tripId),
     onSuccess: () => {
+      setDeletingTrip(null)
       toast.success("Đã xoá chuyến đi thành công!")
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.trips })
     },
@@ -56,13 +59,7 @@ export function TripsTab() {
   })
 
   const handleDelete = (t: AdminTripRow) => {
-    if (
-      window.confirm(
-        `Xác nhận xoá chuyến đi '${t.name || t.id}' khỏi hệ thống? Tất cả hoạt động, chi tiêu và checklist liên quan sẽ bị xoá.`,
-      )
-    ) {
-      deleteMutation.mutate(t.id)
-    }
+    setDeletingTrip(t)
   }
 
   if (isError) return <AdminQueryError error={error} />
@@ -205,6 +202,18 @@ export function TripsTab() {
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: queryKeys.admin.trips })
           queryClient.invalidateQueries({ queryKey: ["trips"] })
+        }}
+      />
+      <ConfirmDialog
+        open={deletingTrip !== null}
+        onOpenChange={(open) => !open && setDeletingTrip(null)}
+        title="Xoá chuyến đi khỏi hệ thống"
+        description={`Bạn có chắc muốn xoá chuyến đi '${deletingTrip?.name || deletingTrip?.id}'? Mọi hoạt động, chi tiêu và checklist liên quan sẽ bị xoá vĩnh viễn.`}
+        confirmText="Xoá vĩnh viễn"
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deletingTrip) deleteMutation.mutate(deletingTrip.id)
         }}
       />
     </Card>

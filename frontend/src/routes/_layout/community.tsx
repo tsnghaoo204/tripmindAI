@@ -7,6 +7,7 @@ import { PostCard } from "@/components/pages/community/PostCard"
 import { flattenPosts, nextPageParam, updateCachedPosts } from "@/components/pages/community/blog-cache"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/contexts/auth-context"
 import { queryKeys } from "@/hooks/query-keys"
@@ -32,6 +33,7 @@ function CommunityPage() {
   const [search, setSearch] = useState("")
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [extractingPost, setExtractingPost] = useState<BlogPost | null>(null)
+  const [deletingPost, setDeletingPost] = useState<BlogPost | null>(null)
 
   const filters = { destination: selectedDest === "ALL" ? undefined : selectedDest, search: search || undefined }
 
@@ -60,6 +62,7 @@ function CommunityPage() {
   const deleteMutation = useMutation({
     mutationFn: (post: BlogPost) => blogApi.deletePost(post.id),
     onSuccess: (_res, post) => {
+      setDeletingPost(null)
       updateCachedPosts(queryClient, (p) => (p.id === post.id ? null : p))
       queryClient.invalidateQueries({ queryKey: queryKeys.blogDestinations })
       toast.success("Đã xóa bài viết")
@@ -191,9 +194,7 @@ function CommunityPage() {
               isAdmin={isAdmin}
               upvoting={upvoteMutation.isPending && upvoteMutation.variables?.id === post.id}
               onUpvote={(p) => upvoteMutation.mutate(p)}
-              onDelete={(p) => {
-                if (window.confirm("Bạn có chắc chắn muốn xóa bài viết này không?")) deleteMutation.mutate(p)
-              }}
+              onDelete={(p) => setDeletingPost(p)}
               onExtract={setExtractingPost}
             />
           ))}
@@ -235,6 +236,19 @@ function CommunityPage() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={deletingPost !== null}
+        onOpenChange={(open) => !open && setDeletingPost(null)}
+        title="Xóa bài viết"
+        description="Bạn có chắc chắn muốn xóa bài viết này không? Hành động này không thể hoàn tác."
+        confirmText="Xóa bài viết"
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deletingPost) deleteMutation.mutate(deletingPost)
+        }}
+      />
     </div>
   )
 }

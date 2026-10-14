@@ -4,6 +4,7 @@ import type { AdminUserRow } from "@/client/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/contexts/auth-context"
 import { queryKeys } from "@/hooks/query-keys"
@@ -26,6 +27,7 @@ export function UsersTab() {
   const [search, setSearch] = useState("")
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<AdminUserRow | null>(null)
+  const [deletingUser, setDeletingUser] = useState<AdminUserRow | null>(null)
 
   const users = data?.content ?? []
   const filtered = useMemo(() => {
@@ -39,6 +41,7 @@ export function UsersTab() {
   const deleteMutation = useMutation({
     mutationFn: (userId: number) => adminApi.deleteUser(userId),
     onSuccess: () => {
+      setDeletingUser(null)
       toast.success("Đã xoá tài khoản người dùng thành công!")
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.users })
     },
@@ -50,13 +53,7 @@ export function UsersTab() {
       toast.error("Không thể xoá tài khoản admin đang đăng nhập của chính bạn!")
       return
     }
-    if (
-      window.confirm(
-        `Bạn có chắc muốn xoá tài khoản '${u.name}' (${u.email})? Mọi dữ liệu chuyến đi liên quan sẽ bị xoá vĩnh viễn.`,
-      )
-    ) {
-      deleteMutation.mutate(u.id)
-    }
+    setDeletingUser(u)
   }
 
   if (isError) return <AdminQueryError error={error} />
@@ -199,6 +196,18 @@ export function UsersTab() {
 
       <CreateUserDialog isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
       <EditUserDialog user={editingUser} onClose={() => setEditingUser(null)} />
+      <ConfirmDialog
+        open={deletingUser !== null}
+        onOpenChange={(open) => !open && setDeletingUser(null)}
+        title="Xoá tài khoản người dùng"
+        description={`Bạn có chắc muốn xoá tài khoản '${deletingUser?.name}' (${deletingUser?.email})? Mọi dữ liệu chuyến đi liên quan sẽ bị xoá vĩnh viễn.`}
+        confirmText="Xoá tài khoản"
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deletingUser) deleteMutation.mutate(deletingUser.id)
+        }}
+      />
     </Card>
   )
 }

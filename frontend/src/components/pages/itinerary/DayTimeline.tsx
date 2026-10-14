@@ -4,6 +4,7 @@ import { getErrorMessage } from "@/client/errors"
 import type { ItineraryDay, TripWeather } from "@/client/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { formatCurrency } from "@/lib/utils"
 import { useMutation } from "@tanstack/react-query"
 import { Calendar, CloudRain, CloudSun, Download, Plus, Sparkles, Utensils } from "lucide-react"
@@ -26,6 +27,7 @@ export function DayTimeline({ tripId, currency, days, weather, onRefresh, onOpen
   const [selectedDayNumber, setSelectedDayNumber] = useState(1)
   const [explainingActivityId, setExplainingActivityId] = useState<number | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [deletingActivityId, setDeletingActivityId] = useState<number | null>(null)
 
   const activeDay = days.find((d) => d.dayNumber === selectedDayNumber) || days[0]
   const activeDayNumber = activeDay?.dayNumber ?? selectedDayNumber
@@ -46,13 +48,14 @@ export function DayTimeline({ tripId, currency, days, weather, onRefresh, onOpen
     mutationFn: (activityId: number) => itineraryApi.deleteActivity(activityId),
     onSuccess: () => {
       toast.success("Đã xoá hoạt động")
+      setDeletingActivityId(null)
       onRefresh()
     },
     onError: (err) => toast.error(getErrorMessage(err, "Không thể xoá hoạt động")),
   })
 
   const handleDeleteActivity = (id: number) => {
-    if (window.confirm("Bạn có chắc muốn xoá hoạt động này khỏi lịch trình?")) deleteMutation.mutate(id)
+    setDeletingActivityId(id)
   }
 
   return (
@@ -194,6 +197,19 @@ export function DayTimeline({ tripId, currency, days, weather, onRefresh, onOpen
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSuccess={onRefresh}
+      />
+
+      <ConfirmDialog
+        open={deletingActivityId !== null}
+        onOpenChange={(open) => !open && setDeletingActivityId(null)}
+        title="Xoá hoạt động"
+        description="Bạn có chắc chắn muốn xoá hoạt động này khỏi lịch trình không?"
+        confirmText="Xoá hoạt động"
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deletingActivityId) deleteMutation.mutate(deletingActivityId)
+        }}
       />
     </div>
   )

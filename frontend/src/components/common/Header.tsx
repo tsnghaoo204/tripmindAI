@@ -1,13 +1,16 @@
+import { UserProfileModal } from "@/components/pages/user/UserProfileModal"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { Link } from "@tanstack/react-router"
-import { LogOut, Moon, ShieldCheck, Sun } from "lucide-react"
+import { LogOut, Moon, Settings, ShieldCheck, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
+import { useState } from "react"
 import { Logo } from "./Logo"
 
 export function Header() {
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-md">
@@ -61,15 +64,37 @@ export function Header() {
           </Button>
 
           {user ? (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium hidden sm:inline-block">{user.name}</span>
-                {user.role === "ADMIN" && (
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                    Admin
-                  </span>
-                )}
-              </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsProfileOpen(true)}
+                className="flex items-center gap-2 p-1 pl-1.5 pr-2.5 rounded-full hover:bg-muted/70 transition-colors border border-transparent hover:border-border cursor-pointer group text-left"
+                title="Tài khoản cá nhân & Đổi mật khẩu"
+              >
+                <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs overflow-hidden shrink-0">
+                  {user.avatarUrl ? (
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.name}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none"
+                      }}
+                    />
+                  ) : (
+                    user.name?.charAt(0).toUpperCase() || "U"
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium hidden sm:inline-block max-w-[120px] truncate">{user.name}</span>
+                  {user.role === "ADMIN" && (
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                      Admin
+                    </span>
+                  )}
+                  <Settings className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors ml-0.5 hidden sm:inline-block" />
+                </div>
+              </button>
               <Button variant="ghost" size="icon" onClick={logout} title="Đăng xuất" aria-label="Đăng xuất">
                 <LogOut className="h-4 w-4" />
               </Button>
@@ -88,6 +113,7 @@ export function Header() {
           )}
         </div>
       </div>
+      <UserProfileModal open={isProfileOpen} onOpenChange={setIsProfileOpen} />
     </header>
   )
 }

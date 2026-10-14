@@ -6,8 +6,10 @@ import { BudgetView } from "@/components/pages/budget/BudgetView"
 import { ChecklistView } from "@/components/pages/checklist/ChecklistView"
 import { DayTimeline } from "@/components/pages/itinerary/DayTimeline"
 import { PlaceReviewModal } from "@/components/pages/itinerary/PlaceReviewModal"
+import { DuplicateTripModal } from "@/components/pages/trips/DuplicateTripModal"
 import { PHASE_LABEL, TripHero } from "@/components/pages/trips/TripHero"
 import { Card } from "@/components/ui/card"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useItineraryGeneration } from "@/hooks/use-itinerary-generation"
 import { useInvalidateTrip, useItinerary, useTrip, useTripWeather } from "@/hooks/use-trips"
@@ -40,6 +42,8 @@ function TripDetailPage() {
   const [activeTab, setActiveTab] = useState("itinerary")
   const [isAiOpen, setIsAiOpen] = useState(false)
   const [isReviewOpen, setIsReviewOpen] = useState(false)
+  const [isDuplicateOpen, setIsDuplicateOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
 
   const trip = tripQuery.data
   const itinerary = itineraryQuery.data
@@ -58,6 +62,7 @@ function TripDetailPage() {
       tripApi.duplicateTrip(tripId, { name: trip ? `${trip.name} (Bản sao)` : undefined, startDate }),
     onSuccess: (res) => {
       toast.success(`Đã nhân bản chuyến đi! Sao chép ${res.activitiesCopied || 0} hoạt động.`)
+      setIsDuplicateOpen(false)
       queryClient.invalidateQueries({ queryKey: ["trips"] })
       navigate({ to: "/trips/$tripId", params: { tripId: String(res.trip.id) } })
     },
@@ -68,6 +73,7 @@ function TripDetailPage() {
     mutationFn: () => tripApi.deleteTrip(tripId),
     onSuccess: () => {
       toast.success("Đã xoá chuyến đi")
+      setIsDeleteOpen(false)
       queryClient.removeQueries({ queryKey: ["trip", tripId] })
       queryClient.invalidateQueries({ queryKey: ["trips"] })
       navigate({ to: "/" })
@@ -76,12 +82,11 @@ function TripDetailPage() {
   })
 
   const handleDuplicateTrip = () => {
-    const inputDate = window.prompt("Nhập ngày bắt đầu cho chuyến mới (YYYY-MM-DD):", defaultDuplicateDate())
-    if (inputDate) duplicateMutation.mutate(inputDate)
+    setIsDuplicateOpen(true)
   }
 
   const handleDeleteTrip = () => {
-    if (window.confirm("Bạn có chắc chắn muốn xoá toàn bộ chuyến đi này?")) deleteMutation.mutate()
+    setIsDeleteOpen(true)
   }
 
   if (tripQuery.isPending) {
@@ -186,6 +191,25 @@ function TripDetailPage() {
       />
 
       <PlaceReviewModal tripId={tripId} isOpen={isReviewOpen} onClose={() => setIsReviewOpen(false)} />
+
+      <DuplicateTripModal
+        open={isDuplicateOpen}
+        onOpenChange={setIsDuplicateOpen}
+        defaultDate={defaultDuplicateDate()}
+        isLoading={duplicateMutation.isPending}
+        onDuplicate={(date) => duplicateMutation.mutate(date)}
+      />
+
+      <ConfirmDialog
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        title="Xoá chuyến đi"
+        description="Bạn có chắc chắn muốn xoá toàn bộ chuyến đi này? Thao tác này không thể hoàn tác."
+        confirmText="Xoá chuyến đi"
+        variant="destructive"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate()}
+      />
     </div>
   )
 }
