@@ -12,20 +12,38 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Service;
 
+import com.tripmind.configurations.properties.TripProperties;
+
+import java.text.Normalizer;
+import java.time.Clock;
+import java.time.DateTimeException;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class TripPromptParserService {
 
+    private static final Duration LLM_BUDGET = Duration.ofSeconds(30);
+    private static final ZoneId DEFAULT_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    private static final int MAX_TRAVELERS = 50;
+    private static final long MAX_BUDGET = 100_000_000_000L;
+
     private final LlmGateway llm;
     private final DestinationRepository destinationRepository;
     private final ObjectMapper objectMapper;
+    private final Clock clock;
+    private final TripProperties tripProperties;
 
     public Map<String, Object> parsePrompt(String userPrompt) {
         if (userPrompt == null || userPrompt.isBlank()) {
@@ -71,7 +89,7 @@ public class TripPromptParserService {
                         OpenAiChatOptions.builder().temperature(0.1).build()
                 );
 
-                String text = llm.call(prompt).getResult().getOutput().getText();
+                String text = LlmGateway.text(llm.call(prompt, Instant.now(clock).plus(LLM_BUDGET)));
                 if (text != null && text.contains("{") && text.contains("}")) {
                     int start = text.indexOf('{');
                     int end = text.lastIndexOf('}');
@@ -83,17 +101,20 @@ public class TripPromptParserService {
                     Double lng = node.has("longitude") && !node.get("longitude").isNull() ? node.get("longitude").asDouble() : null;
                     String timezone = node.has("timezone") ? node.get("timezone").asText() : "Asia/Ho_Chi_Minh";
 
-                    int days = node.has("days") && node.get("days").asInt() > 0 ? node.get("days").asInt() : 3;
-                    int nights = node.has("nights") && node.get("nights").asInt() >= 0 ? node.get("nights").asInt() : Math.max(1, days - 1);
-                    int travelers = node.has("travelers") && node.get("travelers").asInt() > 0 ? node.get("travelers").asInt() : 2;
-                    Long budget = node.has("budget") && !node.get("budget").isNull() ? node.get("budget").asLong() : null;
+                    int days = clampDays(node.has("days") && node.get("days").asInt() > 0 ? node.get("days").asInt() : 3);
+                    int nights = node.has("nights") && node.get("nights").asInt() >= 0
+                            ? Math.min(node.get("nights").asInt(), days) : Math.max(1, days - 1);
+                    int travelers = Math.min(MAX_TRAVELERS,
+                            node.has("travelers") && node.get("travelers").asInt() > 0 ? node.get("travelers").asInt() : 2);
+                    Long budget = node.has("budget") && !node.get("budget").isNull() && node.get("budget").asLong() > 0
+                            ? Math.min(node.get("budget").asLong(), MAX_BUDGET) : null;
                     String travelStyle = node.has("travelStyle") ? node.get("travelStyle").asText() : "BALANCED";
                     int childrenCount = node.has("childrenCount") ? node.get("childrenCount").asInt() : 0;
                     int seniorsCount = node.has("seniorsCount") ? node.get("seniorsCount").asInt() : 0;
                     boolean hasVegetarian = node.has("hasVegetarian") && node.get("hasVegetarian").asBoolean();
                     boolean hasMobilityDifficulty = node.has("hasMobilityDifficulty") && node.get("hasMobilityDifficulty").asBoolean();
 
-                    LocalDate tomorrow = LocalDate.now().plusDays(1);
+                    LocalDate tomorrow = today(timezone).plusDays(1);
                     LocalDate returnDate = tomorrow.plusDays(days - 1);
 
                     result.put("title", "Kế hoạch du lịch " + destination + " " + days + " ngày " + nights + " đêm");
@@ -107,7 +128,7 @@ public class TripPromptParserService {
                     result.put("days", days);
                     result.put("nights", nights);
                     result.put("travelers", travelers);
-                    result.put("budget", budget != null ? budget : (long) (days * travelers * 800000));
+                    result.put("budget", budget != null ? budget : (long) days * travelers * 800000L);
                     result.put("travelStyle", travelStyle);
                     result.put("childrenCount", childrenCount);
                     result.put("seniorsCount", seniorsCount);
@@ -126,14 +147,9 @@ public class TripPromptParserService {
 
                     // Tra cứu động trong CSDL (không gán cứng)
                     if (!destination.isBlank()) {
-                        List<DestinationEntity> matches = destinationRepository.findByNameContainingIgnoreCase(destination.trim());
-                        if (!matches.isEmpty()) {
-                            result.put("destinationId", matches.get(0).getId());
-                            result.put("isCustomDestination", false);
-                        } else {
-                            result.put("destinationId", null);
-                            result.put("isCustomDestination", true);
-                        }
+                        Optional<DestinationEntity> match = matchDestination(destination);
+                        result.put("destinationId", match.map(DestinationEntity::getId).orElse(null));
+                        result.put("isCustomDestination", match.isEmpty());
                     }
 
                     return result;
@@ -177,14 +193,14 @@ public class TripPromptParserService {
         if (mDays.find()) {
             String d = mDays.group(1) != null ? mDays.group(1) : mDays.group(3);
             String n = mDays.group(2) != null ? mDays.group(2) : mDays.group(4);
-            days = Integer.parseInt(d);
-            nights = Integer.parseInt(n);
+            days = clampDays(safeInt(d, 3));
+            nights = Math.min(safeInt(n, days - 1), days);
         } else {
             java.util.regex.Matcher mDaysOnly = java.util.regex.Pattern
                     .compile("(\\d+)\\s*ngày", java.util.regex.Pattern.CASE_INSENSITIVE)
                     .matcher(p);
             if (mDaysOnly.find()) {
-                days = Integer.parseInt(mDaysOnly.group(1));
+                days = clampDays(safeInt(mDaysOnly.group(1), 3));
                 nights = Math.max(1, days - 1);
             }
         }
@@ -194,7 +210,7 @@ public class TripPromptParserService {
                 .compile("(?:cho|cùng|\\+)?\\s*(\\d+)\\s*(?:người|bạn|khách)", java.util.regex.Pattern.CASE_INSENSITIVE)
                 .matcher(p);
         if (mTravelers.find()) {
-            travelers = Integer.parseInt(mTravelers.group(1));
+            travelers = Math.clamp(safeInt(mTravelers.group(1), 2), 1, MAX_TRAVELERS);
         } else if (p.toLowerCase().contains("người yêu") || p.toLowerCase().contains("cặp đôi") || p.toLowerCase().contains("vợ")) {
             travelers = 2;
         } else if (p.toLowerCase().contains("một mình") || p.toLowerCase().contains("solo") || p.toLowerCase().contains("1 người")) {
@@ -208,12 +224,12 @@ public class TripPromptParserService {
                 .compile("(\\d+(?:[.,]\\d+)?)\\s*(?:triệu|tr|củ)", java.util.regex.Pattern.CASE_INSENSITIVE)
                 .matcher(p);
         if (mTrieu.find()) {
-            budget = (long) (Double.parseDouble(mTrieu.group(1).replace(",", ".")) * 1000000);
+            budget = (long) Math.min(Double.parseDouble(mTrieu.group(1).replace(",", ".")) * 1000000, MAX_BUDGET);
         } else {
             budget = Math.max(3000000L, (long) days * travelers * 800000L);
         }
 
-        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        LocalDate tomorrow = today(null).plusDays(1);
         LocalDate returnDate = tomorrow.plusDays(days - 1);
 
         res.put("title", "Kế hoạch du lịch " + dest + " " + days + " ngày " + nights + " đêm");
@@ -231,15 +247,67 @@ public class TripPromptParserService {
         res.put("hasVegetarian", p.toLowerCase().contains("chay"));
         res.put("hasMobilityDifficulty", p.toLowerCase().contains("đi lại"));
 
-        List<DestinationEntity> matches = destinationRepository.findByNameContainingIgnoreCase(dest.trim());
-        if (!matches.isEmpty()) {
-            res.put("destinationId", matches.get(0).getId());
-            res.put("isCustomDestination", false);
-        } else {
-            res.put("destinationId", null);
-            res.put("isCustomDestination", true);
-        }
+        Optional<DestinationEntity> match = matchDestination(dest);
+        res.put("destinationId", match.map(DestinationEntity::getId).orElse(null));
+        res.put("isCustomDestination", match.isEmpty());
 
         return res;
+    }
+
+    private LocalDate today(String timezone) {
+        ZoneId zone = DEFAULT_ZONE;
+        try {
+            if (timezone != null && !timezone.isBlank()) {
+                zone = ZoneId.of(timezone);
+            }
+        } catch (DateTimeException ignored) {
+        }
+        return LocalDate.now(clock.withZone(zone));
+    }
+
+    private int clampDays(int days) {
+        return Math.clamp(days, 1, tripProperties.maxDays());
+    }
+
+    private static int safeInt(String digits, int fallback) {
+        try {
+            return Integer.parseInt(digits);
+        } catch (NumberFormatException e) {
+            // Toàn chữ số mà vẫn lỗi là tràn số: coi như rất lớn rồi để người gọi kẹp lại.
+            return digits != null && digits.matches("\\d+") ? Integer.MAX_VALUE : fallback;
+        }
+    }
+
+    /**
+     * Điểm đến trong CSDL khớp tên người dùng gõ, không phân biệt dấu ("Da Nang" ↔ "Đà Nẵng"):
+     * ưu tiên khớp trọn tên, sau đó mới tới tên chứa chuỗi tìm (tên ngắn nhất trước).
+     */
+    Optional<DestinationEntity> matchDestination(String name) {
+        String wanted = fold(name);
+        if (wanted.isEmpty()) {
+            return Optional.empty();
+        }
+        List<DestinationEntity> candidates = destinationRepository.findByNameContainingIgnoreCase(name.trim());
+        Optional<DestinationEntity> exact = candidates.stream().filter(d -> fold(d.getName()).equals(wanted)).findFirst();
+        if (exact.isPresent()) {
+            return exact;
+        }
+        List<DestinationEntity> all = destinationRepository.findAll();
+        exact = all.stream().filter(d -> fold(d.getName()).equals(wanted)).findFirst();
+        if (exact.isPresent()) {
+            return exact;
+        }
+        return all.stream()
+                .filter(d -> fold(d.getName()).contains(wanted))
+                .min(Comparator.comparingInt(d -> d.getName().length()));
+    }
+
+    static String fold(String text) {
+        if (text == null) {
+            return "";
+        }
+        String plain = Normalizer.normalize(text.toLowerCase(Locale.ROOT).replace('đ', 'd'), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return plain.replaceAll("[^a-z0-9]+", " ").trim();
     }
 }

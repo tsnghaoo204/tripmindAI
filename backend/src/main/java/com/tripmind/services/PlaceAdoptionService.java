@@ -39,9 +39,9 @@ public class PlaceAdoptionService {
     /**
      * Địa điểm theo {@code placeId} (đã có trong CSDL) hoặc theo cặp mã nhà cung cấp. Cả hai
      * đều null thì trả {@code null}: hoạt động không gắn địa điểm là hợp lệ (DI-4).
-     * Lỗi "không tìm thấy" không đánh dấu giao dịch bên ngoài là rollback-only: người gọi tự quyết.
+     * Không tự mở giao dịch: lượt tra Google (HTTP) không giữ kết nối CSDL khi gọi từ ngoài giao
+     * dịch, và lỗi "không tìm thấy" không đánh dấu giao dịch của người gọi là rollback-only.
      */
-    @Transactional(noRollbackFor = AppException.class)
     public PlaceEntity resolve(Long placeId, String provider, String externalId, PlaceAdoption via) {
         if (placeId != null) {
             return placeRepository.findById(placeId)
@@ -54,7 +54,6 @@ public class PlaceAdoptionService {
     }
 
     /** Nạp địa điểm từ tham chiếu {@link ProposalChange.PlaceRef}; không có thật thì ném {@code RESOURCE_NOT_FOUND}. */
-    @Transactional(noRollbackFor = AppException.class)
     public PlaceEntity adopt(ProposalChange.PlaceRef ref, PlaceAdoption via) {
         if (ref == null) {
             return null;
@@ -66,7 +65,6 @@ public class PlaceAdoptionService {
      * Chỉ nhận địa điểm đã có trong CSDL hoặc tra được từ Google; không bao giờ tự dựng địa điểm
      * (BR-509). Dòng {@code COMMUNITY} cũ còn trong CSDL vẫn đọc được.
      */
-    @Transactional(noRollbackFor = AppException.class)
     public PlaceEntity adopt(String provider, String externalId, PlaceAdoption via) {
         String normalizedProvider = provider.toUpperCase();
         Optional<PlaceEntity> existing = placeRepository.findByProviderAndExternalId(normalizedProvider, externalId);
