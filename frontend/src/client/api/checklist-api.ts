@@ -1,61 +1,33 @@
 import { request } from "../client"
-import type { ChecklistItem } from "../types"
+import type { ChecklistCategory, ChecklistItem, ChecklistKind } from "../types"
 
 export interface CreateChecklistItemInput {
   title: string
-  category: string
-  kind: "PACK" | "TODO"
-  dueDate?: string
+  kind: ChecklistKind
+  category?: ChecklistCategory | null
+  dueDate?: string | null
+  source?: "USER" | "SUGGESTED" | "AI"
+  reason?: string | null
 }
 
 export interface ChecklistSuggestionsResponse {
-  items: Array<{
-    title: string
-    category: string
-    kind: "PACK" | "TODO"
-    dueDate?: string
-    reason: string
-  }>
+  items: ChecklistItem[]
   skippedRules?: string[]
 }
 
 export const checklistApi = {
-  getChecklist: async (tripId: number): Promise<ChecklistItem[]> => {
-    return request<ChecklistItem[]>(`/api/trips/${tripId}/checklist`)
-  },
+  getChecklist: (tripId: number) => request<ChecklistItem[]>(`/api/trips/${tripId}/checklist`),
 
-  createItem: async (tripId: number, data: CreateChecklistItemInput): Promise<ChecklistItem> => {
-    const res = await request<ChecklistItem[]>(`/api/trips/${tripId}/checklist`, {
-      method: "POST",
-      data: [data],
-    })
-    return res[0]
-  },
+  createItems: (tripId: number, data: CreateChecklistItemInput[]) =>
+    request<ChecklistItem[]>(`/api/trips/${tripId}/checklist`, { method: "POST", data }),
 
-  createItems: async (tripId: number, data: CreateChecklistItemInput[]): Promise<ChecklistItem[]> => {
-    return request<ChecklistItem[]>(`/api/trips/${tripId}/checklist`, {
-      method: "POST",
-      data,
-    })
-  },
-
-  updateItem: async (
+  updateItem: (
     itemId: number,
-    data: { isCompleted?: boolean; title?: string },
-  ): Promise<ChecklistItem> => {
-    return request<ChecklistItem>(`/api/checklist-items/${itemId}`, {
-      method: "PATCH",
-      data,
-    })
-  },
+    data: { done?: boolean; title?: string; category?: ChecklistCategory; dueDate?: string },
+  ) => request<ChecklistItem>(`/api/checklist-items/${itemId}`, { method: "PATCH", data }),
 
-  deleteItem: async (itemId: number): Promise<void> => {
-    return request<void>(`/api/checklist-items/${itemId}`, {
-      method: "DELETE",
-    })
-  },
+  deleteItem: (itemId: number) => request<void>(`/api/checklist-items/${itemId}`, { method: "DELETE" }),
 
-  getSuggestions: async (tripId: number): Promise<ChecklistSuggestionsResponse> => {
-    return request<ChecklistSuggestionsResponse>(`/api/trips/${tripId}/checklist/suggestions`)
-  },
+  getSuggestions: (tripId: number) =>
+    request<ChecklistSuggestionsResponse>(`/api/trips/${tripId}/checklist/suggestions`),
 }

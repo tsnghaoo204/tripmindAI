@@ -1,0 +1,26 @@
+export const queryKeys = {
+  trips: (status?: "upcoming" | "past") => ["trips", status ?? "all"] as const,
+  trip: (tripId: number) => ["trip", tripId] as const,
+  tripDetail: (tripId: number) => ["trip", tripId, "detail"] as const,
+  itinerary: (tripId: number) => ["trip", tripId, "itinerary"] as const,
+  weather: (tripId: number) => ["trip", tripId, "weather"] as const,
+  budget: (tripId: number) => ["trip", tripId, "budget"] as const,
+  expenses: (tripId: number) => ["trip", tripId, "expenses"] as const,
+  checklist: (tripId: number) => ["trip", tripId, "checklist"] as const,
+  reviewPlaces: (tripId: number) => ["trip", tripId, "review-places"] as const,
+  explanation: (activityId: number) => ["activity", activityId, "explanation"] as const,
+  destinations: ["destinations"] as const,
+  blogPosts: (filters: { destination?: string; search?: string }) => ["blog", "posts", filters] as const,
+  blogDestinations: ["blog", "destinations"] as const,
+  blogComments: (postId: number) => ["blog", "comments", postId] as const,
+  admin: {
+    all: ["admin"] as const,
+    users: ["admin", "users"] as const,
+    trips: ["admin", "trips"] as const,
+    usage: ["admin", "ai-usage"] as const,
+    tools: ["admin", "tool-executions"] as const,
+    knowledge: (filters: { destination?: string; category?: string; search?: string; page: number }) =>
+      ["admin", "knowledge", filters] as const,
+    knowledgeDestinations: ["admin", "knowledge", "destinations"] as const,
+  },
+}

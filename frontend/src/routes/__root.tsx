@@ -1,8 +1,8 @@
-import { createRootRoute, Outlet } from "@tanstack/react-router"
-import { ThemeProvider } from "@/contexts/theme-context"
-import { AuthProvider } from "@/contexts/auth-context"
-import { Toaster } from "@/components/ui/sonner"
 import { NotFound } from "@/components/common/NotFound"
+import { Toaster } from "@/components/ui/sonner"
+import { AuthProvider } from "@/contexts/auth-context"
+import { ThemeProvider } from "@/contexts/theme-context"
+import { Outlet, createRootRoute } from "@tanstack/react-router"
 
 export const Route = createRootRoute({
   component: RootComponent,
