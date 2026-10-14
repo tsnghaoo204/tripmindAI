@@ -18,10 +18,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -48,6 +51,10 @@ public class DestinationService {
     private static final int NAME_MAX = 160;
     private static final int COUNTRY_MAX = 80;
     private static final int TIMEZONE_MAX = 64;
+    private static final BigDecimal MIN_LAT = BigDecimal.valueOf(-90);
+    private static final BigDecimal MAX_LAT = BigDecimal.valueOf(90);
+    private static final BigDecimal MIN_LNG = BigDecimal.valueOf(-180);
+    private static final BigDecimal MAX_LNG = BigDecimal.valueOf(180);
 
     private final DestinationRepository destinationRepository;
     private final GooglePlacesClient googlePlacesClient;
@@ -157,7 +164,11 @@ public class DestinationService {
             throw new AppException(ErrorCode.EXTERNAL_SERVICE_ERROR,
                     "Google Places tra ve thieu du lieu cho place_id " + placeId);
         }
+        return saveVerifiedPlace(place);
+    }
 
+    /** Ghi một kết quả Place Details do chính máy chủ gọi, nên mới được tin để gắn vào dòng gieo sẵn. */
+    private DestinationEntity saveVerifiedPlace(GooglePlace place) {
         String country = trim(requireCountry(place.country(), place.countryCode(), place.name()), COUNTRY_MAX);
         ObjectNode metadata =
                 metadataOf(place.placeId(), place.formattedAddress(), place.adminArea(), place.countryCode());
@@ -208,66 +219,87 @@ public class DestinationService {
         return Optional.of(destinationRepository.saveAndFlush(destination));
     }
 
+    /**
+     * Dữ liệu client gửi lên KHÔNG được tin: không bao giờ dùng để sửa một dòng đã có. Chỉ nhận
+     * {@code GOOGLE + externalId} khi máy chủ tự gọi Place Details thành công; còn lại lưu MANUAL.
+     */
     private DestinationEntity resolveByInput(DestinationInput input) {
         String provider = input.getProvider() == null || input.getProvider().isBlank()
                 ? PROVIDER_MANUAL
-                : input.getProvider().toUpperCase();
+                : input.getProvider().trim().toUpperCase(Locale.ROOT);
         if (!PROVIDERS.contains(provider)) {
             // Chặn ở đây để trả 400 kèm lý do, thay vì để ràng buộc CHECK ném ra 500.
-            throw new AppException(ErrorCode.VALIDATION_ERROR,
-                    "provider phai la mot trong " + PROVIDERS + ", nhan duoc '" + provider + "'");
+            throw new AppException(ErrorCode.VALIDATION_ERROR, "provider phai la mot trong " + PROVIDERS);
         }
+        validateCoordinates(input.getLatitude(), input.getLongitude());
         String externalId = input.getExternalId() == null || input.getExternalId().isBlank()
                 ? null
-                : input.getExternalId();
-        if (input.getLatitude() == null || input.getLongitude() == null) {
-            GeocodingClient.GeoPoint point = geocodingClient.search(input.getName(), input.getCountry())
-                    .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR,
-                            "Khong tim thay toa do cho '" + input.getName() + "', hay gui kem latitude/longitude"));
-            input.setLatitude(point.latitude());
-            input.setLongitude(point.longitude());
-            if (input.getTimezone() == null || input.getTimezone().isBlank()) {
-                input.setTimezone(point.timezone());
+                : input.getExternalId().trim();
+
+        if (PROVIDER_GOOGLE.equals(provider) && externalId != null) {
+            Optional<DestinationEntity> existing =
+                    destinationRepository.findByProviderAndExternalId(PROVIDER_GOOGLE, externalId);
+            if (existing.isPresent()) {
+                return existing.get();
             }
+            Optional<GooglePlace> verified = verifiedPlace(externalId);
+            if (verified.isPresent()) {
+                return saveVerifiedPlace(verified.get());
+            }
+            log.info("Khong xac minh duoc place_id client gui len, luu '{}' thanh diem den MANUAL", input.getName());
         }
 
-        // Bản ghi tự nhập không có external_id nên rơi vào khoá dự phòng (country, name).
-        if (externalId == null) {
-            provider = PROVIDER_MANUAL;
-            Optional<DestinationEntity> existing = destinationRepository
-                    .findByCountryIgnoreCaseAndNameIgnoreCaseAndExternalIdIsNull(input.getCountry(), input.getName());
-            if (existing.isPresent()) {
-                return existing.get();
-            }
-        } else {
-            Optional<DestinationEntity> existing =
-                    destinationRepository.findByProviderAndExternalId(provider, externalId);
-            if (existing.isPresent()) {
-                return existing.get();
-            }
-            Optional<DestinationEntity> seeded = destinationRepository
-                    .findByCountryIgnoreCaseAndNameIgnoreCaseAndExternalIdIsNull(input.getCountry(), input.getName());
-            if (seeded.isPresent()) {
-                DestinationEntity destination = seeded.get();
-                destination.setProvider(provider);
-                destination.setExternalId(externalId);
-                destination.setLatitude(input.getLatitude());
-                destination.setLongitude(input.getLongitude());
-                return destinationRepository.saveAndFlush(destination);
+        String name = trim(input.getName().trim(), NAME_MAX);
+        String country = trim(input.getCountry().trim(), COUNTRY_MAX);
+        Optional<DestinationEntity> existing = destinationRepository
+                .findByCountryIgnoreCaseAndNameIgnoreCaseAndExternalIdIsNull(country, name);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        BigDecimal latitude = input.getLatitude();
+        BigDecimal longitude = input.getLongitude();
+        String timezone = input.getTimezone();
+        if (latitude == null || longitude == null) {
+            GeocodingClient.GeoPoint point = geocodingClient.search(name, country)
+                    .orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR,
+                            "Khong tim thay toa do cho diem den nay, hay gui kem latitude/longitude"));
+            latitude = point.latitude();
+            longitude = point.longitude();
+            if (timezone == null || timezone.isBlank()) {
+                timezone = point.timezone();
             }
         }
 
         return save(DestinationEntity.builder()
-                .provider(provider)
-                .externalId(externalId)
-                .name(trim(input.getName(), NAME_MAX))
-                .country(trim(input.getCountry(), COUNTRY_MAX))
-                .latitude(input.getLatitude())
-                .longitude(input.getLongitude())
-                .timezone(resolveTimezone(input.getTimezone(), input.getLatitude(), input.getLongitude(), input.getName()))
-                .metadata(metadataOf(externalId, input.getFormattedAddress(), null, null))
+                .provider(PROVIDER_MANUAL)
+                .externalId(null)
+                .name(name)
+                .country(country)
+                .latitude(latitude)
+                .longitude(longitude)
+                .timezone(resolveTimezone(timezone, latitude, longitude, name))
+                .metadata(metadataOf(null, input.getFormattedAddress(), null, null))
                 .build(),
-                provider, externalId, input.getCountry(), input.getName());
+                PROVIDER_MANUAL, null, country, name);
+    }
+
+    private Optional<GooglePlace> verifiedPlace(String placeId) {
+        try {
+            return googlePlacesClient.getPlaceDetails(placeId).filter(GooglePlace::isResolvable);
+        } catch (Exception e) {
+            log.warn("Google Place Details loi khi xac minh place_id: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private void validateCoordinates(BigDecimal latitude, BigDecimal longitude) {
+        if (latitude != null && (latitude.compareTo(MIN_LAT) < 0 || latitude.compareTo(MAX_LAT) > 0)) {
+            throw new AppException(ErrorCode.VALIDATION_ERROR, "latitude phai nam trong [-90, 90]");
+        }
+        if (longitude != null && (longitude.compareTo(MIN_LNG) < 0 || longitude.compareTo(MAX_LNG) > 0)) {
+            throw new AppException(ErrorCode.VALIDATION_ERROR, "longitude phai nam trong [-180, 180]");
+        }
     }
 
     /**
@@ -297,13 +329,25 @@ public class DestinationService {
      */
     private String resolveTimezone(String provided, BigDecimal latitude, BigDecimal longitude, String name) {
         if (provided != null && !provided.isBlank()) {
-            return trim(provided, TIMEZONE_MAX);
+            return validZone(provided.trim()).orElseThrow(() -> new AppException(ErrorCode.VALIDATION_ERROR,
+                    "timezone khong phai mui gio IANA hop le"));
         }
         return googlePlacesClient.resolveTimezone(latitude, longitude)
-                .map(timezone -> trim(timezone, TIMEZONE_MAX))
+                .flatMap(this::validZone)
                 .orElseThrow(() -> new AppException(ErrorCode.EXTERNAL_SERVICE_ERROR,
                         "Khong xac dinh duoc mui gio cho '" + name + "'. Bat Time Zone API tren khoa Google,"
                                 + " hoac gui kem truong timezone trong destinationData."));
+    }
+
+    private Optional<String> validZone(String timezone) {
+        if (timezone == null || timezone.isBlank() || timezone.length() > TIMEZONE_MAX) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.of(ZoneId.of(timezone).getId());
+        } catch (DateTimeException e) {
+            return Optional.empty();
+        }
     }
 
     private String requireCountry(String country, String countryCode, String name) {
