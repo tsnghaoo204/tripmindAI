@@ -1,7 +1,9 @@
 package com.tripmind.repositories;
 
 import com.tripmind.entities.TripEntity;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,6 +17,11 @@ public interface TripRepository extends JpaRepository<TripEntity, Long> {
     List<TripEntity> findByUserIdOrderByStartDateDesc(Long userId);
 
     Optional<TripEntity> findByIdAndUserId(Long id, Long userId);
+
+    /** {@code SELECT ... FOR UPDATE} dòng chuyến: tuần tự hoá áp dụng / hoàn tác đề xuất trên cùng chuyến. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT t FROM TripEntity t WHERE t.id = :id AND t.user.id = :userId")
+    Optional<TripEntity> findByIdAndUserIdForUpdate(@Param("id") Long id, @Param("userId") Long userId);
 
     /**
      * Số ngày "đã lên lịch" của từng chuyến: ngày có ít nhất {@code minActivities} hoạt động.

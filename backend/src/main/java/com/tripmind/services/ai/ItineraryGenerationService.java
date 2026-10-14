@@ -498,7 +498,7 @@ public class ItineraryGenerationService {
         // Tra cứu địa điểm từ tri thức cộng đồng (Destination Knowledge / Dataset)
         Map<String, PlaceResponse> communityCandidates = new LinkedHashMap<>();
         try {
-            List<DestinationKnowledgeEntity> activeKnowledge = destinationKnowledgeService.getActiveKnowledgeEntities(destination);
+            List<DestinationKnowledgeEntity> activeKnowledge = destinationKnowledgeService.getActiveKnowledgeEntities(trip.getDestination());
             for (DestinationKnowledgeEntity k : activeKnowledge) {
                 String pName = k.getPlaceName();
                 if (pName != null && !pName.isBlank()) {
@@ -611,8 +611,7 @@ public class ItineraryGenerationService {
                         + "°C, khả năng mưa " + d.getPrecipitationProbability() + "% (" + d.getSource() + ")")
                 .collect(Collectors.joining("\n"));
         List<String> disliked = placeRatingLookup.dislikedNames(trip.getUser().getId());
-        String destKnowledge = destinationKnowledgeService.getFormattedKnowledgeForPrompt(
-                trip.getDestination() != null ? trip.getDestination().getName() : "");
+        String destKnowledge = destinationKnowledgeService.getFormattedKnowledgeForPrompt(trip.getDestination());
         String system = template
                 .replace("{tripSummary}", promptBuilder.tripSummary(trip))
                 .replace("{groupSummary}", promptBuilder.groupSummary(trip))

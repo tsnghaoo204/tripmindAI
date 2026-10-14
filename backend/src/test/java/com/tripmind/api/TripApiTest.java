@@ -105,4 +105,23 @@ class TripApiTest extends IntegrationTest {
         assertThat(get("/api/trips?status=ongoing", token, 200).get("data")).hasSize(1);
         assertThat(get("/api/trips?status=upcoming", token, 200).get("data")).isEmpty();
     }
+
+    @Test
+    @DisplayName("Đổi tiền tệ bị chặn khi ngân sách hoặc chi phí ước tính đang tính theo tiền cũ")
+    void currencyChangeBlockedByRecordedAmounts() throws Exception {
+        String token = registerUser();
+        long tripId = createTrip(token, start.toString(), start.plusDays(1).toString()).get("id").asLong();
+
+        JsonNode blocked = call(put("/api/trips/" + tripId), token, Map.of("currency", "USD"), 422);
+        assertThat(blocked.get("code").asText()).isEqualTo("CURRENCY_CHANGE_BLOCKED");
+
+        // Gửi kèm ngân sách mới theo tiền mới thì được đổi.
+        JsonNode changed = call(put("/api/trips/" + tripId), token, Map.of("currency", "USD", "budget", 300), 200).get("data");
+        assertThat(changed.get("currency").asText()).isEqualTo("USD");
+
+        call(post("/api/trips/" + tripId + "/itinerary/activities"), token, Map.of("dayNumber", 1, "title", "Bao tang",
+                "activityType", "SIGHTSEEING", "estimatedCost", 20), 201);
+        assertThat(call(put("/api/trips/" + tripId), token, Map.of("currency", "VND", "budget", 0), 422)
+                .get("code").asText()).isEqualTo("CURRENCY_CHANGE_BLOCKED");
+    }
 }

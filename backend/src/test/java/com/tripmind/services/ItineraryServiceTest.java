@@ -124,7 +124,7 @@ class ItineraryServiceTest {
 
         when(tripRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(trip));
         when(itineraryDayRepository.findByTripIdOrderByDayNumberAsc(10L)).thenReturn(List.of(day1));
-        when(activityRepository.findByItineraryDayIdOrderByOrderIndexAsc(100L)).thenReturn(List.of(act1, act2));
+        when(activityRepository.findWithPlacesByTripId(10L)).thenReturn(List.of(act1, act2));
 
         ItineraryResponse response = itineraryService.getItinerary(1L, 10L);
 

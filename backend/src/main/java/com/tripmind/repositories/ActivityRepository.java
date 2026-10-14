@@ -27,6 +27,28 @@ public interface ActivityRepository extends JpaRepository<ActivityEntity, Long> 
 
     long countByItineraryDayTripId(Long tripId);
 
+    /** {@code [dayId, count]} số hoạt động từng ngày của chuyến; ngày trống không có dòng. */
+    @Query("SELECT a.itineraryDay.id, COUNT(a) FROM ActivityEntity a WHERE a.itineraryDay.trip.id = :tripId GROUP BY a.itineraryDay.id")
+    List<Object[]> countByDay(@Param("tripId") Long tripId);
+
+    /** Có chi tiêu, nhật ký hoặc ảnh gắn với hoạt động: xoá nó sẽ mất (hoặc tách rời) dữ liệu người dùng. */
+    @Query(value = """
+            SELECT EXISTS (SELECT 1 FROM expenses WHERE activity_id = :id)
+                OR EXISTS (SELECT 1 FROM journal_entries WHERE activity_id = :id)
+                OR EXISTS (SELECT 1 FROM photos WHERE activity_id = :id)
+            """, nativeQuery = true)
+    boolean hasLinkedData(@Param("id") Long id);
+
+    @Query("SELECT COUNT(a) > 0 FROM ActivityEntity a WHERE a.itineraryDay.trip.id = :tripId AND a.estimatedCost > 0")
+    boolean existsPricedByTripId(@Param("tripId") Long tripId);
+
+    /** Một hoạt động kèm ngày, chuyến, điểm đến và địa điểm — dùng được ngoài giao dịch. */
+    @Query("""
+            SELECT a FROM ActivityEntity a JOIN FETCH a.itineraryDay d JOIN FETCH d.trip t
+            LEFT JOIN FETCH t.destination LEFT JOIN FETCH a.place WHERE a.id = :id
+            """)
+    Optional<ActivityEntity> findDetachedById(@Param("id") Long id);
+
     /** Mọi hoạt động của chuyến kèm địa điểm và ngày, đọc một lần — dùng được ngoài giao dịch. */
     @Query("""
             SELECT a FROM ActivityEntity a JOIN FETCH a.itineraryDay d LEFT JOIN FETCH a.place
