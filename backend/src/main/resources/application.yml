@@ -50,8 +50,8 @@ spring:
         jdbc:
           batch_size: 25
 
-  # Lược đồ do Flyway quản lý: db/migration/V<n>__*.sql.
-  # CSDL đã có bảng từ trước (chạy tay schemas.sql) thì được nhận làm mốc V1.
+  # Lược đồ do Flyway quản lý: db/migration/V<n>__*.sql là nguồn sự thật duy nhất (không còn schemas.sql).
+  # CSDL cũ đã có bảng nhưng chưa có lịch sử Flyway thì được nhận làm mốc V1.
   flyway:
     enabled: true
     baseline-on-migrate: true

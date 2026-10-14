@@ -134,9 +134,22 @@ public class WeatherService {
             if (shiftedTo.isAfter(archiveLimit)) {
                 continue;
             }
-            int offset = yearsBack;
-            for (RawDay raw : openMeteoClient.archive(lat, lng, zone, shiftedFrom, shiftedTo)) {
-                samples.computeIfAbsent(raw.date().plusYears(offset), d -> new ArrayList<>()).add(raw);
+            // Ngày của năm cũ → các ngày của chuyến ứng với nó (29/2 rơi về 28/2 năm không nhuận).
+            Map<LocalDate, List<LocalDate>> targets = new HashMap<>();
+            for (LocalDate d = from; !d.isAfter(to); d = d.plusDays(1)) {
+                targets.computeIfAbsent(d.minusYears(yearsBack), k -> new ArrayList<>()).add(d);
+            }
+            List<RawDay> year;
+            try {
+                year = openMeteoClient.archive(lat, lng, zone, shiftedFrom, shiftedTo);
+            } catch (RuntimeException e) {
+                log.warn("Bo qua nam -{} cua trung binh khi hau: {}", yearsBack, e.getMessage());
+                continue;
+            }
+            for (RawDay raw : year) {
+                for (LocalDate target : targets.getOrDefault(raw.date(), List.of())) {
+                    samples.computeIfAbsent(target, d -> new ArrayList<>()).add(raw);
+                }
             }
             collected++;
         }

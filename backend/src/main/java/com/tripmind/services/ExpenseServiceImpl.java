@@ -13,6 +13,8 @@ import com.tripmind.repositories.ActivityRepository;
 import com.tripmind.repositories.ExpenseRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,10 +49,17 @@ public class ExpenseServiceImpl implements ExpenseService {
     @Transactional(readOnly = true)
     public List<ExpenseResponse> list(Long userId, Long tripId, ExpenseCategory category, LocalDate from, LocalDate to) {
         tripService.getOwnedTrip(userId, tripId);
-        return expenseRepository.findByTripIdOrderByExpenseDateDescCreatedAtDesc(tripId).stream()
-                .filter(e -> category == null || e.getCategory() == category)
-                .filter(e -> from == null || !e.getExpenseDate().isBefore(from))
-                .filter(e -> to == null || !e.getExpenseDate().isAfter(to))
+        Specification<ExpenseEntity> spec = (root, query, cb) -> cb.equal(root.get("trip").get("id"), tripId);
+        if (category != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("category"), category));
+        }
+        if (from != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("expenseDate"), from));
+        }
+        if (to != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("expenseDate"), to));
+        }
+        return expenseRepository.findAll(spec, Sort.by(Sort.Order.desc("expenseDate"), Sort.Order.desc("createdAt"))).stream()
                 .map(this::toResponse)
                 .toList();
     }

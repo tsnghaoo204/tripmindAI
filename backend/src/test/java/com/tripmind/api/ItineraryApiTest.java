@@ -91,8 +91,13 @@ class ItineraryApiTest extends IntegrationTest {
     }
 
     @Test
-    @DisplayName("Lấy và chọn phương án thay thế theo ngân sách (3 lựa chọn cho Ăn uống)")
+    @DisplayName("Lấy và chọn phương án thay thế theo ngân sách (3 lựa chọn cho Ăn uống, đều là địa điểm có thật)")
     void getAndSelectActivityAlternatives() throws Exception {
+        String tag = UUID.randomUUID().toString().substring(0, 6);
+        jdbc.update("INSERT INTO places (provider, external_id, name, category, latitude, longitude, price_level, adopted_via) "
+                + "VALUES ('GOOGLE', ?, ?, 'restaurant', 16.06, 108.22, 1, 'SAVED')", "seed-" + tag + "-b", "Quán ăn bình dân ngon " + tag);
+        jdbc.update("INSERT INTO places (provider, external_id, name, category, latitude, longitude, price_level, adopted_via) "
+                + "VALUES ('GOOGLE', ?, ?, 'restaurant', 16.06, 108.24, 3, 'SAVED')", "seed-" + tag + "-p", "Nhà hàng cao cấp view đẹp " + tag);
         String token = registerUser();
         long tripId = createTrip(token, start.toString(), start.toString()).get("id").asLong();
 
@@ -108,6 +113,8 @@ class ItineraryApiTest extends IntegrationTest {
         assertThat(alts.get(1).get("tier").asText()).isEqualTo("BALANCED");
         assertThat(alts.get(2).get("tier").asText()).isEqualTo("PREMIUM");
         assertThat(alts.get(1).get("isSelected").asBoolean()).isTrue();
+        assertThat(alts.get(0).get("placeId").isNull()).isFalse();
+        assertThat(alts.get(2).get("placeId").isNull()).isFalse();
 
         // 2. Chọn phương án 1 (BUDGET)
         long budgetAltId = alts.get(0).get("id").asLong();

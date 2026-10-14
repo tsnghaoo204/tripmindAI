@@ -2,6 +2,7 @@ package com.tripmind.services;
 
 import com.tripmind.entities.ActivityEntity;
 import com.tripmind.entities.ItineraryDayEntity;
+import com.tripmind.enums.ActivityStatus;
 import com.tripmind.exceptions.AppException;
 import com.tripmind.exceptions.ErrorCode;
 import com.tripmind.repositories.ActivityRepository;
@@ -35,7 +36,7 @@ public class DayOrderService {
                 .map(a -> new ItineraryOptimizer.Stop(a.getId(),
                         a.getPlace() == null ? null : a.getPlace().getLatitude().doubleValue(),
                         a.getPlace() == null ? null : a.getPlace().getLongitude().doubleValue(),
-                        a.getStartTime() != null))
+                        a.getStartTime() != null || a.getStatus() != ActivityStatus.PLANNED))
                 .toList();
         return new DayOrder(stops.stream().map(ItineraryOptimizer.Stop::id).toList(), optimizer.optimize(stops));
     }

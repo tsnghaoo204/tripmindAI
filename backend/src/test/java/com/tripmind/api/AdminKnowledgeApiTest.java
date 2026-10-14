@@ -58,8 +58,12 @@ class AdminKnowledgeApiTest extends IntegrationTest {
                 .isEqualTo(initialTotal + 1);
 
         // 5. Kiểm tra hàm nạp tri thức cho AI prompt
-        String formattedPrompt = knowledgeService.getFormattedKnowledgeForPrompt("Da Nang");
+        String formattedPrompt = knowledgeService.getFormattedKnowledgeForPrompt(
+                com.tripmind.entities.DestinationEntity.builder().id(999_999L).name("da nang").build());
         assertThat(formattedPrompt).contains("Mì Quảng Bà Mua");
+        // Khớp đúng tên, không còn LIKE %...%: "Nang" không kéo theo tri thức của "Da Nang".
+        assertThat(knowledgeService.getFormattedKnowledgeForPrompt(
+                com.tripmind.entities.DestinationEntity.builder().name("Nang").build())).doesNotContain("Mì Quảng Bà Mua");
 
         // 6. Cập nhật tri thức
         createReq.setTitle("Mì Quảng Bà Mua - Cơ sở Trần Bình Trọng");

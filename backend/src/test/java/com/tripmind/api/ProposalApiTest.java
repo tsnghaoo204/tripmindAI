@@ -1,7 +1,13 @@
 package com.tripmind.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.tripmind.domains.proposals.ProposalChange;
+import com.tripmind.entities.AiProposalEntity;
 import com.tripmind.entities.PlaceEntity;
+import com.tripmind.enums.ActivityType;
+import com.tripmind.enums.ProposalKind;
+import com.tripmind.enums.ProposalStatus;
+import com.tripmind.repositories.AiProposalRepository;
 import com.tripmind.enums.PlaceAdoption;
 import com.tripmind.repositories.PlaceRepository;
 import com.tripmind.support.IntegrationTest;
@@ -12,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +38,9 @@ class ProposalApiTest extends IntegrationTest {
 
     @Autowired
     private com.tripmind.services.ai.ProposalService proposalService;
+
+    @Autowired
+    private AiProposalRepository proposalRepository;
 
     private final LocalDate start = LocalDate.now().plusDays(4);
     private String token;
@@ -202,6 +212,100 @@ class ProposalApiTest extends IntegrationTest {
         jdbc.update("UPDATE ai_proposals SET expires_at = now() - interval '1 minute' WHERE id = ?", pending);
         proposalService.expirePending();
         assertThat(get("/api/proposals/" + pending, token, 200).at("/data/status").asText()).isEqualTo("EXPIRED");
+    }
+
+    @Test
+    @DisplayName("Địa điểm của một thao tác không còn tra được: bỏ qua PLACE_UNAVAILABLE, phần còn lại vẫn áp dụng")
+    void unavailablePlaceIsSkippedNotRolledBack() throws Exception {
+        long proposalId = saveProposal(List.of(
+                new ProposalChange.Add(1, "Quan da dong cua", ActivityType.FOOD,
+                        new ProposalChange.PlaceRef("GOOGLE", "gone-" + suffix(), "Quan cu", null, null, null),
+                        null, null, null, null, null, "r"),
+                new ProposalChange.Add(1, "Nghi trua", ActivityType.REST, null, null, null, null, null, null, "r")));
+
+        JsonNode applied = call(post("/api/trips/" + tripId + "/ai/apply"), token, Map.of("proposalId", proposalId), 200)
+                .get("data");
+        assertThat(applied.get("applied").asInt()).isEqualTo(1);
+        assertThat(applied.at("/skipped/0/reason").asText()).isEqualTo("PLACE_UNAVAILABLE");
+        assertThat(activityTitles()).containsExactly("Cau Rong", "Cho Han", "Nghi trua");
+        assertThat(get("/api/proposals/" + proposalId, token, 200).at("/data/status").asText()).isEqualTo("APPLIED");
+    }
+
+    @Test
+    @DisplayName("UPDATE bị bỏ qua (giờ sai) thì không đổi gì: không chuyển ngày, không đổi tên")
+    void skippedUpdateChangesNothing() throws Exception {
+        ProposalChange.ActivitySnapshot before = new ProposalChange.ActivitySnapshot(keepId, 1, "Cau Rong",
+                ActivityType.SIGHTSEEING, null, null, 0L, null, null);
+        long proposalId = saveProposal(List.of(new ProposalChange.Update(keepId, 2, "Ten moi",
+                java.time.LocalTime.of(15, 0), java.time.LocalTime.of(14, 0), null, null, before, "r")));
+
+        JsonNode applied = call(post("/api/trips/" + tripId + "/ai/apply"), token, Map.of("proposalId", proposalId), 200)
+                .get("data");
+        assertThat(applied.at("/skipped/0/reason").asText()).isEqualTo("INVALID_TIME_RANGE");
+        assertThat(jdbc.queryForObject("SELECT title FROM activities WHERE id = ?", String.class, keepId)).isEqualTo("Cau Rong");
+        assertThat(jdbc.queryForObject("SELECT d.day_number FROM activities a JOIN itinerary_days d ON d.id = a.itinerary_day_id WHERE a.id = ?",
+                Integer.class, keepId)).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("Hai thao tác cùng nhắm một hoạt động: cả đề xuất bị từ chối DUPLICATE_TARGET")
+    void duplicateTargetIsRejected() throws Exception {
+        llm.thenToolCalls(Map.of("propose_itinerary_changes", json(Map.of("summary", "x", "reason", "r",
+                        "changes", List.of(
+                                Map.of("op", "UPDATE", "activityId", keepId, "notes", "A", "reason", "r"),
+                                Map.of("op", "REMOVE", "activityId", keepId, "reason", "r"))))))
+                .thenText("Xong");
+        String stream = chat(token, tripId, Map.of("message", "Sua roi xoa"));
+
+        assertThat(stream).doesNotContain("event:proposal");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM ai_proposals WHERE trip_id = ?", Integer.class, tripId)).isZero();
+        assertThat(jdbc.queryForObject("SELECT error_message FROM ai_tool_executions WHERE trip_id = ? AND tool_name = 'propose_itinerary_changes'",
+                String.class, tripId)).contains("DUPLICATE_TARGET");
+    }
+
+    @Test
+    @DisplayName("Không xoá hoạt động đã có chi tiêu gắn kèm, kể cả khi hoàn tác thao tác thêm")
+    void linkedDataBlocksRemoveAndUndo() throws Exception {
+        addExpense(dropId);
+        long removeId = saveProposal(List.of(new ProposalChange.Remove(dropId, new ProposalChange.ActivitySnapshot(
+                dropId, 1, "Cho Han", ActivityType.SIGHTSEEING, null, null, 100_000L, null, null), "r")));
+        JsonNode applied = call(post("/api/trips/" + tripId + "/ai/apply"), token, Map.of("proposalId", removeId), 200)
+                .get("data");
+        assertThat(applied.at("/skipped/0/reason").asText()).isEqualTo("ACTIVITY_HAS_LINKED_DATA");
+        assertThat(activityTitles()).containsExactly("Cau Rong", "Cho Han");
+
+        long addId = saveProposal(List.of(new ProposalChange.Add(2, "Them moi", ActivityType.REST, null, null, null,
+                null, null, null, "r")));
+        call(post("/api/trips/" + tripId + "/ai/apply"), token, Map.of("proposalId", addId), 200);
+        long added = jdbc.queryForObject("SELECT id FROM activities WHERE from_proposal_id = ?", Long.class, addId);
+        addExpense(added);
+
+        JsonNode undone = call(post("/api/trips/" + tripId + "/ai/undo"), token, Map.of("proposalId", addId), 200).get("data");
+        assertThat(undone.at("/undoSkipped/0/reason").asText()).isEqualTo("ACTIVITY_HAS_LINKED_DATA");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM activities WHERE id = ?", Integer.class, added)).isEqualTo(1);
+    }
+
+    private void addExpense(long activityId) throws Exception {
+        call(post("/api/trips/" + tripId + "/expenses"), token, Map.of("category", "FOOD", "amount", 50_000,
+                "expenseDate", start.toString(), "activityId", activityId), 201);
+    }
+
+    /** Ghi thẳng một đề xuất chờ duyệt (bỏ qua bước kiểm lúc dựng) để thử nhánh kiểm lại lúc áp dụng. */
+    private long saveProposal(List<ProposalChange> changes) throws Exception {
+        llm.thenText("Chao");
+        chat(token, tripId, Map.of("message", "Xin chao"));
+        Long conversationId = jdbc.queryForObject("SELECT MAX(id) FROM conversations WHERE trip_id = ?", Long.class, tripId);
+        return proposalRepository.save(AiProposalEntity.builder()
+                .tripId(tripId)
+                .conversationId(conversationId)
+                .summary("test")
+                .changes(ProposalChange.toJson(objectMapper, changes))
+                .estimatedCostDelta(0L)
+                .travelTimeDelta(0)
+                .status(ProposalStatus.PENDING)
+                .kind(ProposalKind.ITINERARY)
+                .expiresAt(Instant.now().plusSeconds(600))
+                .build()).getId();
     }
 
     private long proposeUpdate(String notes) throws Exception {

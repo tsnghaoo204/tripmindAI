@@ -16,10 +16,12 @@ import com.tripmind.repositories.*;
 import com.tripmind.services.ItineraryService;
 import com.tripmind.services.PlaceAdoptionService;
 import com.tripmind.services.TripClock;
+import com.tripmind.services.clients.GooglePlacesClient.GooglePlace;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Instant;
 import java.time.LocalTime;
@@ -53,6 +55,7 @@ public class ProposalApplyService {
     private final TripClock tripClock;
     private final AiProperties properties;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     // ---------------------------------------------------------------- undo log
 
@@ -92,24 +95,47 @@ public class ProposalApplyService {
 
     // ---------------------------------------------------------------- apply
 
-    @Transactional
     public ApplyProposalResponse apply(Long userId, Long tripId, Long proposalId) {
-        return apply(userId, tripId, proposalId, PlaceAdoption.PROPOSAL);
+        return apply(userId, tripId, proposalId, PlaceAdoption.PROPOSAL, false);
     }
 
     /** {@code via} ghi vào {@code places.adopted_via} cho địa điểm mới: PROPOSAL, hoặc AI_GENERATE khi sinh lịch trình. */
-    @Transactional
     public ApplyProposalResponse apply(Long userId, Long tripId, Long proposalId, PlaceAdoption via) {
+        return apply(userId, tripId, proposalId, via, false);
+    }
+
+    /**
+     * Tra địa điểm Google (HTTP) trước, ngoài giao dịch; rồi ghi trong một giao dịch có khoá dòng
+     * chuyến. {@code requireEmptyTrip}: kiểm chuyến còn trống ngay dưới khoá (sinh lịch trình).
+     */
+    public ApplyProposalResponse apply(Long userId, Long tripId, Long proposalId, PlaceAdoption via,
+                                       boolean requireEmptyTrip) {
+        Map<String, GooglePlace> prefetched = proposalRepository.findById(proposalId)
+                .filter(p -> p.getTripId().equals(tripId) && p.getStatus() == ProposalStatus.PENDING)
+                .map(p -> placeAdoptionService.prefetch(proposalService.changesOf(p).stream()
+                        .filter(c -> c instanceof Add a && a.place() != null)
+                        .map(c -> ((Add) c).place())
+                        .toList()))
+                .orElse(Map.of());
+        return transactionTemplate.execute(status ->
+                applyLocked(userId, tripId, proposalId, via, requireEmptyTrip, prefetched));
+    }
+
+    private ApplyProposalResponse applyLocked(Long userId, Long tripId, Long proposalId, PlaceAdoption via,
+                                              boolean requireEmptyTrip, Map<String, GooglePlace> prefetched) {
+        TripEntity trip = tripRepository.findByIdAndUserIdForUpdate(tripId, userId)
+                .orElseThrow(() -> new AppException(ErrorCode.PROPOSAL_NOT_FOUND, "Proposal not found: " + proposalId));
         AiProposalEntity proposal = proposalRepository.findByIdForUpdate(proposalId)
                 .filter(p -> p.getTripId().equals(tripId))
-                .orElseThrow(() -> new AppException(ErrorCode.PROPOSAL_NOT_FOUND, "Proposal not found: " + proposalId));
-        TripEntity trip = tripRepository.findByIdAndUserId(tripId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.PROPOSAL_NOT_FOUND, "Proposal not found: " + proposalId));
         if (proposal.getStatus() != ProposalStatus.PENDING) {
             throw new AppException(ErrorCode.PROPOSAL_NOT_PENDING, "Proposal is " + proposal.getStatus());
         }
         if (proposal.getExpiresAt().isBefore(tripClock.now())) {
             throw new AppException(ErrorCode.PROPOSAL_EXPIRED, "Proposal expired at " + proposal.getExpiresAt());
+        }
+        if (requireEmptyTrip && activityRepository.countByItineraryDayTripId(tripId) > 0) {
+            throw new AppException(ErrorCode.TRIP_NOT_EMPTY, "Trip received activities while generating");
         }
 
         List<ProposalChange> changes = proposalService.changesOf(proposal);
@@ -125,7 +151,7 @@ public class ProposalApplyService {
         for (int i = 0; i < changes.size(); i++) {
             ProposalChange change = changes.get(i);
             String skipReason = switch (change) {
-                case Add a -> applyAdd(i, a, proposal, days, undo, touchedDays, adoptedPlaces, via);
+                case Add a -> applyAdd(i, a, proposal, days, undo, touchedDays, adoptedPlaces, via, prefetched);
                 case Remove r -> applyRemove(i, r, trip, undo, touchedDays);
                 case Update u -> applyUpdate(i, u, trip, days, undo, touchedDays);
                 case Reorder r -> applyReorder(i, r, days, undo, touchedDays);
@@ -178,7 +204,8 @@ public class ProposalApplyService {
     }
 
     private String applyAdd(int index, Add a, AiProposalEntity proposal, Map<Integer, ItineraryDayEntity> days,
-                            List<UndoOp> undo, Set<Long> touchedDays, List<String> adoptedPlaces, PlaceAdoption via) {
+                            List<UndoOp> undo, Set<Long> touchedDays, List<String> adoptedPlaces, PlaceAdoption via,
+                            Map<String, GooglePlace> prefetched) {
         ItineraryDayEntity day = days.get(a.dayNumber());
         if (day == null) {
             return "DAY_NOT_FOUND";
@@ -186,12 +213,12 @@ public class ProposalApplyService {
         PlaceEntity place = null;
         if (a.place() != null) {
             boolean existed = placeRepository.findByProviderAndExternalId(a.place().provider(), a.place().externalId()).isPresent();
-            try {
-                place = placeAdoptionService.adopt(a.place(), via);
-            } catch (AppException e) {
+            Optional<PlaceEntity> adopted = placeAdoptionService.adoptPrefetched(a.place(), prefetched, via);
+            if (adopted.isEmpty()) {
                 return "PLACE_UNAVAILABLE";
             }
-            if (!existed && place != null) {
+            place = adopted.get();
+            if (!existed) {
                 adoptedPlaces.add(place.getName());
             }
         }
@@ -226,6 +253,9 @@ public class ProposalApplyService {
         if (isFinished(activity)) {
             return "ACTIVITY_FINISHED";
         }
+        if (activityRepository.hasLinkedData(activity.getId())) {
+            return "ACTIVITY_HAS_LINKED_DATA";
+        }
         undo.add(new UndoOp.Removed(index, full(activity)));
         touchedDays.add(activity.getItineraryDay().getId());
         activityRepository.delete(activity);
@@ -243,24 +273,29 @@ public class ProposalApplyService {
         if (isFinished(activity)) {
             return "ACTIVITY_FINISHED";
         }
-        FullSnapshot before = full(activity);
-        touchedDays.add(activity.getItineraryDay().getId());
+        // Kiểm hết rồi mới sửa: bị bỏ qua thì hoạt động giữ nguyên.
+        ItineraryDayEntity target = null;
         if (u.dayNumber() != null) {
-            ItineraryDayEntity target = days.get(u.dayNumber());
+            target = days.get(u.dayNumber());
             if (target == null) {
                 return "DAY_NOT_FOUND";
             }
+        }
+        LocalTime start = u.startTime() != null ? u.startTime() : activity.getStartTime();
+        LocalTime end = u.endTime() != null ? u.endTime() : activity.getEndTime();
+        if (start != null && end != null && end.isBefore(start)) {
+            return "INVALID_TIME_RANGE";
+        }
+
+        FullSnapshot before = full(activity);
+        touchedDays.add(activity.getItineraryDay().getId());
+        if (target != null) {
             activity.setItineraryDay(target);
             activity.setOrderIndex(nextOrder(target.getId()));
             touchedDays.add(target.getId());
         }
         if (u.title() != null) {
             activity.setTitle(u.title());
-        }
-        LocalTime start = u.startTime() != null ? u.startTime() : activity.getStartTime();
-        LocalTime end = u.endTime() != null ? u.endTime() : activity.getEndTime();
-        if (start != null && end != null && end.isBefore(start)) {
-            return "INVALID_TIME_RANGE";
         }
         activity.setStartTime(start);
         activity.setEndTime(end);
@@ -295,11 +330,11 @@ public class ProposalApplyService {
 
     @Transactional
     public UndoProposalResponse undo(Long userId, Long tripId, Long proposalId, boolean preview) {
+        (preview ? tripRepository.findByIdAndUserId(tripId, userId) : tripRepository.findByIdAndUserIdForUpdate(tripId, userId))
+                .orElseThrow(() -> new AppException(ErrorCode.PROPOSAL_NOT_FOUND, "Proposal not found: " + proposalId));
         AiProposalEntity proposal = (preview ? proposalRepository.findById(proposalId)
                 : proposalRepository.findByIdForUpdate(proposalId))
                 .filter(p -> p.getTripId().equals(tripId))
-                .orElseThrow(() -> new AppException(ErrorCode.PROPOSAL_NOT_FOUND, "Proposal not found: " + proposalId));
-        tripRepository.findByIdAndUserId(tripId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.PROPOSAL_NOT_FOUND, "Proposal not found: " + proposalId));
         if (proposal.getStatus() != ProposalStatus.APPLIED) {
             throw new AppException(ErrorCode.PROPOSAL_NOT_APPLIED, "Proposal is " + proposal.getStatus());
@@ -330,6 +365,8 @@ public class ProposalApplyService {
                         skipped.add(new UndoProposalResponse.Skipped(c.title(), "ACTIVITY_ALREADY_DELETED"));
                     } else if (!fingerprint(activity.get()).equals(c.fingerprint())) {
                         skipped.add(new UndoProposalResponse.Skipped(c.title(), "ACTIVITY_EDITED_AFTER_APPLY"));
+                    } else if (activityRepository.hasLinkedData(c.activityId())) {
+                        skipped.add(new UndoProposalResponse.Skipped(c.title(), "ACTIVITY_HAS_LINKED_DATA"));
                     } else {
                         willDelete.add(c.title());
                         if (!preview) {

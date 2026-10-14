@@ -32,6 +32,9 @@ import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.LocalTime;
@@ -62,6 +65,7 @@ public class ProposalService {
     private final TripClock tripClock;
     private final AiProperties properties;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     /** Một thao tác ở dạng phẳng mà mô hình điền vào khi gọi {@code propose_itinerary_changes}. */
     public record ChangeInput(
@@ -91,8 +95,45 @@ public class ProposalService {
                                Integer travelTimeDelta) {
     }
 
-    @Transactional
+    /**
+     * Kiểm trùng mục tiêu và xác minh địa điểm (có thể gọi Google) <b>trước</b>, ngoài giao dịch;
+     * phần đọc–ghi CSDL chạy trong một giao dịch ngắn. Lượt đã quá hạn (bị huỷ) thì không ghi gì.
+     */
     public CreateResult create(AgentTurn turn, String summary, String reason, List<ChangeInput> inputs) {
+        List<ChangeInput> safeInputs = inputs == null ? List.of() : inputs;
+        checkDuplicateTargets(safeInputs);
+        Map<String, Optional<PlaceRef>> verified = new HashMap<>();
+        for (ChangeInput in : safeInputs) {
+            if ("ADD".equalsIgnoreCase(in.op() == null ? "" : in.op().trim())
+                    && in.placeExternalId() != null && !in.placeExternalId().isBlank()) {
+                verified.computeIfAbsent(in.placeExternalId(), id -> placeVerifier.verify(id, turn));
+            }
+        }
+        if (turn.isCancelled()) {
+            throw new AppException(ErrorCode.AI_TIMEOUT, "Turn timed out; proposal not created");
+        }
+        return transactionTemplate.execute(status -> createInTx(turn, summary, reason, safeInputs, verified));
+    }
+
+    /** Hai thao tác REMOVE/UPDATE cùng nhắm một hoạt động thì kết quả phụ thuộc thứ tự: từ chối cả đề xuất. */
+    private void checkDuplicateTargets(List<ChangeInput> inputs) {
+        Set<Long> seen = new HashSet<>();
+        Set<Long> duplicated = new TreeSet<>();
+        for (ChangeInput in : inputs) {
+            String op = in.op() == null ? "" : in.op().trim().toUpperCase();
+            if ((op.equals("REMOVE") || op.equals("UPDATE")) && in.activityId() != null && !seen.add(in.activityId())) {
+                duplicated.add(in.activityId());
+            }
+        }
+        if (!duplicated.isEmpty()) {
+            throw new AppException(ErrorCode.DUPLICATE_TARGET,
+                    "DUPLICATE_TARGET: activities " + duplicated + " are targeted by more than one change; merge them into one",
+                    Map.of("activityIds", duplicated));
+        }
+    }
+
+    private CreateResult createInTx(AgentTurn turn, String summary, String reason, List<ChangeInput> safeInputs,
+                                    Map<String, Optional<PlaceRef>> verified) {
         TripEntity trip = tripRepository.findByIdAndUserId(turn.getTripId(), turn.getUserId())
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Trip not found or access denied"));
         Map<Integer, ItineraryDayEntity> days = dayRepository.findByTripIdOrderByDayNumberAsc(trip.getId()).stream()
@@ -105,14 +146,13 @@ public class ProposalService {
         List<Integer> changeIndexes = new ArrayList<>();
         List<Rejection> rejected = new ArrayList<>();
         Set<Integer> mutatedDays = new HashSet<>();
-        List<ChangeInput> safeInputs = inputs == null ? List.of() : inputs;
 
         for (int i = 0; i < safeInputs.size(); i++) {
             ChangeInput in = safeInputs.get(i);
             String op = in.op() == null ? "" : in.op().trim().toUpperCase();
             try {
                 ProposalChange change = switch (op) {
-                    case "ADD" -> buildAdd(in, trip, days, turn);
+                    case "ADD" -> buildAdd(in, trip, days, verified);
                     case "REMOVE" -> buildRemove(in, activities);
                     case "UPDATE" -> buildUpdate(in, days, activities);
                     case "REORDER" -> buildReorder(in, days, activities);
@@ -160,6 +200,16 @@ public class ProposalService {
         evidence.set("rejected", objectMapper.valueToTree(rejected));
         evidence.put("placesConsidered", turn.getSeenPlaceIds().size());
 
+        if (!turn.beginWrite()) {
+            throw new AppException(ErrorCode.AI_TIMEOUT, "Turn timed out; proposal not created");
+        }
+        // Cổng ghi mở tới khi giao dịch kết thúc: quá hạn giữa chừng thì người chờ biết đề xuất đã/chưa lưu.
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                turn.endWrite();
+            }
+        });
         AiProposalEntity saved = proposalRepository.save(AiProposalEntity.builder()
                 .tripId(trip.getId())
                 .conversationId(turn.getConversationId())
@@ -243,7 +293,8 @@ public class ProposalService {
                 .build();
     }
 
-    private Add buildAdd(ChangeInput in, TripEntity trip, Map<Integer, ItineraryDayEntity> days, AgentTurn turn) {
+    private Add buildAdd(ChangeInput in, TripEntity trip, Map<Integer, ItineraryDayEntity> days,
+                         Map<String, Optional<PlaceRef>> verified) {
         if (in.dayNumber() == null || !days.containsKey(in.dayNumber())) {
             throw new InvalidChange("DAY_NOT_FOUND");
         }
@@ -253,7 +304,7 @@ public class ProposalService {
         ActivityType type = parseType(in.activityType());
         PlaceRef place = null;
         if (in.placeExternalId() != null && !in.placeExternalId().isBlank()) {
-            place = placeVerifier.verify(in.placeExternalId(), turn)
+            place = verified.getOrDefault(in.placeExternalId(), Optional.empty())
                     .orElseThrow(() -> new InvalidChange("PLACE_NOT_VERIFIED"));
         }
         LocalTime start = parseTime(in.startTime());

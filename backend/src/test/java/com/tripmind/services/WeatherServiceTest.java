@@ -108,4 +108,28 @@ class WeatherServiceTest {
         assertThat(r.getDays()).extracting(TripWeatherResponse.DayWeather::getSource)
                 .containsExactly(WeatherSource.OBSERVED, WeatherSource.FORECAST);
     }
+
+    @Test
+    @DisplayName("Trung bình khí hậu có đủ ngày 29/2 năm nhuận (lấy mẫu 28/2 của năm thường)")
+    void leapDayHasClimateNormal() {
+        TripWeatherResponse r = service.forTrip(trip(LocalDate.of(2028, 2, 28), LocalDate.of(2028, 3, 1)));
+
+        assertThat(r.getDays()).extracting(TripWeatherResponse.DayWeather::getDate).containsExactly(
+                LocalDate.of(2028, 2, 28), LocalDate.of(2028, 2, 29), LocalDate.of(2028, 3, 1));
+        assertThat(r.getReason()).isNull();
+    }
+
+    @Test
+    @DisplayName("Một năm lưu trữ lỗi không làm mất cả trung bình khí hậu")
+    void oneBadYearIsSkipped() {
+        doThrow(new AppException(ErrorCode.EXTERNAL_SERVICE_ERROR, "down"))
+                .doAnswer(inv -> days(inv.getArgument(3), inv.getArgument(4), null, 2.0))
+                .when(client).archive(any(), any(), any(), any(), any());
+
+        TripWeatherResponse r = service.forTrip(trip(TODAY.plusDays(20), TODAY.plusDays(21)));
+
+        assertThat(r.getDays()).hasSize(2);
+        assertThat(r.getDays().get(0).getPrecipitationProbability()).isEqualTo(100);
+        verify(client, times(4)).archive(any(), any(), any(), any(), any());
+    }
 }

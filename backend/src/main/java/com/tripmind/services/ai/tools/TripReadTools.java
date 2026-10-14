@@ -133,7 +133,8 @@ public class TripReadTools implements AgentToolSet {
         AgentTurn turn = ToolSupport.turn(context);
         TripResponse trip = tripService.getTrip(turn.getUserId(), turn.getTripId());
         String destName = trip.getDestination() != null ? trip.getDestination().getName() : "";
-        List<KnowledgeResponse> tips = destinationKnowledgeService.searchKnowledge(destName, keyword, 5);
+        Long destId = trip.getDestination() != null ? trip.getDestination().getId() : null;
+        List<KnowledgeResponse> tips = destinationKnowledgeService.searchKnowledge(destId, destName, keyword, 5);
         if (tips.isEmpty()) {
             return "Không tìm thấy kinh nghiệm cụ thể trong kho tri thức cho từ khóa: " + keyword;
         }

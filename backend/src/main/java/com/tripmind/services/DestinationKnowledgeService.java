@@ -135,15 +135,8 @@ public class DestinationKnowledgeService {
      * Lấy các mẹo/kinh nghiệm đã được chắt lọc (RAG) để nạp thẳng vào AI prompt.
      */
     @Transactional(readOnly = true)
-    public String getFormattedKnowledgeForPrompt(String destinationName) {
-        if (destinationName == null || destinationName.isBlank()) {
-            return "";
-        }
-
-        List<DestinationKnowledgeEntity> items = knowledgeRepository.findActiveForAiPrompt(
-                destinationName.trim(),
-                PageRequest.of(0, 8)
-        );
+    public String getFormattedKnowledgeForPrompt(DestinationEntity destination) {
+        List<DestinationKnowledgeEntity> items = activeFor(destination, 8);
 
         if (items.isEmpty()) {
             return "";
@@ -174,20 +167,29 @@ public class DestinationKnowledgeService {
      * Lấy các thực thể tri thức đang kích hoạt cho điểm đến.
      */
     @Transactional(readOnly = true)
-    public List<DestinationKnowledgeEntity> getActiveKnowledgeEntities(String destinationName) {
-        if (destinationName == null || destinationName.isBlank()) {
+    public List<DestinationKnowledgeEntity> getActiveKnowledgeEntities(DestinationEntity destination) {
+        return activeFor(destination, 10);
+    }
+
+    private List<DestinationKnowledgeEntity> activeFor(DestinationEntity destination, int limit) {
+        if (destination == null) {
             return List.of();
         }
-        return knowledgeRepository.findActiveForAiPrompt(destinationName.trim(), PageRequest.of(0, 10));
+        String name = destination.getName() == null ? "" : destination.getName().trim();
+        if (destination.getId() != null) {
+            return knowledgeRepository.findActiveForDestination(destination.getId(), name, PageRequest.of(0, limit));
+        }
+        return name.isEmpty() ? List.of() : knowledgeRepository.findActiveByDestinationName(name, PageRequest.of(0, limit));
     }
 
     /**
      * Phục vụ công cụ tra cứu tự động cho AI Agent trong lúc chat.
      */
     @Transactional(readOnly = true)
-    public List<KnowledgeResponse> searchKnowledge(String destinationName, String keyword, int limit) {
+    public List<KnowledgeResponse> searchKnowledge(Long destinationId, String destinationName, String keyword, int limit) {
         List<DestinationKnowledgeEntity> list = knowledgeRepository.searchActiveKnowledge(
-                destinationName != null && !destinationName.isBlank() ? destinationName.trim() : null,
+                destinationId,
+                destinationName != null ? destinationName.trim() : "",
                 keyword != null ? keyword.trim() : "",
                 PageRequest.of(0, Math.min(limit, 10))
         );

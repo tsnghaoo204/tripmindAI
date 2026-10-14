@@ -13,8 +13,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -37,8 +39,9 @@ public class PlaceAdoptionService {
     /**
      * Địa điểm theo {@code placeId} (đã có trong CSDL) hoặc theo cặp mã nhà cung cấp. Cả hai
      * đều null thì trả {@code null}: hoạt động không gắn địa điểm là hợp lệ (DI-4).
+     * Không tự mở giao dịch: lượt tra Google (HTTP) không giữ kết nối CSDL khi gọi từ ngoài giao
+     * dịch, và lỗi "không tìm thấy" không đánh dấu giao dịch của người gọi là rollback-only.
      */
-    @Transactional
     public PlaceEntity resolve(Long placeId, String provider, String externalId, PlaceAdoption via) {
         if (placeId != null) {
             return placeRepository.findById(placeId)
@@ -50,59 +53,23 @@ public class PlaceAdoptionService {
         return null;
     }
 
-    /**
-     * Nạp địa điểm từ tham chiếu {@link ProposalChange.PlaceRef}. Hỗ trợ cả Google Places và Community Places.
-     */
-    @Transactional
+    /** Nạp địa điểm từ tham chiếu {@link ProposalChange.PlaceRef}; không có thật thì ném {@code RESOURCE_NOT_FOUND}. */
     public PlaceEntity adopt(ProposalChange.PlaceRef ref, PlaceAdoption via) {
         if (ref == null) {
             return null;
         }
-        String normalizedProvider = ref.provider() != null ? ref.provider().toUpperCase() : PROVIDER_GOOGLE;
-        Optional<PlaceEntity> existing = placeRepository.findByProviderAndExternalId(normalizedProvider, ref.externalId());
-        if (existing.isPresent()) {
-            return existing.get();
-        }
-        if (PROVIDER_COMMUNITY.equals(normalizedProvider)) {
-            return save(PlaceEntity.builder()
-                    .provider(PROVIDER_COMMUNITY)
-                    .externalId(ref.externalId())
-                    .name(truncate(ref.name(), 255))
-                    .category(truncate("COMMUNITY", 64))
-                    .latitude(ref.lat() != null ? ref.lat() : new BigDecimal("21.0285"))
-                    .longitude(ref.lng() != null ? ref.lng() : new BigDecimal("105.8542"))
-                    .rating(new BigDecimal("5.0"))
-                    .userRatingsTotal(1)
-                    .priceLevel(ref.priceLevel() == null ? null : ref.priceLevel().shortValue())
-                    .adoptedVia(via)
-                    .adoptedAt(Instant.now())
-                    .fetchedAt(Instant.now())
-                    .build());
-        }
-        return adopt(ref.provider(), ref.externalId(), via);
+        return adopt(ref.provider() == null ? PROVIDER_GOOGLE : ref.provider(), ref.externalId(), via);
     }
 
-    @Transactional
+    /**
+     * Chỉ nhận địa điểm đã có trong CSDL hoặc tra được từ Google; không bao giờ tự dựng địa điểm
+     * (BR-509). Dòng {@code COMMUNITY} cũ còn trong CSDL vẫn đọc được.
+     */
     public PlaceEntity adopt(String provider, String externalId, PlaceAdoption via) {
         String normalizedProvider = provider.toUpperCase();
         Optional<PlaceEntity> existing = placeRepository.findByProviderAndExternalId(normalizedProvider, externalId);
         if (existing.isPresent()) {
             return existing.get();
-        }
-        if (PROVIDER_COMMUNITY.equals(normalizedProvider)) {
-            return save(PlaceEntity.builder()
-                    .provider(PROVIDER_COMMUNITY)
-                    .externalId(externalId)
-                    .name(truncate(externalId, 255))
-                    .category("COMMUNITY")
-                    .latitude(new BigDecimal("21.0285"))
-                    .longitude(new BigDecimal("105.8542"))
-                    .rating(new BigDecimal("5.0"))
-                    .userRatingsTotal(1)
-                    .adoptedVia(via)
-                    .adoptedAt(Instant.now())
-                    .fetchedAt(Instant.now())
-                    .build());
         }
         if (!PROVIDER_GOOGLE.equals(normalizedProvider)) {
             throw new AppException(ErrorCode.RESOURCE_NOT_FOUND,
@@ -112,6 +79,41 @@ public class PlaceAdoptionService {
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND,
                         "Google place " + externalId + " not found"));
         return save(fromGoogle(place, via));
+    }
+
+    /**
+     * Tra trước (ngoài giao dịch) các địa điểm Google chưa có trong CSDL, để giao dịch ghi không
+     * phải chờ HTTP. Kết quả: mã ngoài → dữ liệu Google; mã không tra được thì vắng mặt.
+     */
+    public Map<String, GooglePlace> prefetch(Collection<ProposalChange.PlaceRef> refs) {
+        Map<String, GooglePlace> found = new HashMap<>();
+        for (ProposalChange.PlaceRef ref : refs) {
+            if (ref == null || ref.externalId() == null || found.containsKey(ref.externalId())) {
+                continue;
+            }
+            String provider = ref.provider() == null ? PROVIDER_GOOGLE : ref.provider().toUpperCase();
+            if (PROVIDER_GOOGLE.equals(provider)
+                    && placeRepository.findByProviderAndExternalId(provider, ref.externalId()).isEmpty()) {
+                findCandidate(ref.externalId()).ifPresent(gp -> found.put(ref.externalId(), gp));
+            }
+        }
+        return found;
+    }
+
+    /** Như {@link #adopt(ProposalChange.PlaceRef, PlaceAdoption)} nhưng chỉ dùng dữ liệu đã tra trước, không ném lỗi. */
+    @Transactional
+    public Optional<PlaceEntity> adoptPrefetched(ProposalChange.PlaceRef ref, Map<String, GooglePlace> prefetched,
+                                                 PlaceAdoption via) {
+        if (ref == null || ref.externalId() == null) {
+            return Optional.empty();
+        }
+        String provider = ref.provider() == null ? PROVIDER_GOOGLE : ref.provider().toUpperCase();
+        Optional<PlaceEntity> existing = placeRepository.findByProviderAndExternalId(provider, ref.externalId());
+        if (existing.isPresent()) {
+            return existing;
+        }
+        GooglePlace place = PROVIDER_GOOGLE.equals(provider) ? prefetched.get(ref.externalId()) : null;
+        return place == null ? Optional.empty() : Optional.of(save(fromGoogle(place, via)));
     }
 
     /** Có trong bộ đệm tìm kiếm gần đây hoặc tra được từ Google. Không ghi gì. */

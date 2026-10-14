@@ -3,7 +3,7 @@
 > ⚠️ **Đã được thay thế bởi [BE-ROADMAP.md](BE-ROADMAP.md) (05/10/2026).** Theo dõi tiến độ backend ở file đó.
 
 > **Cập nhật:** 08/09/2026  
-> **Nguyên tắc kỹ thuật:** Bám sát CSDL [schemas.sql](../schemas.sql), cấu hình trong [application.yml](../backend/src/main/resources/application.yml), JWT không dùng refresh token, lịch trình linh hoạt theo cụm địa điểm & khoảng cách (không ép giờ cứng nhắc), AI minh bạch với cơ chế Giải trình & Hoàn tác.
+> **Nguyên tắc kỹ thuật:** Bám sát CSDL migration Flyway [db/migration](../backend/src/main/resources/db/migration), cấu hình trong [application.yml](../backend/src/main/resources/application.yml), JWT không dùng refresh token, lịch trình linh hoạt theo cụm địa điểm & khoảng cách (không ép giờ cứng nhắc), AI minh bạch với cơ chế Giải trình & Hoàn tác.
 
 ---
 
