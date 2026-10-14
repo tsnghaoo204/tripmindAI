@@ -22,6 +22,10 @@ import java.time.Duration;
 /**
  * Tầng giới hạn chung (BR-601, NFR-07): mỗi người dùng — hoặc mỗi IP khi chưa đăng nhập —
  * tối đa {@code api-per-minute} request mỗi phút. Tầng AI có giới hạn riêng, chặt hơn.
+ *
+ * <p>IP lấy từ {@code getRemoteAddr()}, không đọc thẳng X-Forwarded-For (client tự giả được).
+ * Chạy sau reverse proxy tin cậy thì đặt {@code server.forward-headers-strategy=native}
+ * ({@code FORWARD_HEADERS_STRATEGY}) để Tomcat thay remoteAddr bằng IP thật.
  */
 @Component
 @RequiredArgsConstructor

@@ -124,6 +124,7 @@ public class IcsExporter {
                 .replace(";", "\\;")
                 .replace(",", "\\,")
                 .replace("\r\n", "\\n")
+                .replace("\r", "\\n")
                 .replace("\n", "\\n");
     }
 

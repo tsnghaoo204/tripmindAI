@@ -30,4 +30,6 @@ public class ExtractedKnowledgeResponse {
     @Builder.Default
     private boolean active = true;
     private String reasoning;
+    /** Đoạn đầu bài viết gốc để quản trị viên đối chiếu với bản chắt lọc. */
+    private String sourceSnippet;
 }

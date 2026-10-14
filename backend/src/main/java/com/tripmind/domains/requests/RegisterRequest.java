@@ -16,10 +16,11 @@ public class RegisterRequest {
 
     @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
+    @Size(max = 254)
     private String email;
 
     @NotBlank(message = "Password is required")
-    @Size(min = 6, max = 50, message = "Password must be between 6 and 50 characters")
+    @Size(min = ValidationLimits.PASSWORD_MIN, max = ValidationLimits.PASSWORD_MAX, message = "Password must be between 8 and 72 characters")
     private String password;
 
     @NotBlank(message = "Name is required")

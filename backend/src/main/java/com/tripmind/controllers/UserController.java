@@ -4,7 +4,9 @@ import com.tripmind.configurations.security.SecurityUtils;
 import com.tripmind.domains.requests.ChangePasswordRequest;
 import com.tripmind.domains.requests.UpdateProfileRequest;
 import com.tripmind.domains.responses.ApiResponse;
+import com.tripmind.domains.responses.AuthResponse;
 import com.tripmind.domains.responses.UserResponse;
+import com.tripmind.services.AuthService;
 import com.tripmind.services.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final AuthService authService;
 
     @GetMapping("/profile")
     @Operation(summary = "Get user profile")
@@ -41,11 +44,11 @@ public class UserController {
     }
 
     @PutMapping("/change-password")
-    @Operation(summary = "Change account password")
-    public ResponseEntity<ApiResponse<Void>> changePassword(
+    @Operation(summary = "Change account password; every previously issued token is revoked and a new one is returned")
+    public ResponseEntity<ApiResponse<AuthResponse>> changePassword(
             @Valid @RequestBody ChangePasswordRequest request) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         userService.changePassword(currentUserId, request);
-        return ResponseEntity.ok(ApiResponse.ok("Password changed successfully", null));
+        return ResponseEntity.ok(ApiResponse.ok("Password changed successfully", authService.issueToken(currentUserId)));
     }
 }

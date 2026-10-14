@@ -16,7 +16,7 @@ public class BlogCommentResponse {
 
     private Long id;
     private Long postId;
-    private UserResponse user;
+    private PublicUserResponse user;
     private String content;
     private int upvoteCount;
     @com.fasterxml.jackson.annotation.JsonProperty("isUpvoted")
@@ -31,7 +31,7 @@ public class BlogCommentResponse {
         return BlogCommentResponse.builder()
                 .id(entity.getId())
                 .postId(entity.getPost() != null ? entity.getPost().getId() : null)
-                .user(UserResponse.fromEntity(entity.getUser()))
+                .user(PublicUserResponse.fromEntity(entity.getUser()))
                 .content(entity.getContent())
                 .upvoteCount(entity.getUpvoteCount())
                 .isUpvoted(isUpvoted)

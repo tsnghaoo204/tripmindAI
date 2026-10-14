@@ -1,8 +1,10 @@
 package com.tripmind.controllers;
 
+import com.tripmind.configurations.properties.AiProperties;
 import com.tripmind.configurations.security.SecurityUtils;
 import com.tripmind.domains.requests.CreateTripRequest;
 import com.tripmind.domains.requests.DuplicateTripRequest;
+import com.tripmind.domains.requests.ParsePromptRequest;
 import com.tripmind.domains.requests.UpdateTripPhaseRequest;
 import com.tripmind.domains.requests.UpdateTripRequest;
 import com.tripmind.domains.responses.ApiResponse;
@@ -11,6 +13,7 @@ import com.tripmind.domains.responses.TripResponse;
 import com.tripmind.enums.TripPhase;
 import com.tripmind.exceptions.AppException;
 import com.tripmind.exceptions.ErrorCode;
+import com.tripmind.services.RateLimiter;
 import com.tripmind.services.TripDuplicationService;
 import com.tripmind.services.TripService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,6 +26,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
 import java.util.List;
 
 @RestController
@@ -35,13 +39,17 @@ public class TripController {
     private final TripService tripService;
     private final TripDuplicationService tripDuplicationService;
     private final com.tripmind.services.ai.TripPromptParserService tripPromptParserService;
+    private final RateLimiter rateLimiter;
+    private final AiProperties aiProperties;
 
+    /** Gọi mô hình có tính phí nên bắt đăng nhập và dùng chung hạn mức AI theo giờ (BR-601). */
     @PostMapping("/parse-prompt")
     @Operation(summary = "Parse natural language prompt into trip fields using AI")
     public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> parsePrompt(
-            @RequestBody java.util.Map<String, String> request) {
-        String prompt = request.getOrDefault("prompt", "");
-        return ResponseEntity.ok(ApiResponse.ok(tripPromptParserService.parsePrompt(prompt)));
+            @Valid @RequestBody ParsePromptRequest request) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        rateLimiter.check("ai", userId, aiProperties.rateLimitPerHour(), Duration.ofHours(1));
+        return ResponseEntity.ok(ApiResponse.ok(tripPromptParserService.parsePrompt(request.getPrompt().trim())));
     }
 
     @PostMapping

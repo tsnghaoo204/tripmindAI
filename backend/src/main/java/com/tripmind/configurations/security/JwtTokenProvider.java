@@ -17,6 +17,8 @@ import java.util.Date;
 @RequiredArgsConstructor
 public class JwtTokenProvider {
 
+    public static final String TOKEN_VERSION_CLAIM = "tv";
+
     private final JwtProperties jwtProperties;
 
     private SecretKey getSigningKey() {
@@ -33,6 +35,7 @@ public class JwtTokenProvider {
                 .claim("email", userPrincipal.getEmail())
                 .claim("role", userPrincipal.getRole().name())
                 .claim("name", userPrincipal.getName())
+                .claim(TOKEN_VERSION_CLAIM, userPrincipal.getTokenVersion())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey())
@@ -60,7 +63,7 @@ public class JwtTokenProvider {
                     .parseSignedClaims(token);
             return true;
         } catch (JwtException | IllegalArgumentException ex) {
-            log.error("Invalid JWT token: {}", ex.getMessage());
+            log.debug("Invalid JWT token: {}", ex.getMessage());
             return false;
         }
     }

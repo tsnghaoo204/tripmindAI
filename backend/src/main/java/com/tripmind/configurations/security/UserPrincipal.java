@@ -23,6 +23,7 @@ public class UserPrincipal implements UserDetails {
     private final String name;
     private final UserRole role;
     private final boolean isActive;
+    private final int tokenVersion;
     private final Collection<? extends GrantedAuthority> authorities;
 
     public static UserPrincipal fromEntity(UserEntity user) {
@@ -34,6 +35,7 @@ public class UserPrincipal implements UserDetails {
                 .name(user.getName())
                 .role(user.getRole())
                 .isActive(user.isActive())
+                .tokenVersion(user.getTokenVersion())
                 .authorities(Collections.singletonList(authority))
                 .build();
     }

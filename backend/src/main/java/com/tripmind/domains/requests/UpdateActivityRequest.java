@@ -24,7 +24,9 @@ public class UpdateActivityRequest {
     private String title;
     private ActivityType activityType;
     private Long placeId;
+    @Size(max = 16)
     private String placeProvider;
+    @Size(max = ValidationLimits.EXTERNAL_ID_MAX)
     private String placeExternalId;
 
     private LocalTime startTime;
@@ -37,6 +39,7 @@ public class UpdateActivityRequest {
 
     @Size(max = 16)
     private String transportationMode;
+    @Size(max = ValidationLimits.NOTES_MAX, message = "Notes cannot exceed 2000 characters")
     private String notes;
 
     /** Đánh dấu thực hiện. {@code SKIPPED} bắt buộc kèm {@code skipReason} (FR-1004). */

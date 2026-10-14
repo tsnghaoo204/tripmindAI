@@ -13,6 +13,6 @@ public class AdminUpdateUserRequest {
 
     private Boolean active;
 
-    @Size(min = 6, max = 50, message = "Password must be between 6 and 50 characters")
+    @Size(min = ValidationLimits.PASSWORD_MIN, max = ValidationLimits.PASSWORD_MAX, message = "Password must be between 8 and 72 characters")
     private String password;
 }
