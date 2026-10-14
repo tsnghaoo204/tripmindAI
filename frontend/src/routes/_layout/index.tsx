@@ -1,15 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Plus, MapPin, Calendar, Users, Sparkles, Compass, Wand2 } from "lucide-react"
-import { formatDateRange, formatCurrency } from "@/lib/utils"
-import { tripApi } from "@/client/api/trip-api"
-import type { Trip } from "@/client/types"
 import { CreateTripModal } from "@/components/pages/trips/CreateTripModal"
-import { toast } from "sonner"
+import { PHASE_LABEL } from "@/components/pages/trips/TripHero"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { useTrips } from "@/hooks/use-trips"
+import { formatDateRange } from "@/lib/utils"
+import { PROMPT_MAX_LENGTH } from "@/lib/validation"
+import { useQueryClient } from "@tanstack/react-query"
+import { Link, createFileRoute } from "@tanstack/react-router"
+import { Calendar, Compass, MapPin, Plus, Sparkles, Users, Wand2 } from "lucide-react"
+import { useState } from "react"
 
 export const Route = createFileRoute("/_layout/")({
   component: DashboardPage,
@@ -17,27 +18,10 @@ export const Route = createFileRoute("/_layout/")({
 
 function DashboardPage() {
   const [filter, setFilter] = useState<"upcoming" | "past">("upcoming")
-  const [trips, setTrips] = useState<Trip[]>([])
-  const [loading, setLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const { data: trips = [], isPending: loading, isError } = useTrips(filter)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [homePrompt, setHomePrompt] = useState("")
-
-  const fetchTrips = async () => {
-    try {
-      setLoading(true)
-      const data = await tripApi.getTrips(filter)
-      setTrips(data || [])
-    } catch {
-      // nếu chưa đăng nhập hoặc lỗi kết nối
-      setTrips([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchTrips()
-  }, [filter])
 
   const handleTriggerPrompt = (text?: string) => {
     const promptToUse = text || homePrompt
@@ -81,11 +65,10 @@ function DashboardPage() {
               <Sparkles className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-foreground">
-                Lập Kế Hoạch Bằng AI: Nhập mô tả tự nhiên
-              </h2>
+              <h2 className="text-base font-bold text-foreground">Lập Kế Hoạch Bằng AI: Nhập mô tả tự nhiên</h2>
               <p className="text-xs text-muted-foreground">
-                Nhập câu mô tả chuyến đi — Hệ thống sẽ tự động bóc tách điểm đến, ngày đi, ngân sách và điền sẵn vào giao diện!
+                Nhập câu mô tả chuyến đi — Hệ thống sẽ tự động bóc tách điểm đến, ngày đi, ngân sách và điền sẵn vào
+                giao diện!
               </p>
             </div>
           </div>
@@ -97,6 +80,8 @@ function DashboardPage() {
         <div className="flex flex-col sm:flex-row gap-2">
           <Input
             placeholder="VD: tôi muốn lên kế hoạch đi nha trang 2 ngày 1 đêm cho 2 người, ngân sách 4 triệu..."
+            aria-label="Mô tả chuyến đi"
+            maxLength={PROMPT_MAX_LENGTH}
             value={homePrompt}
             onChange={(e) => setHomePrompt(e.target.value)}
             onKeyDown={(e) => {
@@ -136,7 +121,9 @@ function DashboardPage() {
           </button>
           <button
             type="button"
-            onClick={() => handleTriggerPrompt("kế hoạch đi phú quốc 4 ngày 3 đêm cho gia đình có 2 bé nhỏ, ngân sách 15 triệu")}
+            onClick={() =>
+              handleTriggerPrompt("kế hoạch đi phú quốc 4 ngày 3 đêm cho gia đình có 2 bé nhỏ, ngân sách 15 triệu")
+            }
             className="px-2.5 py-1 rounded-full text-xs bg-background/90 border border-primary/20 hover:border-primary text-foreground transition-all cursor-pointer hover:scale-105"
           >
             🏝️ Đi Phú Quốc 4N3Đ gia đình
@@ -161,6 +148,7 @@ function DashboardPage() {
       {/* Filter Tabs */}
       <div className="flex items-center gap-2 border-b border-border mb-6">
         <button
+          type="button"
           onClick={() => setFilter("upcoming")}
           className={`pb-3 px-3 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
             filter === "upcoming"
@@ -171,6 +159,7 @@ function DashboardPage() {
           Sắp tới & Đang đi
         </button>
         <button
+          type="button"
           onClick={() => setFilter("past")}
           className={`pb-3 px-3 text-sm font-medium border-b-2 transition-colors cursor-pointer ${
             filter === "past"
@@ -185,6 +174,8 @@ function DashboardPage() {
       {/* Trips Grid / Empty State */}
       {loading ? (
         <div className="py-20 text-center text-sm text-muted-foreground">Đang tải danh sách chuyến đi...</div>
+      ) : isError ? (
+        <div className="py-20 text-center text-sm text-muted-foreground">Không thể tải danh sách chuyến đi.</div>
       ) : trips.length === 0 ? (
         <div className="py-16 text-center rounded-3xl border border-dashed border-border bg-muted/20 p-8 max-w-md mx-auto">
           <div className="p-4 rounded-full bg-primary/10 text-primary w-fit mx-auto mb-4">
@@ -205,12 +196,15 @@ function DashboardPage() {
               <Card className="overflow-hidden border-border hover:border-primary/50 transition-all hover:shadow-lg h-full flex flex-col">
                 <div className="h-32 bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 p-4 flex flex-col justify-between text-white relative">
                   <div className="flex justify-between items-start">
-                    <Badge variant="secondary" className="bg-white/20 text-white backdrop-blur-md border-none text-[11px]">
+                    <Badge
+                      variant="secondary"
+                      className="bg-white/20 text-white backdrop-blur-md border-none text-[11px]"
+                    >
                       {trip.destination?.name || "Điểm đến"}
                     </Badge>
                     <div className="flex items-center gap-1 text-[11px] bg-black/30 backdrop-blur-md px-2 py-0.5 rounded-md">
                       <Sparkles className="h-3 w-3 text-amber-300" />
-                      <span>{trip.phase === "BEFORE" ? "Chưa đi" : trip.phase === "DURING" ? "Đang đi" : "Đã xong"}</span>
+                      <span>{PHASE_LABEL[trip.phase]}</span>
                     </div>
                   </div>
                   <div>
@@ -219,7 +213,7 @@ function DashboardPage() {
                       <span>{trip.destination?.country || "Việt Nam"}</span>
                     </div>
                     <h3 className="font-bold text-lg text-white group-hover:text-blue-100 transition-colors line-clamp-1">
-                      {trip.title}
+                      {trip.name}
                     </h3>
                   </div>
                 </div>
@@ -259,7 +253,7 @@ function DashboardPage() {
       <CreateTripModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={() => fetchTrips()}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["trips"] })}
         initialPrompt={homePrompt}
       />
     </div>
