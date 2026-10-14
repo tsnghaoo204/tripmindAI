@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.tripmind.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.LocalDate;
 import java.util.Map;
@@ -13,9 +11,6 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AdminApiTest extends IntegrationTest {
-
-    @Autowired
-    private JdbcTemplate jdbc;
 
     @Test
     @DisplayName("Quản trị đọc được nhật ký công cụ, thống kê AI, danh sách tổng hợp; người dùng thường nhận 403")
@@ -29,8 +24,7 @@ class AdminApiTest extends IntegrationTest {
 
         get("/api/admin/tool-executions", user, 403);
 
-        String admin = registerUser();
-        jdbc.update("UPDATE users SET role = 'ADMIN' WHERE id = (SELECT MAX(id) FROM users)");
+        String admin = registerAdmin();
 
         JsonNode executions = get("/api/admin/tool-executions?tool=get_current_trip&status=OK&size=5", admin, 200).get("data");
         assertThat(executions.get("totalElements").asLong()).isPositive();
