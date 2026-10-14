@@ -46,6 +46,13 @@ public class FakeLlmGateway implements LlmGateway {
         return then(p -> text(text));
     }
 
+    /** Bước kịch bản ném lỗi, giả lập mô hình hỏng giữa lượt hỏi. */
+    public FakeLlmGateway thenThrow(RuntimeException error) {
+        return then(p -> {
+            throw error;
+        });
+    }
+
     public void setFallback(Function<Prompt, ChatResponse> fallback) {
         this.fallback = fallback;
     }

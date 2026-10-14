@@ -8,7 +8,6 @@ import com.tripmind.support.IntegrationTest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.Map;
@@ -17,9 +16,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
 class AdminKnowledgeApiTest extends IntegrationTest {
-
-    @Autowired
-    private JdbcTemplate jdbc;
 
     @Autowired
     private DestinationKnowledgeService knowledgeService;
@@ -32,12 +28,13 @@ class AdminKnowledgeApiTest extends IntegrationTest {
         get("/api/admin/knowledge", normalUser, 403);
 
         // 2. Tạo tài khoản Admin
-        String admin = registerUser();
-        jdbc.update("UPDATE users SET role = 'ADMIN' WHERE id = (SELECT MAX(id) FROM users)");
+        String admin = registerAdmin();
 
         // 3. Admin lấy danh sách có sẵn (seed data)
         JsonNode initialList = get("/api/admin/knowledge", admin, 200).get("data");
-        assertThat(initialList.get("totalElements").asLong()).isGreaterThanOrEqualTo(0);
+        long initialTotal = initialList.get("totalElements").asLong();
+        assertThat(initialTotal).isEqualTo(
+                jdbcTemplate.queryForObject("SELECT COUNT(*) FROM destination_knowledge", Long.class));
 
         // 4. Admin tạo một mẹo du lịch mới
         KnowledgeRequest createReq = KnowledgeRequest.builder()
@@ -57,10 +54,16 @@ class AdminKnowledgeApiTest extends IntegrationTest {
         long knowledgeId = created.get("id").asLong();
         assertThat(created.get("title").asText()).isEqualTo("Mì Quảng Bà Mua thơm ngon đậm đà");
         assertThat(created.get("isActive").asBoolean()).isTrue();
+        assertThat(get("/api/admin/knowledge", admin, 200).at("/data/totalElements").asLong())
+                .isEqualTo(initialTotal + 1);
 
         // 5. Kiểm tra hàm nạp tri thức cho AI prompt
-        String formattedPrompt = knowledgeService.getFormattedKnowledgeForPrompt("Da Nang");
+        String formattedPrompt = knowledgeService.getFormattedKnowledgeForPrompt(
+                com.tripmind.entities.DestinationEntity.builder().id(999_999L).name("da nang").build());
         assertThat(formattedPrompt).contains("Mì Quảng Bà Mua");
+        // Khớp đúng tên, không còn LIKE %...%: "Nang" không kéo theo tri thức của "Da Nang".
+        assertThat(knowledgeService.getFormattedKnowledgeForPrompt(
+                com.tripmind.entities.DestinationEntity.builder().name("Nang").build())).doesNotContain("Mì Quảng Bà Mua");
 
         // 6. Cập nhật tri thức
         createReq.setTitle("Mì Quảng Bà Mua - Cơ sở Trần Bình Trọng");

@@ -25,9 +25,11 @@ public interface BlogPostRepository extends JpaRepository<BlogPostEntity, Long> 
     @Query("SELECT DISTINCT p.destinationName FROM BlogPostEntity p ORDER BY p.destinationName ASC")
     List<String> findDistinctDestinations();
 
+    /** Đếm lại từ bảng upvote rồi ghi vào bài; luôn khớp dù hai lượt bấm chạy song song. */
     @Modifying
-    @Query("UPDATE BlogPostEntity p SET p.upvoteCount = GREATEST(0, p.upvoteCount + :delta) WHERE p.id = :postId")
-    void updateUpvoteCount(@Param("postId") Long postId, @Param("delta") int delta);
+    @Query(value = "UPDATE blog_posts SET upvote_count = (SELECT COUNT(*) FROM blog_post_upvotes WHERE post_id = :postId) "
+            + "WHERE id = :postId", nativeQuery = true)
+    int syncUpvoteCount(@Param("postId") Long postId);
 
     @Modifying
     @Query("UPDATE BlogPostEntity p SET p.commentCount = GREATEST(0, p.commentCount + :delta) WHERE p.id = :postId")

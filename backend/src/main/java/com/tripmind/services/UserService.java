@@ -35,7 +35,8 @@ public class UserService {
             user.setName(request.getName().trim());
         }
         if (request.getAvatarUrl() != null) {
-            user.setAvatarUrl(request.getAvatarUrl().trim());
+            String avatar = request.getAvatarUrl().trim();
+            user.setAvatarUrl(avatar.isEmpty() ? null : avatar);
         }
 
         user = userRepository.save(user);
@@ -51,9 +52,10 @@ public class UserService {
             throw new AppException(ErrorCode.VALIDATION_ERROR, "Current password does not match");
         }
 
+        // setPasswordHash tăng token_version: mọi JWT cũ của tài khoản này hết hiệu lực
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
-        log.info("Changed password for user ID={}", userId);
+        log.info("Changed password for user ID={} (token version now {})", userId, user.getTokenVersion());
     }
 
     private UserEntity findUserById(Long userId) {

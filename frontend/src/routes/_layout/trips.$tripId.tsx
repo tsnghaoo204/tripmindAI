@@ -1,364 +1,191 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router"
-import { useState, useEffect } from "react"
 import { tripApi } from "@/client/api/trip-api"
-import { itineraryApi, type ItineraryResponse } from "@/client/api/itinerary-api"
-import { weatherApi } from "@/client/api/weather-api"
-import { aiApi, type GenerateJobStatus } from "@/client/api/ai-api"
-import type { Trip, TripWeather } from "@/client/types"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import {
-  Calendar,
-  MapPin,
-  Users,
-  Sparkles,
-  Bot,
-  Copy,
-  Trash2,
-  DollarSign,
-  Luggage,
-  CheckCircle,
-  Clock,
-  RotateCw,
-  ThumbsUp,
-} from "lucide-react"
-import { DayTimeline } from "@/components/pages/itinerary/DayTimeline"
+import { getErrorMessage } from "@/client/errors"
+import type { TripPhase } from "@/client/types"
+import { AiChatDrawer } from "@/components/pages/ai/AiChatDrawer"
 import { BudgetView } from "@/components/pages/budget/BudgetView"
 import { ChecklistView } from "@/components/pages/checklist/ChecklistView"
-import { AiChatDrawer } from "@/components/pages/ai/AiChatDrawer"
+import { DayTimeline } from "@/components/pages/itinerary/DayTimeline"
 import { PlaceReviewModal } from "@/components/pages/itinerary/PlaceReviewModal"
-import { formatDateRange, formatCurrency } from "@/lib/utils"
+import { PHASE_LABEL, TripHero } from "@/components/pages/trips/TripHero"
+import { Card } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useItineraryGeneration } from "@/hooks/use-itinerary-generation"
+import { useInvalidateTrip, useItinerary, useTrip, useTripWeather } from "@/hooks/use-trips"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
+import { Calendar, DollarSign, Luggage, RotateCw, Sparkles } from "lucide-react"
+import { useState } from "react"
 import { toast } from "sonner"
 
 export const Route = createFileRoute("/_layout/trips/$tripId")({
   component: TripDetailPage,
 })
 
+function defaultDuplicateDate() {
+  return new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]
+}
+
 function TripDetailPage() {
   const { tripId: tripIdParam } = Route.useParams()
   const tripId = Number(tripIdParam)
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
-  const [trip, setTrip] = useState<Trip | null>(null)
-  const [itinerary, setItinerary] = useState<ItineraryResponse | null>(null)
-  const [weather, setWeather] = useState<TripWeather | undefined>()
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<"itinerary" | "budget" | "checklist">("itinerary")
+  const tripQuery = useTrip(tripId)
+  const itineraryQuery = useItinerary(tripId)
+  const weatherQuery = useTripWeather(tripId)
+  const refreshTrip = useInvalidateTrip(tripId)
+  const generation = useItineraryGeneration(tripId, refreshTrip)
 
-  // AI Drawer State
+  const [activeTab, setActiveTab] = useState("itinerary")
   const [isAiOpen, setIsAiOpen] = useState(false)
   const [isReviewOpen, setIsReviewOpen] = useState(false)
 
-  // AI Generation State
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [generateJob, setGenerateJob] = useState<GenerateJobStatus | null>(null)
+  const trip = tripQuery.data
+  const itinerary = itineraryQuery.data
 
-  const loadData = async () => {
-    try {
-      setLoading(true)
-      const [tripData, itinData, weatherData] = await Promise.all([
-        tripApi.getTripById(tripId),
-        itineraryApi.getItinerary(tripId),
-        weatherApi.getTripWeather(tripId).catch(() => undefined),
-      ])
-      setTrip(tripData)
-      setItinerary(itinData)
-      setWeather(weatherData)
-    } catch {
-      toast.error("Không thể tải thông tin chuyến đi")
-    } finally {
-      setLoading(false)
-    }
-  }
+  const phaseMutation = useMutation({
+    mutationFn: (phase: TripPhase | null) => tripApi.updateTripPhase(tripId, phase),
+    onSuccess: (_data, phase) => {
+      toast.success(`Đã cập nhật giai đoạn chuyến đi: ${phase ? PHASE_LABEL[phase] : "Tự động"}`)
+      refreshTrip()
+    },
+    onError: (err) => toast.error(getErrorMessage(err, "Không thể cập nhật giai đoạn")),
+  })
 
-  useEffect(() => {
-    loadData()
-  }, [tripId])
-
-  const handleDuplicateTrip = async () => {
-    const inputDate = prompt(
-      "Nhập ngày bắt đầu cho chuyến mới (YYYY-MM-DD):",
-      "2026-11-01",
-    )
-    if (!inputDate) return
-    try {
-      const res: any = await tripApi.duplicateTrip(tripId, {
-        name: `${trip?.title} (Bản sao)`,
-        startDate: inputDate,
-      })
+  const duplicateMutation = useMutation({
+    mutationFn: (startDate: string) =>
+      tripApi.duplicateTrip(tripId, { name: trip ? `${trip.name} (Bản sao)` : undefined, startDate }),
+    onSuccess: (res) => {
       toast.success(`Đã nhân bản chuyến đi! Sao chép ${res.activitiesCopied || 0} hoạt động.`)
-      navigate({ to: "/" })
-    } catch (err: any) {
-      toast.error(err.message || "Không thể nhân bản chuyến đi")
-    }
-  }
+      queryClient.invalidateQueries({ queryKey: ["trips"] })
+      navigate({ to: "/trips/$tripId", params: { tripId: String(res.trip.id) } })
+    },
+    onError: (err) => toast.error(getErrorMessage(err, "Không thể nhân bản chuyến đi")),
+  })
 
-  const handleUpdatePhase = async (phase: "BEFORE" | "DURING" | "AFTER" | null) => {
-    try {
-      await tripApi.updateTripPhase(tripId, phase)
-      toast.success(`Đã cập nhật giai đoạn chuyến đi: ${phase || "Tự động"}`)
-      loadData()
-    } catch (err: any) {
-      toast.error(err.message || "Không thể cập nhật giai đoạn")
-    }
-  }
-
-  const handleDeleteTrip = async () => {
-    if (!confirm("Bạn có chắc chắn muốn xoá toàn bộ chuyến đi này?")) return
-    try {
-      await tripApi.deleteTrip(tripId)
+  const deleteMutation = useMutation({
+    mutationFn: () => tripApi.deleteTrip(tripId),
+    onSuccess: () => {
       toast.success("Đã xoá chuyến đi")
+      queryClient.removeQueries({ queryKey: ["trip", tripId] })
+      queryClient.invalidateQueries({ queryKey: ["trips"] })
       navigate({ to: "/" })
-    } catch {
-      toast.error("Không thể xoá chuyến đi")
-    }
+    },
+    onError: (err) => toast.error(getErrorMessage(err, "Không thể xoá chuyến đi")),
+  })
+
+  const handleDuplicateTrip = () => {
+    const inputDate = window.prompt("Nhập ngày bắt đầu cho chuyến mới (YYYY-MM-DD):", defaultDuplicateDate())
+    if (inputDate) duplicateMutation.mutate(inputDate)
   }
 
-  // Auto Generate Itinerary flow
-  const handleStartGenerate = async () => {
-    try {
-      setIsGenerating(true)
-      const job = await aiApi.startGenerateItinerary(tripId)
-      setGenerateJob(job)
-      toast.info("Đã bắt đầu tác vụ sinh lịch trình...")
-
-      // Stream progress via SSE instead of polling
-      aiApi.streamGenerateStatus(tripId, job.jobId, {
-        onProgress: (status) => {
-          setGenerateJob(status)
-        },
-        onDone: (status) => {
-          setGenerateJob(status)
-          setIsGenerating(false)
-          toast.success("Sinh lịch trình thành công!")
-          loadData()
-        },
-        onError: async (err) => {
-          // Fallback: Kiểm tra lại 1 lần qua GET status phòng khi đứt kết nối mạng giữa chừng
-          try {
-            const fallback = await aiApi.getGenerateStatus(tripId, job.jobId)
-            setGenerateJob(fallback)
-            if (fallback.state === "DONE") {
-              setIsGenerating(false)
-              toast.success("Sinh lịch trình thành công!")
-              loadData()
-              return
-            }
-          } catch {
-            // bỏ qua lỗi fallback
-          }
-          setIsGenerating(false)
-          toast.error(err?.error || err?.message || "Không thể sinh lịch trình")
-        },
-      })
-    } catch (err: any) {
-      setIsGenerating(false)
-      toast.error(err.message || "Lỗi khi kích hoạt AI sinh lịch trình")
-    }
+  const handleDeleteTrip = () => {
+    if (window.confirm("Bạn có chắc chắn muốn xoá toàn bộ chuyến đi này?")) deleteMutation.mutate()
   }
 
-  if (loading && !trip) {
+  if (tripQuery.isPending) {
     return <div className="py-20 text-center text-sm text-muted-foreground">Đang tải chi tiết chuyến đi...</div>
   }
 
   if (!trip) {
-    return <div className="py-20 text-center text-sm text-muted-foreground">Không tìm thấy chuyến đi.</div>
+    return (
+      <div className="py-20 text-center text-sm text-muted-foreground">
+        {tripQuery.error ? getErrorMessage(tripQuery.error) : "Không tìm thấy chuyến đi."}
+      </div>
+    )
   }
+
+  const itineraryEmpty = !itinerary || itinerary.days.every((d) => d.activities.length === 0)
+  const job = generation.job
 
   return (
     <div className="container mx-auto px-4 sm:px-6 py-6 space-y-6 pb-24">
-      {/* Trip Hero Header */}
-      <div className="rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-600 to-violet-700 p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-3 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-white/20 text-white backdrop-blur-md border-none">
-                {trip.destination.name}, {trip.destination.country}
-              </Badge>
-              {/* Phase Switcher */}
-              <div className="flex items-center gap-1 bg-black/30 p-1 rounded-xl backdrop-blur-md">
-                {(["BEFORE", "DURING", "AFTER"] as const).map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => handleUpdatePhase(p)}
-                    className={`px-2 py-0.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
-                      trip.phase === p
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-white/80 hover:bg-white/10"
-                    }`}
-                  >
-                    {p === "BEFORE" ? "Chưa đi" : p === "DURING" ? "Đang đi" : "Đã xong"}
-                  </button>
-                ))}
-              </div>
-              {trip.travelStyle && (
-                <Badge className="bg-white/10 text-white backdrop-blur-md border-none">
-                  Phong cách: {trip.travelStyle}
-                </Badge>
-              )}
-            </div>
+      <TripHero
+        trip={trip}
+        canGenerate={itineraryQuery.isSuccess && itineraryEmpty}
+        isGenerating={generation.isGenerating}
+        onGenerate={generation.start}
+        onChangePhase={(p) => phaseMutation.mutate(p)}
+        onReview={() => setIsReviewOpen(true)}
+        onDuplicate={handleDuplicateTrip}
+        onDelete={handleDeleteTrip}
+      />
 
-            <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">{trip.title}</h1>
-
-            <div className="flex flex-wrap items-center gap-4 text-xs sm:text-sm text-blue-100">
-              <div className="flex items-center gap-1.5">
-                <Calendar className="h-4 w-4" />
-                <span>{formatDateRange(trip.startDate, trip.endDate)}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Users className="h-4 w-4" />
-                <span>{trip.travelers} thành viên</span>
-              </div>
-              {trip.budget != null && (
-                <div className="flex items-center gap-1.5">
-                  <DollarSign className="h-4 w-4" />
-                  <span>Ngân sách: {formatCurrency(trip.budget, trip.currency)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="flex flex-wrap md:flex-col gap-2 shrink-0">
-            {(!itinerary || itinerary.days.every((d) => d.activities.length === 0)) && (
-              <Button
-                onClick={handleStartGenerate}
-                disabled={isGenerating}
-                className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-bold gap-2 shadow-lg"
-              >
-                <Sparkles className="h-4 w-4" />
-                {isGenerating ? "AI đang lên lịch..." : "Sinh lịch trình tự động"}
-              </Button>
-            )}
-
-            {trip.phase === "AFTER" && (
-              <Button
-                size="sm"
-                onClick={() => setIsReviewOpen(true)}
-                className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-semibold gap-1.5 shadow"
-              >
-                <ThumbsUp className="h-3.5 w-3.5" /> Đánh giá địa điểm
-              </Button>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleDuplicateTrip}
-                className="bg-white/20 hover:bg-white/30 text-white border-none gap-1.5"
-                title="Nhân bản chuyến"
-              >
-                <Copy className="h-3.5 w-3.5" /> Nhân bản
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={handleDeleteTrip}
-                className="bg-white/10 hover:bg-rose-500/80 text-white border-none gap-1.5"
-                title="Xoá chuyến"
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Xoá
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Generation Progress Indicator if running */}
-      {isGenerating && generateJob && (
-        <Card className="border-primary/40 bg-primary/5 p-4 animate-pulse">
+      {generation.isGenerating && job && (
+        <Card className="border-primary/40 bg-primary/5 p-4 animate-pulse" aria-live="polite">
           <div className="flex items-center justify-between text-xs font-semibold text-primary mb-2">
             <span className="flex items-center gap-2">
-              <RotateCw className="h-4 w-4 animate-spin" />
-              {generateJob.step}
+              <RotateCw className="h-4 w-4 animate-spin" aria-hidden />
+              {job.step}
             </span>
-            <span>{Math.round(generateJob.progress * 100)}%</span>
+            <span>{Math.round(job.progress * 100)}%</span>
           </div>
           <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
             <div
               className="bg-primary h-full transition-all duration-300"
-              style={{ width: `${Math.round(generateJob.progress * 100)}%` }}
+              style={{ width: `${Math.round(job.progress * 100)}%` }}
             />
           </div>
         </Card>
       )}
 
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-border text-sm font-medium">
-        <button
-          onClick={() => setActiveTab("itinerary")}
-          className={`py-3 px-5 border-b-2 font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
-            activeTab === "itinerary"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Calendar className="h-4 w-4" /> Lịch Trình Chi Tiết
-        </button>
-        <button
-          onClick={() => setActiveTab("budget")}
-          className={`py-3 px-5 border-b-2 font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
-            activeTab === "budget"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <DollarSign className="h-4 w-4" /> Ngân Sách & Chi Tiêu
-        </button>
-        <button
-          onClick={() => setActiveTab("checklist")}
-          className={`py-3 px-5 border-b-2 font-semibold flex items-center gap-2 transition-colors cursor-pointer ${
-            activeTab === "checklist"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Luggage className="h-4 w-4" /> Checklist Chuẩn Bị
-        </button>
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList aria-label="Nội dung chuyến đi">
+          <TabsTrigger value="itinerary">
+            <Calendar className="h-4 w-4" aria-hidden /> Lịch Trình Chi Tiết
+          </TabsTrigger>
+          <TabsTrigger value="budget">
+            <DollarSign className="h-4 w-4" aria-hidden /> Ngân Sách & Chi Tiêu
+          </TabsTrigger>
+          <TabsTrigger value="checklist">
+            <Luggage className="h-4 w-4" aria-hidden /> Checklist Chuẩn Bị
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Tab Contents */}
-      {activeTab === "itinerary" && (
-        <DayTimeline
-          tripId={tripId}
-          days={itinerary?.days || []}
-          weather={weather}
-          onRefresh={loadData}
-          onOpenAiChat={() => setIsAiOpen(true)}
-        />
-      )}
+        <TabsContent value="itinerary">
+          {itineraryQuery.isError ? (
+            <div className="py-12 text-center text-xs text-muted-foreground">
+              {getErrorMessage(itineraryQuery.error, "Không thể tải lịch trình")}
+            </div>
+          ) : (
+            <DayTimeline
+              tripId={tripId}
+              currency={trip.currency}
+              days={itinerary?.days || []}
+              weather={weatherQuery.data}
+              onRefresh={refreshTrip}
+              onOpenAiChat={() => setIsAiOpen(true)}
+            />
+          )}
+        </TabsContent>
+        <TabsContent value="budget">
+          <BudgetView tripId={tripId} />
+        </TabsContent>
+        <TabsContent value="checklist">
+          <ChecklistView tripId={tripId} />
+        </TabsContent>
+      </Tabs>
 
-      {activeTab === "budget" && <BudgetView tripId={tripId} />}
-
-      {activeTab === "checklist" && <ChecklistView tripId={tripId} />}
-
-      {/* Floating AI Chat Trigger Button */}
       <button
+        type="button"
         onClick={() => setIsAiOpen(true)}
         className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-semibold text-sm shadow-xl shadow-blue-500/30 hover:scale-105 transition-all cursor-pointer group"
       >
         <div className="p-1 rounded-full bg-white/20">
-          <Sparkles className="h-4 w-4 text-amber-300 animate-pulse" />
+          <Sparkles className="h-4 w-4 text-amber-300 animate-pulse" aria-hidden />
         </div>
         <span>Trợ lý AI TripMind</span>
       </button>
 
-      {/* AI Chat Drawer */}
       <AiChatDrawer
         tripId={tripId}
         isOpen={isAiOpen}
         onClose={() => setIsAiOpen(false)}
-        onProposalApplied={loadData}
+        onProposalApplied={refreshTrip}
       />
 
-      {/* Place Review Modal */}
-      <PlaceReviewModal
-        tripId={tripId}
-        isOpen={isReviewOpen}
-        onClose={() => setIsReviewOpen(false)}
-      />
+      <PlaceReviewModal tripId={tripId} isOpen={isReviewOpen} onClose={() => setIsReviewOpen(false)} />
     </div>
   )
 }

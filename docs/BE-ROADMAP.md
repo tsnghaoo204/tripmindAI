@@ -6,7 +6,7 @@
 > `BE-TODO.md` vẫn giữ giá trị tham khảo cho luật nghiệp vụ (`BR`, `QĐ`, `DI`) và bẫy kỹ thuật (§6),
 > nhưng nhiều giả định của nó đã đổi (Spring Boot 4, refresh token, cấu trúc gói theo tính năng). Chỗ nào hai file nói khác nhau thì **file này đúng**.
 >
-> Nguồn: [`FEATURE-REVIEW.md`](FEATURE-REVIEW.md) (danh sách đã duyệt) · [`ADS-01`](ADS/ADS-01-Dac-ta-yeu-cau.md) (mã `FR`) · [`PLAN.md`](PLAN.md) §12 (mã `BR` / `QĐ` / `DI`) · [`ADS-21`](ADS/ADS-21-Tich-hop-AI-Agent.md) (công cụ AI) · [`schemas.sql`](../schemas.sql)
+> Nguồn: [`FEATURE-REVIEW.md`](FEATURE-REVIEW.md) (danh sách đã duyệt) · [`ADS-01`](ADS/ADS-01-Dac-ta-yeu-cau.md) (mã `FR`) · [`PLAN.md`](PLAN.md) §12 (mã `BR` / `QĐ` / `DI`) · [`ADS-21`](ADS/ADS-21-Tich-hop-AI-Agent.md) (công cụ AI) · [`db/migration`](../backend/src/main/resources/db/migration) (Flyway; `schemas.sql` đã bỏ)
 
 ---
 

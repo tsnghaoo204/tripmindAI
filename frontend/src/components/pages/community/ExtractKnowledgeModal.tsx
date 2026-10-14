@@ -1,20 +1,11 @@
-import { useState, useEffect } from "react"
-import { BlogPost, KnowledgeCategory, KnowledgeRequest, ExtractedKnowledge } from "@/client/types"
 import { blogApi } from "@/client/api/blog-api"
+import { getErrorMessage } from "@/client/errors"
+import type { BlogPost, ExtractedKnowledge, KnowledgeCategory, KnowledgeRequest } from "@/client/types"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
-import {
-  Sparkles,
-  X,
-  MapPin,
-  Tag,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-  Lightbulb,
-  Database,
-} from "lucide-react"
+import { AlertCircle, CheckCircle2, Database, Lightbulb, Loader2, MapPin, Quote, Sparkles, Tag } from "lucide-react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
 
 interface ExtractKnowledgeModalProps {
@@ -33,12 +24,7 @@ const CATEGORY_MAP: Record<KnowledgeCategory, { label: string; color: string }> 
   WARNING: { label: "Cảnh báo & Lưu ý tránh bẫy", color: "text-rose-600 bg-rose-500/10 border-rose-500/30" },
 }
 
-export function ExtractKnowledgeModal({
-  post,
-  isOpen,
-  onClose,
-  onSuccess,
-}: ExtractKnowledgeModalProps) {
+export function ExtractKnowledgeModal({ post, isOpen, onClose, onSuccess }: ExtractKnowledgeModalProps) {
   const [loading, setLoading] = useState<boolean>(true)
   const [submitting, setSubmitting] = useState<boolean>(false)
   const [extractedData, setExtractedData] = useState<ExtractedKnowledge | null>(null)
@@ -51,7 +37,7 @@ export function ExtractKnowledgeModal({
   const [formContent, setFormContent] = useState<string>("")
   const [formPlaceName, setFormPlaceName] = useState<string>("")
   const [formSourceName, setFormSourceName] = useState<string>(`Cộng đồng TripMind - ${post.user.name}`)
-  const [formSourceUrl, setFormSourceUrl] = useState<string>(window.location.origin + `/community?post=${post.id}`)
+  const [formSourceUrl, setFormSourceUrl] = useState<string>(`${window.location.origin}/community?post=${post.id}`)
   const [formTagsStr, setFormTagsStr] = useState<string>("")
   const [formPriority, setFormPriority] = useState<number>(2)
   const [formActive, setFormActive] = useState<boolean>(true)
@@ -80,8 +66,7 @@ export function ExtractKnowledgeModal({
       })
       .catch((err) => {
         if (!isMounted) return
-        console.error("AI extraction error:", err)
-        setError(err.message || "Không thể trích xuất tri thức bằng AI. Bạn có thể tự điền nội dung.")
+        setError(getErrorMessage(err, "Không thể trích xuất tri thức bằng AI. Bạn có thể tự điền nội dung."))
         // Fallback default values
         setFormDestName(post.destinationName)
         setFormTitle(post.title)
@@ -92,9 +77,7 @@ export function ExtractKnowledgeModal({
     return () => {
       isMounted = false
     }
-  }, [isOpen, post.id, post.destinationName, post.title, post.content, post.user.name])
-
-  if (!isOpen) return null
+  }, [isOpen, post.id, post.destinationName, post.title, post.content])
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -127,45 +110,36 @@ export function ExtractKnowledgeModal({
       toast.success("Đã thêm thành công vào Dataset Tri Thức AI!")
       onSuccess(saved.id)
       onClose()
-    } catch (err: any) {
-      console.error("Lỗi khi lưu tri thức:", err)
-      toast.error(err.message || "Không thể lưu tri thức vào hệ thống")
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Không thể lưu tri thức vào hệ thống"))
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-      <Card className="w-full max-w-2xl border-border/80 shadow-2xl bg-card overflow-hidden max-h-[92vh] flex flex-col">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !submitting && onClose()}>
+      <DialogContent className="max-w-2xl">
         {/* Header */}
-        <div className="p-4 border-b flex items-center justify-between bg-gradient-to-r from-amber-500/10 via-primary/10 to-transparent shrink-0">
+        <div className="p-4 pr-12 border-b flex items-center justify-between bg-gradient-to-r from-amber-500/10 via-primary/10 to-transparent shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
               <Sparkles className="h-5 w-5 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm sm:text-base text-foreground">
+                <DialogTitle className="font-bold text-sm sm:text-base text-foreground">
                   Trích xuất Dataset Tri Thức Cho AI
-                </h3>
+                </DialogTitle>
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                   Admin Exclusive
                 </span>
               </div>
-              <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
+              <DialogDescription className="text-[11px] line-clamp-1 mt-0.5">
                 Bài viết: &quot;{post.title}&quot; &bull; {post.user.name} ({post.commentCount} bình luận)
-              </p>
+              </DialogDescription>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="rounded-full h-8 w-8 hover:bg-muted"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
 
         {/* Content Body */}
@@ -180,7 +154,8 @@ export function ExtractKnowledgeModal({
             <div className="space-y-1.5 max-w-sm">
               <h4 className="font-semibold text-sm">AI đang tổng hợp & tinh gọn tri thức</h4>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Đang đọc bài viết và {post.commentCount} bình luận của cộng đồng để lọc ra các kinh nghiệm, mẹo thực tế, địa điểm chất lượng cao...
+                Đang đọc bài viết và {post.commentCount} bình luận của cộng đồng để lọc ra các kinh nghiệm, mẹo thực tế,
+                địa điểm chất lượng cao...
               </p>
             </div>
           </div>
@@ -199,19 +174,25 @@ export function ExtractKnowledgeModal({
                   <Lightbulb className="h-3.5 w-3.5" />
                   <span>Phân tích & Đánh giá của AI</span>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  {extractedData.reasoning}
-                </p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{extractedData.reasoning}</p>
               </div>
+            )}
+
+            {extractedData?.sourceSnippet && (
+              <blockquote className="p-3 rounded-xl bg-muted/50 border border-border text-[11px] text-muted-foreground leading-relaxed flex gap-2">
+                <Quote className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" aria-hidden />
+                <span className="whitespace-pre-line">{extractedData.sourceSnippet}</span>
+              </blockquote>
             )}
 
             {/* Destination & Category */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1">
-                <label className="font-semibold text-foreground flex items-center gap-1">
+                <label htmlFor="extract-1" className="font-semibold text-foreground flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5 text-primary" /> Điểm đến *
                 </label>
                 <Input
+                  id="extract-1"
                   required
                   placeholder="VD: Da Nang, Hanoi, Phu Quoc..."
                   value={formDestName}
@@ -221,8 +202,11 @@ export function ExtractKnowledgeModal({
               </div>
 
               <div className="space-y-1">
-                <label className="font-semibold text-foreground">Chuyên mục tri thức *</label>
+                <label htmlFor="extract-2" className="font-semibold text-foreground">
+                  Chuyên mục tri thức *
+                </label>
                 <select
+                  id="extract-2"
                   value={formCategory}
                   onChange={(e) => setFormCategory(e.target.value as KnowledgeCategory)}
                   className="w-full h-8.5 rounded-lg border border-border bg-background px-2.5 text-xs outline-none focus:ring-1 focus:ring-primary cursor-pointer font-medium"
@@ -238,8 +222,11 @@ export function ExtractKnowledgeModal({
 
             {/* Title */}
             <div className="space-y-1">
-              <label className="font-semibold text-foreground">Tiêu đề tri thức / mẹo *</label>
+              <label htmlFor="extract-3" className="font-semibold text-foreground">
+                Tiêu đề tri thức / mẹo *
+              </label>
               <Input
+                id="extract-3"
                 required
                 placeholder="VD: Kinh nghiệm ăn Bánh xèo Bà Dưỡng chuẩn vị tránh hàng nhái"
                 value={formTitle}
@@ -250,13 +237,14 @@ export function ExtractKnowledgeModal({
 
             {/* Specific Place Name */}
             <div className="space-y-1">
-              <label className="font-semibold text-foreground flex items-center justify-between">
+              <label htmlFor="extract-4" className="font-semibold text-foreground flex items-center justify-between">
                 <span>Địa điểm cụ thể được đề cập (Tùy chọn)</span>
                 <span className="text-[10px] text-muted-foreground font-normal">
                   Nếu có, AI sẽ ưu tiên đưa vào lịch trình
                 </span>
               </label>
               <Input
+                id="extract-4"
                 placeholder="VD: Quán Bánh Xèo Bà Dưỡng, Hải Sản Năm Đảnh..."
                 value={formPlaceName}
                 onChange={(e) => setFormPlaceName(e.target.value)}
@@ -266,13 +254,12 @@ export function ExtractKnowledgeModal({
 
             {/* Distilled Content */}
             <div className="space-y-1">
-              <label className="font-semibold text-foreground flex items-center justify-between">
+              <label htmlFor="extract-5" className="font-semibold text-foreground flex items-center justify-between">
                 <span>Nội dung đã được AI chắt lọc & đúc kết *</span>
-                <span className="text-[10px] text-primary font-medium">
-                  {formContent.length} ký tự
-                </span>
+                <span className="text-[10px] text-primary font-medium">{formContent.length} ký tự</span>
               </label>
               <textarea
+                id="extract-5"
                 required
                 rows={4}
                 placeholder="Nội dung tri thức tinh gọn, chứa mẹo, kinh nghiệm, thời điểm lý tưởng, lưu ý..."
@@ -285,10 +272,11 @@ export function ExtractKnowledgeModal({
             {/* Tags & Priority */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div className="space-y-1">
-                <label className="font-semibold text-foreground flex items-center gap-1">
+                <label htmlFor="extract-6" className="font-semibold text-foreground flex items-center gap-1">
                   <Tag className="h-3 w-3 text-muted-foreground" /> Thẻ từ khóa (phân cách bằng dấu phẩy)
                 </label>
                 <Input
+                  id="extract-6"
                   placeholder="ẩm thực, đặc sản, ăn tối, giá rẻ"
                   value={formTagsStr}
                   onChange={(e) => setFormTagsStr(e.target.value)}
@@ -297,8 +285,11 @@ export function ExtractKnowledgeModal({
               </div>
 
               <div className="space-y-1">
-                <label className="font-semibold text-foreground">Độ ưu tiên cho AI gợi ý *</label>
+                <label htmlFor="extract-7" className="font-semibold text-foreground">
+                  Độ ưu tiên cho AI gợi ý *
+                </label>
                 <select
+                  id="extract-7"
                   value={formPriority}
                   onChange={(e) => setFormPriority(Number(e.target.value))}
                   className="w-full h-8.5 rounded-lg border border-border bg-background px-2.5 text-xs outline-none focus:ring-1 focus:ring-primary cursor-pointer font-medium"
@@ -313,16 +304,22 @@ export function ExtractKnowledgeModal({
             {/* Source info */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-muted-foreground">
               <div className="space-y-1">
-                <label className="font-medium text-[11px]">Nguồn tham khảo</label>
+                <label htmlFor="extract-8" className="font-medium text-[11px]">
+                  Nguồn tham khảo
+                </label>
                 <Input
+                  id="extract-8"
                   value={formSourceName}
                   onChange={(e) => setFormSourceName(e.target.value)}
                   className="h-8 text-xs bg-background/50"
                 />
               </div>
               <div className="space-y-1">
-                <label className="font-medium text-[11px]">Link gốc</label>
+                <label htmlFor="extract-9" className="font-medium text-[11px]">
+                  Link gốc
+                </label>
                 <Input
+                  id="extract-9"
                   value={formSourceUrl}
                   onChange={(e) => setFormSourceUrl(e.target.value)}
                   className="h-8 text-xs bg-background/50"
@@ -339,9 +336,7 @@ export function ExtractKnowledgeModal({
                   onChange={(e) => setFormActive(e.target.checked)}
                   className="h-4 w-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
                 />
-                <span className="font-semibold text-xs text-foreground">
-                  Kích hoạt ngay cho AI sử dụng
-                </span>
+                <span className="font-semibold text-xs text-foreground">Kích hoạt ngay cho AI sử dụng</span>
               </label>
 
               <div className="flex items-center gap-2">
@@ -375,7 +370,7 @@ export function ExtractKnowledgeModal({
             </div>
           </form>
         )}
-      </Card>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }

@@ -43,6 +43,11 @@ public class UserEntity {
     @Builder.Default
     private boolean isActive = true;
 
+    /** Ghi vào JWT; tăng lên thì mọi phiếu đã cấp trước đó hết hiệu lực. */
+    @Column(name = "token_version", nullable = false)
+    @Builder.Default
+    private int tokenVersion = 0;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -50,4 +55,20 @@ public class UserEntity {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    /** Đổi mật khẩu (tự đổi hay quản trị đặt lại) thì thu hồi mọi phiên đang mở. */
+    public void setPasswordHash(String passwordHash) {
+        if (this.passwordHash != null && !this.passwordHash.equals(passwordHash)) {
+            tokenVersion++;
+        }
+        this.passwordHash = passwordHash;
+    }
+
+    /** Khoá tài khoản thì thu hồi mọi phiên; mở lại cũng không làm sống lại phiếu cũ. */
+    public void setActive(boolean active) {
+        if (this.isActive && !active) {
+            tokenVersion++;
+        }
+        this.isActive = active;
+    }
 }

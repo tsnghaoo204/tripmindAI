@@ -63,7 +63,7 @@ cd backend && mvn spring-boot:run           # hoặc: docker compose up -d --bui
 ### P0 — Dọn nền
 
 - Gỡ mọi khoá khỏi `application.yml`. Spring đọc thẳng file `.env` qua `spring.config.import`. Có `.env.example`.
-- Flyway: `V1__baseline.sql` là toàn bộ `schemas.sql` cũ (bỏ các câu `DROP`). File `schemas.sql` ở gốc giờ chỉ còn là lời trỏ sang thư mục migration; bản cũ trong `resources/db/` đã xoá.
+- Flyway: `V1__baseline.sql` là toàn bộ `schemas.sql` cũ (bỏ các câu `DROP`). File `schemas.sql` ở gốc đã bị xoá hẳn (bị lệch so với migration); Flyway `db/migration` là nguồn sự thật duy nhất.
 - `docker-compose.yml`: postgres 16, redis 7, và service `backend`.
 - Lỗi trả về có thêm `code` (giao diện rẽ nhánh theo mã) và `details`, đúng hình dạng ADS-30 §1.1. Thêm khoảng 20 mã lỗi.
 - Test đối chiếu **mọi enum Java với ràng buộc `CHECK` trong migration**, vì `ddl-auto: validate` không kiểm phần này. Test này đã bắt được enum `ProposalStatus` thiếu `REVERTED`.

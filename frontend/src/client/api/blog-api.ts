@@ -1,27 +1,18 @@
 import { request } from "../client"
-import {
-  BlogPost,
+import type {
   BlogComment,
+  BlogPost,
   BlogPostRequest,
-  ExtractedKnowledge,
   DestinationKnowledge,
+  ExtractedKnowledge,
   KnowledgeRequest,
+  PageResponse,
 } from "../types"
 
-export interface PageResponse<T> {
-  content: T[]
-  page: number
-  size: number
-  totalElements: number
-}
+export type { PageResponse }
 
 export const blogApi = {
-  getPosts: async (params?: {
-    destination?: string
-    search?: string
-    page?: number
-    size?: number
-  }): Promise<PageResponse<BlogPost>> => {
+  getPosts: (params?: { destination?: string; search?: string; page?: number; size?: number }) => {
     const q = new URLSearchParams()
     if (params?.destination) q.set("destination", params.destination)
     if (params?.search) q.set("search", params.search)
@@ -30,67 +21,27 @@ export const blogApi = {
     return request<PageResponse<BlogPost>>(`/api/blog/posts?${q.toString()}`)
   },
 
-  getPostDetail: async (id: number): Promise<BlogPost> => {
-    return request<BlogPost>(`/api/blog/posts/${id}`)
-  },
+  getPostDetail: (id: number) => request<BlogPost>(`/api/blog/posts/${id}`),
 
-  getDestinations: async (): Promise<string[]> => {
-    return request<string[]>("/api/blog/destinations")
-  },
+  getDestinations: () => request<string[]>("/api/blog/posts/destinations"),
 
-  createPost: async (data: BlogPostRequest): Promise<BlogPost> => {
-    return request<BlogPost>("/api/blog/posts", {
-      method: "POST",
-      data,
-    })
-  },
+  createPost: (data: BlogPostRequest) => request<BlogPost>("/api/blog/posts", { method: "POST", data }),
 
-  deletePost: async (id: number): Promise<void> => {
-    return request<void>(`/api/blog/posts/${id}`, {
-      method: "DELETE",
-    })
-  },
+  deletePost: (id: number) => request<void>(`/api/blog/posts/${id}`, { method: "DELETE" }),
 
-  togglePostUpvote: async (id: number): Promise<BlogPost> => {
-    return request<BlogPost>(`/api/blog/posts/${id}/upvote`, {
-      method: "POST",
-    })
-  },
+  togglePostUpvote: (id: number) => request<BlogPost>(`/api/blog/posts/${id}/upvote`, { method: "POST" }),
 
-  getComments: async (postId: number): Promise<BlogComment[]> => {
-    return request<BlogComment[]>(`/api/blog/posts/${postId}/comments`)
-  },
+  getComments: (postId: number) => request<BlogComment[]>(`/api/blog/posts/${postId}/comments`),
 
-  addComment: async (postId: number, content: string): Promise<BlogComment> => {
-    return request<BlogComment>(`/api/blog/posts/${postId}/comments`, {
-      method: "POST",
-      data: { content },
-    })
-  },
+  addComment: (postId: number, content: string) =>
+    request<BlogComment>(`/api/blog/posts/${postId}/comments`, { method: "POST", data: { content } }),
 
-  deleteComment: async (commentId: number): Promise<void> => {
-    return request<void>(`/api/blog/comments/${commentId}`, {
-      method: "DELETE",
-    })
-  },
+  toggleCommentUpvote: (commentId: number) =>
+    request<BlogComment>(`/api/blog/comments/${commentId}/upvote`, { method: "POST" }),
 
-  toggleCommentUpvote: async (commentId: number): Promise<BlogComment> => {
-    return request<BlogComment>(`/api/blog/comments/${commentId}/upvote`, {
-      method: "POST",
-    })
-  },
+  extractKnowledge: (postId: number) =>
+    request<ExtractedKnowledge>(`/api/admin/blog/posts/${postId}/extract-knowledge`, { method: "POST" }),
 
-  // Admin AI Extraction & Conversion
-  extractKnowledge: async (postId: number): Promise<ExtractedKnowledge> => {
-    return request<ExtractedKnowledge>(`/api/admin/blog/posts/${postId}/extract-knowledge`, {
-      method: "POST",
-    })
-  },
-
-  convertToKnowledge: async (postId: number, data: KnowledgeRequest): Promise<DestinationKnowledge> => {
-    return request<DestinationKnowledge>(`/api/admin/blog/posts/${postId}/convert-to-knowledge`, {
-      method: "POST",
-      data,
-    })
-  },
+  convertToKnowledge: (postId: number, data: KnowledgeRequest) =>
+    request<DestinationKnowledge>(`/api/admin/blog/posts/${postId}/convert-to-knowledge`, { method: "POST", data }),
 }

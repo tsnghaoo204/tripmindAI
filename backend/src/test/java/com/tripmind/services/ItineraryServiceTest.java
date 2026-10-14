@@ -14,6 +14,7 @@ import com.tripmind.enums.ActivityType;
 import com.tripmind.enums.ActivityStatus;
 import com.tripmind.exceptions.AppException;
 import com.tripmind.exceptions.ErrorCode;
+import com.tripmind.repositories.ActivityAlternativeRepository;
 import com.tripmind.repositories.ActivityRepository;
 import com.tripmind.repositories.ItineraryDayRepository;
 import com.tripmind.repositories.PlaceRepository;
@@ -59,6 +60,12 @@ class ItineraryServiceTest {
 
     @Mock
     private CostEstimator costEstimator;
+
+    @Mock
+    private ActivityAlternativeRepository alternativeRepository;
+
+    @Mock
+    private ActivityAlternativeService alternativeService;
 
     @Spy
     private DistanceService distanceService = new DistanceService();
@@ -117,7 +124,7 @@ class ItineraryServiceTest {
 
         when(tripRepository.findByIdAndUserId(10L, 1L)).thenReturn(Optional.of(trip));
         when(itineraryDayRepository.findByTripIdOrderByDayNumberAsc(10L)).thenReturn(List.of(day1));
-        when(activityRepository.findByItineraryDayIdOrderByOrderIndexAsc(100L)).thenReturn(List.of(act1, act2));
+        when(activityRepository.findWithPlacesByTripId(10L)).thenReturn(List.of(act1, act2));
 
         ItineraryResponse response = itineraryService.getItinerary(1L, 10L);
 

@@ -13,25 +13,36 @@ import java.util.List;
 public interface DestinationKnowledgeRepository extends JpaRepository<DestinationKnowledgeEntity, Long> {
 
     /**
-     * Lấy danh sách tri thức chất lượng nhất đang kích hoạt cho một điểm đến để nạp vào AI prompt.
+     * Tri thức đang kích hoạt của một điểm đến: theo {@code destination_id}; dòng chưa gắn điểm đến
+     * thì khớp đúng tên (không phân biệt hoa thường), không dùng {@code LIKE %...%}.
      */
     @Query("SELECT k FROM DestinationKnowledgeEntity k " +
-           "WHERE LOWER(k.destinationName) LIKE LOWER(CONCAT('%', :destinationName, '%')) " +
-           "  AND k.active = true " +
+           "WHERE k.active = true " +
+           "  AND (k.destination.id = :destinationId " +
+           "       OR (k.destination IS NULL AND LOWER(k.destinationName) = LOWER(:destinationName))) " +
            "ORDER BY k.priority DESC, k.createdAt DESC")
-    List<DestinationKnowledgeEntity> findActiveForAiPrompt(@Param("destinationName") String destinationName, Pageable pageable);
+    List<DestinationKnowledgeEntity> findActiveForDestination(@Param("destinationId") Long destinationId,
+                                                              @Param("destinationName") String destinationName,
+                                                              Pageable pageable);
 
-    /**
-     * Tra cứu theo từ khóa phục vụ công cụ tra cứu AI Tool.
-     */
+    /** Như trên khi chỉ biết tên điểm đến. */
     @Query("SELECT k FROM DestinationKnowledgeEntity k " +
-           "WHERE (:destinationName IS NULL OR LOWER(k.destinationName) LIKE LOWER(CONCAT('%', :destinationName, '%'))) " +
-           "  AND k.active = true " +
+           "WHERE k.active = true AND LOWER(k.destinationName) = LOWER(:destinationName) " +
+           "ORDER BY k.priority DESC, k.createdAt DESC")
+    List<DestinationKnowledgeEntity> findActiveByDestinationName(@Param("destinationName") String destinationName,
+                                                                 Pageable pageable);
+
+    /** Tra cứu theo từ khóa trong tri thức của một điểm đến (công cụ AI). */
+    @Query("SELECT k FROM DestinationKnowledgeEntity k " +
+           "WHERE k.active = true " +
+           "  AND (k.destination.id = :destinationId " +
+           "       OR (k.destination IS NULL AND LOWER(k.destinationName) = LOWER(:destinationName))) " +
            "  AND (LOWER(k.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "       OR LOWER(k.content) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "       OR (k.placeName IS NOT NULL AND LOWER(k.placeName) LIKE LOWER(CONCAT('%', :keyword, '%')))) " +
            "ORDER BY k.priority DESC, k.createdAt DESC")
-    List<DestinationKnowledgeEntity> searchActiveKnowledge(@Param("destinationName") String destinationName,
+    List<DestinationKnowledgeEntity> searchActiveKnowledge(@Param("destinationId") Long destinationId,
+                                                           @Param("destinationName") String destinationName,
                                                            @Param("keyword") String keyword,
                                                            Pageable pageable);
 

@@ -2,6 +2,7 @@ package com.tripmind.services;
 
 import com.tripmind.domains.requests.CreateActivityRequest;
 import com.tripmind.domains.requests.UpdateActivityRequest;
+import com.tripmind.domains.responses.ActivityAlternativeResponse;
 import com.tripmind.domains.responses.ActivityResponse;
 import com.tripmind.domains.responses.CostEstimateResponse;
 import com.tripmind.domains.responses.ItineraryDayResponse;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -53,6 +55,13 @@ public class ItineraryServiceImpl implements ItineraryService {
         TripEntity trip = ownedTrip(userId, tripId);
 
         List<ItineraryDayEntity> days = itineraryDayRepository.findByTripIdOrderByDayNumberAsc(tripId);
+        // Một truy vấn cho mọi hoạt động (kèm địa điểm), một truy vấn cho mọi lựa chọn thay thế.
+        Map<Long, List<ActivityEntity>> byDay = new HashMap<>();
+        for (ActivityEntity a : activityRepository.findWithPlacesByTripId(tripId)) {
+            byDay.computeIfAbsent(a.getItineraryDay().getId(), k -> new ArrayList<>()).add(a);
+        }
+        Map<Long, List<ActivityAlternativeResponse>> altMap = alternativesOf(
+                byDay.values().stream().flatMap(List::stream).map(ActivityEntity::getId).toList());
 
         List<ItineraryDayResponse> dayResponses = new ArrayList<>();
         long totalTripDistance = 0L;
@@ -60,8 +69,8 @@ public class ItineraryServiceImpl implements ItineraryService {
         long totalEstimatedCost = 0L;
 
         for (ItineraryDayEntity day : days) {
-            List<ActivityEntity> activities = activityRepository.findByItineraryDayIdOrderByOrderIndexAsc(day.getId());
-            ItineraryDayResponse dayResponse = buildDayResponse(day, activities);
+            List<ActivityEntity> activities = byDay.getOrDefault(day.getId(), List.of());
+            ItineraryDayResponse dayResponse = buildDayResponse(day, activities, altMap);
             dayResponses.add(dayResponse);
 
             if (dayResponse.getTotalDayDistanceMeters() != null) {
@@ -237,7 +246,8 @@ public class ItineraryServiceImpl implements ItineraryService {
         activityRepository.flush();
 
         log.info("Reordered {} activities for day ID={}", activityIds.size(), dayId);
-        return buildDayResponse(day, reorderedList);
+        return buildDayResponse(day, reorderedList,
+                alternativesOf(reorderedList.stream().map(ActivityEntity::getId).toList()));
     }
 
     @Override
@@ -306,16 +316,18 @@ public class ItineraryServiceImpl implements ItineraryService {
         activity.setActualEnd(actualEnd);
     }
 
-    private ItineraryDayResponse buildDayResponse(ItineraryDayEntity day, List<ActivityEntity> activities) {
+    private Map<Long, List<ActivityAlternativeResponse>> alternativesOf(List<Long> activityIds) {
+        return activityIds.isEmpty() ? Map.of()
+                : alternativeRepository.findByActivityIdsWithPlace(activityIds).stream()
+                .collect(Collectors.groupingBy(a -> a.getActivity().getId(),
+                        Collectors.mapping(alternativeService::toResponse, Collectors.toList())));
+    }
+
+    private ItineraryDayResponse buildDayResponse(ItineraryDayEntity day, List<ActivityEntity> activities,
+                                                  Map<Long, List<ActivityAlternativeResponse>> altMap) {
         List<ActivityResponse> actResponses = new ArrayList<>();
         long dayDistance = 0L;
         int dayTravelMinutes = 0;
-
-        List<Long> actIds = activities.stream().map(ActivityEntity::getId).toList();
-        Map<Long, List<com.tripmind.domains.responses.ActivityAlternativeResponse>> altMap = actIds.isEmpty() ? Map.of()
-                : alternativeRepository.findByActivityIdsWithPlace(actIds).stream()
-                .collect(java.util.stream.Collectors.groupingBy(a -> a.getActivity().getId(),
-                        java.util.stream.Collectors.mapping(alternativeService::toResponse, java.util.stream.Collectors.toList())));
 
         for (int i = 0; i < activities.size(); i++) {
             ActivityEntity current = activities.get(i);
@@ -356,7 +368,7 @@ public class ItineraryServiceImpl implements ItineraryService {
     }
 
     private ActivityResponse toActivityResponse(ActivityEntity entity, DistanceService.TravelEstimate estimate) {
-        List<com.tripmind.domains.responses.ActivityAlternativeResponse> alts =
+        List<ActivityAlternativeResponse> alts =
                 alternativeRepository.findByActivityIdWithPlace(entity.getId()).stream()
                         .map(alternativeService::toResponse)
                         .toList();
@@ -364,7 +376,7 @@ public class ItineraryServiceImpl implements ItineraryService {
     }
 
     private ActivityResponse toActivityResponse(ActivityEntity entity, DistanceService.TravelEstimate estimate,
-                                                List<com.tripmind.domains.responses.ActivityAlternativeResponse> alternatives) {
+                                                List<ActivityAlternativeResponse> alternatives) {
         String idealTip = distanceService.getIdealTimingTip(entity.getPlace(), entity.getTitle());
 
         ActivityResponse.ActivityResponseBuilder builder = ActivityResponse.builder()

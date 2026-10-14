@@ -1,5 +1,6 @@
 package com.tripmind.exceptions;
 
+import com.tripmind.configurations.security.RequestSizeLimitFilter;
 import com.tripmind.domains.responses.ApiResponse;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -53,31 +54,41 @@ public class GlobalExceptionHandler {
     /** JSON hỏng, sai kiểu, hoặc giá trị enum không hợp lệ (ví dụ {@code "status": "FOO"}). */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiResponse<Object>> handleUnreadable(HttpMessageNotReadableException ex) {
-        String cause = ex.getMostSpecificCause().getMessage();
-        return badRequest("Malformed request body", cause);
+        if (ex.getMostSpecificCause() instanceof RequestSizeLimitFilter.PayloadTooLargeException) {
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                    .body(ApiResponse.fail("PAYLOAD_TOO_LARGE", "Request body is too large", null));
+        }
+        // Không trả nguyên văn lỗi Jackson: lộ tên lớp và cấu trúc nội bộ
+        log.debug("Body khong doc duoc: {}", ex.getMostSpecificCause().getMessage());
+        return badRequest("Malformed request body", null);
     }
 
-    @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
-    public ResponseEntity<ApiResponse<Object>> handleBadParameter(Exception ex) {
-        return badRequest(ex.getMessage(), null);
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Object>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return badRequest("Invalid value for parameter '" + ex.getName() + "'", null);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Object>> handleMissingParameter(MissingServletRequestParameterException ex) {
+        return badRequest("Missing required parameter '" + ex.getParameterName() + "'", null);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Object>> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.fail(ErrorCode.FORBIDDEN.name(), ex.getMessage(), null));
+                .body(ApiResponse.fail(ErrorCode.FORBIDDEN.name(), "Access denied", null));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiResponse<Object>> handleNoResource(NoResourceFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiResponse.fail(ErrorCode.RESOURCE_NOT_FOUND.name(), ex.getMessage(), null));
+                .body(ApiResponse.fail(ErrorCode.RESOURCE_NOT_FOUND.name(), "Resource not found", null));
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ApiResponse<Object>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
-                .body(ApiResponse.fail(ErrorCode.VALIDATION_ERROR.name(), ex.getMessage(), null));
+                .body(ApiResponse.fail(ErrorCode.VALIDATION_ERROR.name(), "Method " + ex.getMethod() + " not supported", null));
     }
 
     /** Ràng buộc CSDL chặn lại (trùng khoá, vi phạm CHECK) mà tầng dịch vụ chưa bắt trước. */

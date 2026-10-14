@@ -16,7 +16,7 @@ import java.util.List;
 public class BlogPostResponse {
 
     private Long id;
-    private UserResponse user;
+    private PublicUserResponse user;
     private Long tripId;
     private String destinationName;
     private String title;
@@ -38,7 +38,7 @@ public class BlogPostResponse {
         }
         return BlogPostResponse.builder()
                 .id(entity.getId())
-                .user(UserResponse.fromEntity(entity.getUser()))
+                .user(PublicUserResponse.fromEntity(entity.getUser()))
                 .tripId(entity.getTrip() != null ? entity.getTrip().getId() : null)
                 .destinationName(entity.getDestinationName())
                 .title(entity.getTitle())

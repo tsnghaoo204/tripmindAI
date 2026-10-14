@@ -1,5 +1,6 @@
-import * as React from "react"
 import type { User } from "@/client/types"
+import { getStoredUser, getToken, logout as logoutSession, saveSession, subscribeAuth } from "@/lib/auth-storage"
+import * as React from "react"
 
 interface AuthContextType {
   user: User | null
@@ -11,41 +12,32 @@ interface AuthContextType {
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined)
 
+function readSession() {
+  return { token: getToken(), user: getStoredUser() }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = React.useState<string | null>(() => localStorage.getItem("access_token"))
-  const [user, setUser] = React.useState<User | null>(() => {
-    const saved = localStorage.getItem("user_profile")
-    return saved ? JSON.parse(saved) : null
-  })
+  const [session, setSession] = React.useState(readSession)
+
+  // Keep in sync with logouts triggered outside React (e.g. 401 interceptor)
+  React.useEffect(() => subscribeAuth(() => setSession(readSession())), [])
 
   const login = React.useCallback((newToken: string, newUser: User) => {
-    localStorage.setItem("access_token", newToken)
-    localStorage.setItem("user_profile", JSON.stringify(newUser))
-    setToken(newToken)
-    setUser(newUser)
+    saveSession(newToken, newUser)
   }, [])
 
-  const logout = React.useCallback(() => {
-    localStorage.removeItem("access_token")
-    localStorage.removeItem("user_profile")
-    setToken(null)
-    setUser(null)
-    window.location.href = "/login"
-  }, [])
-
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isAuthenticated: !!token,
-        login,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = React.useMemo<AuthContextType>(
+    () => ({
+      user: session.token ? session.user : null,
+      token: session.token,
+      isAuthenticated: !!session.token,
+      login,
+      logout: logoutSession,
+    }),
+    [session, login],
   )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
 export function useAuth() {

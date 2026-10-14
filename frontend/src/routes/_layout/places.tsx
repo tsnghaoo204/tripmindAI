@@ -1,9 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router"
-import { useState } from "react"
-import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Search, MapPin, Star, Heart } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { createFileRoute } from "@tanstack/react-router"
+import { Heart, MapPin, Search, Star } from "lucide-react"
+import { useState } from "react"
 
 export const Route = createFileRoute("/_layout/places")({
   component: PlacesPage,
@@ -22,8 +22,9 @@ function PlacesPage() {
 
         <div className="flex gap-2 mt-6">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden />
             <Input
+              aria-label="Tìm địa điểm"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Nhập tên quán cafe, địa danh hoặc bãi biển..."
@@ -38,7 +39,12 @@ function PlacesPage() {
         <Card className="overflow-hidden hover:shadow-md transition-shadow">
           <div className="h-40 bg-muted relative">
             <div className="absolute top-3 right-3">
-              <Button size="icon" variant="secondary" className="h-8 w-8 rounded-full bg-white/80 dark:bg-black/50 backdrop-blur-sm">
+              <Button
+                aria-label="Lưu địa điểm"
+                size="icon"
+                variant="secondary"
+                className="h-8 w-8 rounded-full bg-white/80 dark:bg-black/50 backdrop-blur-sm"
+              >
                 <Heart className="h-4 w-4 text-rose-500" />
               </Button>
             </div>

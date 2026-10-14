@@ -1,19 +1,33 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { authApi } from "@/client/api/auth-api"
+import { getErrorMessage } from "@/client/errors"
 import { Logo } from "@/components/common/Logo"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { useAuth } from "@/contexts/auth-context"
+import { getToken } from "@/lib/auth-storage"
+import { Link, createFileRoute, redirect, useRouter } from "@tanstack/react-router"
+import { useState } from "react"
 import { toast } from "sonner"
-import { apiClient } from "@/client/client"
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({
+    redirect: typeof search.redirect === "string" ? search.redirect : undefined,
+  }),
+  beforeLoad: () => {
+    if (getToken()) throw redirect({ to: "/" })
+  },
   component: LoginPage,
 })
 
+// Only follow same-app relative paths after login
+function safeRedirect(target?: string) {
+  return target?.startsWith("/") && !target.startsWith("//") ? target : "/"
+}
+
 function LoginPage() {
-  const navigate = useNavigate()
+  const router = useRouter()
+  const { redirect: redirectTo } = Route.useSearch()
   const { login } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -23,17 +37,12 @@ function LoginPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await apiClient.post("/api/auth/login", { email, password })
-      if (res.data?.success && res.data?.data) {
-        const { accessToken, user } = res.data.data
-        login(accessToken, user)
-        toast.success("Đăng nhập thành công!")
-        navigate({ to: "/" })
-      } else {
-        toast.error(res.data?.message || "Đăng nhập thất bại")
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Không thể kết nối đến máy chủ")
+      const { accessToken, user } = await authApi.login({ email, password })
+      login(accessToken, user)
+      toast.success("Đăng nhập thành công!")
+      router.history.push(safeRedirect(redirectTo))
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Đăng nhập thất bại"))
     } finally {
       setLoading(false)
     }
@@ -47,16 +56,18 @@ function LoginPage() {
             <Logo />
           </div>
           <CardTitle className="text-2xl font-bold">Đăng nhập tài khoản</CardTitle>
-          <CardDescription>
-            Chào mừng trở lại! Hãy nhập thông tin để tiếp tục lên kế hoạch du lịch.
-          </CardDescription>
+          <CardDescription>Chào mừng trở lại! Hãy nhập thông tin để tiếp tục lên kế hoạch du lịch.</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Email</label>
+              <label htmlFor="login-email" className="text-sm font-medium">
+                Email
+              </label>
               <Input
+                id="login-email"
                 type="email"
+                autoComplete="email"
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -64,9 +75,13 @@ function LoginPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Mật khẩu</label>
+              <label htmlFor="login-password" className="text-sm font-medium">
+                Mật khẩu
+              </label>
               <Input
+                id="login-password"
                 type="password"
+                autoComplete="current-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -78,40 +93,6 @@ function LoginPage() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Đang xử lý..." : "Đăng nhập"}
             </Button>
-
-            {/* Quick Demo Accounts */}
-            <div className="w-full border-t border-border/60 pt-3 space-y-2">
-              <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block text-center">
-                Đăng nhập nhanh tài khoản mẫu:
-              </span>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-xs border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
-                  onClick={() => {
-                    setEmail("admin@tripmind.com")
-                    setPassword("Admin@123456")
-                  }}
-                >
-                  👑 Admin (Quản trị)
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="text-xs border-primary/30 text-primary hover:bg-primary/10"
-                  onClick={() => {
-                    setEmail("john@example.com")
-                    setPassword("password123")
-                  }}
-                >
-                  👤 User Thường
-                </Button>
-              </div>
-            </div>
-
             <p className="text-xs text-center text-muted-foreground">
               Chưa có tài khoản?{" "}
               <Link to="/register" className="text-primary hover:underline font-semibold">

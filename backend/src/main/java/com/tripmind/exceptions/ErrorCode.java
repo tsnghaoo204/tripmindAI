@@ -34,6 +34,9 @@ public enum ErrorCode {
     AI_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "AI assistant is not configured"),
     AI_PROVIDER_ERROR(HttpStatus.BAD_GATEWAY, "AI model provider failed"),
     EXTERNAL_SERVICE_ERROR(HttpStatus.BAD_GATEWAY, "External API service unavailable"),
+    DUPLICATE_TARGET(HttpStatus.UNPROCESSABLE_ENTITY, "More than one change targets the same activity"),
+    CURRENCY_CHANGE_BLOCKED(HttpStatus.UNPROCESSABLE_ENTITY, "Trip currency cannot change once amounts are recorded in it"),
+    AI_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "AI model did not answer in time"),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected server error occurred");
 
     private final HttpStatus status;

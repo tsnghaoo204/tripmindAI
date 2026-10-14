@@ -14,6 +14,7 @@ import com.tripmind.entities.UserPreferencesEntity;
 import com.tripmind.enums.TripPhase;
 import com.tripmind.exceptions.AppException;
 import com.tripmind.exceptions.ErrorCode;
+import com.tripmind.repositories.ActivityRepository;
 import com.tripmind.repositories.ExpenseRepository;
 import com.tripmind.repositories.TripRepository;
 import com.tripmind.repositories.UserPreferencesRepository;
@@ -42,6 +43,7 @@ public class TripServiceImpl implements TripService {
     private final UserRepository userRepository;
     private final UserPreferencesRepository userPreferencesRepository;
     private final ExpenseRepository expenseRepository;
+    private final ActivityRepository activityRepository;
     private final DestinationService destinationService;
     private final TripMapper tripMapper;
     private final TripClock tripClock;
@@ -149,6 +151,14 @@ public class TripServiceImpl implements TripService {
             if (expenseRepository.existsByTripId(tripId)) {
                 throw new AppException(ErrorCode.CURRENCY_MISMATCH,
                         "Cannot change currency of a trip that already has expenses in " + trip.getCurrency());
+            }
+            // Ngân sách cũ (trừ khi gửi kèm ngân sách mới) hoặc chi phí ước tính đang tính theo tiền cũ.
+            boolean budgetInOldCurrency = request.getBudget() == null && trip.getBudget() != null && trip.getBudget() > 0;
+            if (budgetInOldCurrency || activityRepository.existsPricedByTripId(tripId)) {
+                throw new AppException(ErrorCode.CURRENCY_CHANGE_BLOCKED,
+                        "Budget or estimated costs are recorded in " + trip.getCurrency()
+                                + "; clear them (or send a new budget) before changing currency",
+                        Map.of("tripCurrency", trip.getCurrency()));
             }
             trip.setCurrency(request.getCurrency());
         }

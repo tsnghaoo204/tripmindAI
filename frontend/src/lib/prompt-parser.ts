@@ -1,4 +1,5 @@
-import { apiClient } from "@/client/client"
+import { tripApi } from "@/client/api/trip-api"
+import { PROMPT_MAX_LENGTH } from "./validation"
 
 export interface ParsedTripPlan {
   title: string
@@ -40,18 +41,17 @@ export async function parseTripPromptWithAi(
   prompt: string,
   availableDestinations: Array<{ id: number; name: string }> = [],
 ): Promise<ParsedTripPlan> {
-  const p = prompt.trim()
+  const p = prompt.trim().slice(0, PROMPT_MAX_LENGTH)
 
   // 1. Gọi backend AI Parser (Gemini 3.8 Flash xử lý ngôn ngữ tự nhiên linh hoạt)
   try {
-    const res = await apiClient.post("/api/trips/parse-prompt", { prompt: p })
-    if (res.data?.success && res.data?.data && res.data.data.destinationName) {
-      const data = res.data.data
+    const data = await tripApi.parsePrompt(p)
+    if (data?.destinationName) {
       const destName = data.destinationName || "Điểm đến"
       const days = data.days || 3
       const nights = data.nights || Math.max(1, days - 1)
       const travelers = data.travelers || 2
-      const budget = data.budget || (days * travelers * 800000)
+      const budget = data.budget || days * travelers * 800000
 
       // Kiểm tra xem điểm đến trả về có sẵn trong danh mục CSDL không
       let matchedId = data.destinationId || null
@@ -59,8 +59,8 @@ export async function parseTripPromptWithAi(
 
       if (!matchedId && availableDestinations.length > 0) {
         const found = availableDestinations.find(
-          (d) => d.name.toLowerCase() === destName.toLowerCase() ||
-                 destName.toLowerCase().includes(d.name.toLowerCase()),
+          (d) =>
+            d.name.toLowerCase() === destName.toLowerCase() || destName.toLowerCase().includes(d.name.toLowerCase()),
         )
         if (found) {
           matchedId = found.id
@@ -122,11 +122,16 @@ export function parseTripPromptDynamic(
 
   // Bóc tách tên địa điểm theo cấu trúc: "đi <Địa điểm>", "đến <Địa điểm>", "tới <Địa điểm>"
   let extractedDest = ""
-  const diMatch = p.match(/(?:đi|đến|tới|du lịch)\s+([a-zA-ZÀ-ỹ\s]+?)(?:\s+\d+\s*(?:ngày|n|đêm)|\s+trong|\s+cho|\s+cùng|\s+ngân|\s*$)/i)
-  if (diMatch && diMatch[1].trim()) {
+  const diMatch = p.match(
+    /(?:đi|đến|tới|du lịch)\s+([a-zA-ZÀ-ỹ\s]+?)(?:\s+\d+\s*(?:ngày|n|đêm)|\s+trong|\s+cho|\s+cùng|\s+ngân|\s*$)/i,
+  )
+  if (diMatch?.[1].trim()) {
     const raw = diMatch[1].trim()
     if (!["đâu", "chơi", "nghỉ", "đó", "tour"].includes(raw.toLowerCase())) {
-      extractedDest = raw.split(" ").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+      extractedDest = raw
+        .split(" ")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ")
     }
   }
 
@@ -136,8 +141,7 @@ export function parseTripPromptDynamic(
 
   if (extractedDest) {
     const found = availableDestinations.find(
-      (d) => d.name.toLowerCase() === extractedDest.toLowerCase() ||
-             pLower.includes(d.name.toLowerCase()),
+      (d) => d.name.toLowerCase() === extractedDest.toLowerCase() || pLower.includes(d.name.toLowerCase()),
     )
     if (found) {
       matchedDestId = found.id
@@ -184,12 +188,24 @@ export function parseTripPromptDynamic(
 
   // Bóc tách số người
   let travelers = 2
-  const matchTravelers = p.match(/(?:cho|cùng|\+)\s*(\d+)\s*(?:người|bạn|khách|thành viên)/i) || p.match(/(\d+)\s*(?:người|bạn|khách)/i)
+  const matchTravelers =
+    p.match(/(?:cho|cùng|\+)\s*(\d+)\s*(?:người|bạn|khách|thành viên)/i) || p.match(/(\d+)\s*(?:người|bạn|khách)/i)
   if (matchTravelers) {
     travelers = Number.parseInt(matchTravelers[1], 10)
-  } else if (pLower.includes("một mình") || pLower.includes("solo") || pLower.includes("1 mình") || pLower.includes("1 người")) {
+  } else if (
+    pLower.includes("một mình") ||
+    pLower.includes("solo") ||
+    pLower.includes("1 mình") ||
+    pLower.includes("1 người")
+  ) {
     travelers = 1
-  } else if (pLower.includes("người yêu") || pLower.includes("vợ") || pLower.includes("chồng") || pLower.includes("cặp đôi") || pLower.includes("2 đứa")) {
+  } else if (
+    pLower.includes("người yêu") ||
+    pLower.includes("vợ") ||
+    pLower.includes("chồng") ||
+    pLower.includes("cặp đôi") ||
+    pLower.includes("2 đứa")
+  ) {
     travelers = 2
   } else if (pLower.includes("gia đình")) {
     travelers = 4
@@ -209,9 +225,19 @@ export function parseTripPromptDynamic(
 
   // Bóc tách nhịp độ
   let travelStyle: "RELAXED" | "BALANCED" | "FAST_PACED" = "BALANCED"
-  if (pLower.includes("thư thả") || pLower.includes("chill") || pLower.includes("nghỉ dưỡng") || pLower.includes("nhẹ nhàng")) {
+  if (
+    pLower.includes("thư thả") ||
+    pLower.includes("chill") ||
+    pLower.includes("nghỉ dưỡng") ||
+    pLower.includes("nhẹ nhàng")
+  ) {
     travelStyle = "RELAXED"
-  } else if (pLower.includes("trải nghiệm") || pLower.includes("khám phá") || pLower.includes("check in") || pLower.includes("nhiều điểm")) {
+  } else if (
+    pLower.includes("trải nghiệm") ||
+    pLower.includes("khám phá") ||
+    pLower.includes("check in") ||
+    pLower.includes("nhiều điểm")
+  ) {
     travelStyle = "FAST_PACED"
   }
 
@@ -225,14 +251,29 @@ export function parseTripPromptDynamic(
     const matchKid = p.match(/(\d+)\s*(?:bé|trẻ|con)/i)
     childrenCount = matchKid ? Number.parseInt(matchKid[1], 10) : 1
   }
-  if (pLower.includes("người cao tuổi") || pLower.includes("người già") || pLower.includes("ông bà") || pLower.includes("bố mẹ già")) {
+  if (
+    pLower.includes("người cao tuổi") ||
+    pLower.includes("người già") ||
+    pLower.includes("ông bà") ||
+    pLower.includes("bố mẹ già")
+  ) {
     const matchOld = p.match(/(\d+)\s*(?:người già|ông bà)/i)
     seniorsCount = matchOld ? Number.parseInt(matchOld[1], 10) : 1
   }
-  if (pLower.includes("ăn chay") || pLower.includes("quán chay") || pLower.includes("món chay") || pLower.includes("chay")) {
+  if (
+    pLower.includes("ăn chay") ||
+    pLower.includes("quán chay") ||
+    pLower.includes("món chay") ||
+    pLower.includes("chay")
+  ) {
     hasVegetarian = true
   }
-  if (pLower.includes("khó đi lại") || pLower.includes("ngại đi bộ") || pLower.includes("hạn chế đi xa") || pLower.includes("đau chân")) {
+  if (
+    pLower.includes("khó đi lại") ||
+    pLower.includes("ngại đi bộ") ||
+    pLower.includes("hạn chế đi xa") ||
+    pLower.includes("đau chân")
+  ) {
     hasMobilityDifficulty = true
   }
 

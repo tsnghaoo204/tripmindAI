@@ -6,6 +6,7 @@ import com.tripmind.domains.models.TravelPlan;
 import com.tripmind.domains.responses.DestinationResponse;
 import com.tripmind.domains.responses.TripResponse;
 import com.tripmind.entities.TripEntity;
+import com.tripmind.repositories.ActivityRepository;
 import com.tripmind.repositories.TripRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -20,18 +21,25 @@ import java.util.Map;
 public class TripMapper {
 
     private final TripRepository tripRepository;
+    private final ActivityRepository activityRepository;
     private final TripClock tripClock;
     private final TripProperties tripProperties;
 
     public TripResponse toDetail(TripEntity trip) {
         TripResponse response = toSummary(trip, plannedDays(List.of(trip)).getOrDefault(trip.getId(), 0L));
+        Map<Long, Long> counts = new HashMap<>();
+        if (trip.getId() != null) {
+            for (Object[] row : activityRepository.countByDay(trip.getId())) {
+                counts.put((Long) row[0], (Long) row[1]);
+            }
+        }
         response.setDays(trip.getDays().stream()
                 .map(day -> TripResponse.DaySummary.builder()
                         .id(day.getId())
                         .dayNumber(day.getDayNumber())
                         .date(day.getDate())
                         .note(day.getNote())
-                        .activityCount(day.getActivities().size())
+                        .activityCount(day.getId() == null ? 0 : counts.getOrDefault(day.getId(), 0L).intValue())
                         .build())
                 .toList());
         return response;

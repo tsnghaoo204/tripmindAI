@@ -10,10 +10,13 @@ tiêu, duyệt đề xuất xong tải lại trang vẫn còn nguyên.
 
 ## Tài khoản
 
-| Email | Mật khẩu | Vai trò |
-|---|---|---|
-| `an@tripmind.vn` | `123456` | Người đi du lịch — có sẵn 2 chuyến |
-| `admin@tripmind.vn` | `admin123` | Quản trị — xem nhật ký chạy công cụ |
+Bản demo chạy hoàn toàn trong trình duyệt; các tài khoản mẫu chỉ tồn tại trong
+`localStorage` và được gợi ý ngay trên màn đăng nhập. Không có thông tin đăng nhập nào
+ở đây dùng được cho máy chủ thật.
+
+Với ứng dụng thật (backend + frontend), hãy đăng ký tài khoản của riêng bạn. Quyền quản
+trị cấp qua biến môi trường `ADMIN_EMAILS` (xem `.env.example`), không có tài khoản quản
+trị mặc định.
 
 ## Ba giai đoạn của một chuyến đi
 
