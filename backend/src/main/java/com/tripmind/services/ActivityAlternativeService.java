@@ -1,5 +1,6 @@
 package com.tripmind.services;
 
+import com.tripmind.domains.proposals.ProposalChange.PlaceRef;
 import com.tripmind.domains.responses.ActivityAlternativeResponse;
 import com.tripmind.domains.responses.ActivityResponse;
 import com.tripmind.domains.responses.PlaceResponse;
@@ -13,65 +14,72 @@ import com.tripmind.exceptions.AppException;
 import com.tripmind.exceptions.ErrorCode;
 import com.tripmind.repositories.ActivityAlternativeRepository;
 import com.tripmind.repositories.ActivityRepository;
-import com.tripmind.repositories.PlaceRepository;
+import com.tripmind.services.clients.GooglePlacesClient.GooglePlace;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
-import java.math.BigDecimal;
 import java.util.*;
 
+/**
+ * Ba lựa chọn theo ngân sách cho hoạt động ăn uống / lưu trú. Chỉ dùng địa điểm có thật (tìm
+ * được), không bịa tên, điểm đánh giá hay giá: thiếu dữ liệu thì để trống. Tìm kiếm (HTTP) chạy
+ * ngoài giao dịch; chỉ phần ghi nằm trong giao dịch.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class ActivityAlternativeService {
 
+    private static final String BALANCED = "BALANCED";
+
+    private record Tier(String code, String label, String query, String titlePrefix, int priceLevel, double lodgingFactor) {
+    }
+
+    private static final List<Tier> FOOD_TIERS = List.of(
+            new Tier("BUDGET", "Tiết kiệm (Bình dân)", "quán ăn bình dân ngon", "Ẩm thực bình dân: ", 1, 0),
+            new Tier("PREMIUM", "Trải nghiệm (Cao cấp)", "nhà hàng cao cấp view đẹp", "Trải nghiệm ẩm thực: ", 3, 0));
+    private static final List<Tier> LODGING_TIERS = List.of(
+            new Tier("BUDGET", "Tiết kiệm (Homestay)", "homestay đẹp giá rẻ", "Lưu trú tiết kiệm: ", 1, 0.5),
+            new Tier("PREMIUM", "Nghỉ dưỡng (Resort / 4-5★)", "resort cao cấp", "Nghỉ dưỡng cao cấp: ", 3, 2.5));
+
     private final ActivityRepository activityRepository;
     private final ActivityAlternativeRepository alternativeRepository;
-    private final PlaceRepository placeRepository;
     private final PlaceService placeService;
     private final PlaceAdoptionService placeAdoptionService;
     private final CostEstimator costEstimator;
+    private final TransactionTemplate transactionTemplate;
 
-    @Transactional
     public List<ActivityAlternativeResponse> getOrGenerateAlternatives(Long userId, Long activityId) {
-        ActivityEntity activity = activityRepository.findByIdAndUserId(activityId, userId)
+        activityRepository.findByIdAndUserId(activityId, userId)
                 .orElseThrow(() -> new AppException(ErrorCode.RESOURCE_NOT_FOUND, "Activity not found or access denied: " + activityId));
-
-        List<ActivityAlternativeEntity> existing = alternativeRepository.findByActivityIdWithPlace(activityId);
-        if (!existing.isEmpty()) {
-            return existing.stream().map(this::toResponse).toList();
-        }
-
-        TripEntity trip = activity.getItineraryDay().getTrip();
-        return generateForActivity(activity, trip).stream().map(this::toResponse).toList();
+        return generateForActivity(activityId).stream().map(this::toResponse).toList();
     }
 
-    @Transactional
-    public List<ActivityAlternativeEntity> generateForActivity(ActivityEntity activity, TripEntity trip) {
-        if (activity.getActivityType() != ActivityType.FOOD && activity.getActivityType() != ActivityType.ACCOMMODATION) {
-            return List.of();
-        }
-
-        List<ActivityAlternativeEntity> existing = alternativeRepository.findByActivityIdWithPlace(activity.getId());
+    /** Sinh (hoặc trả lại nếu đã có) lựa chọn thay thế; dùng được từ luồng nền, không cần giao dịch bên ngoài. */
+    public List<ActivityAlternativeEntity> generateForActivity(Long activityId) {
+        List<ActivityAlternativeEntity> existing = alternativeRepository.findByActivityIdWithPlace(activityId);
         if (!existing.isEmpty()) {
             return existing;
         }
-
-        String destination = trip.getDestination() != null ? trip.getDestination().getName() : "Đà Nẵng";
-        int travelers = Math.max(1, trip.getTravelers());
-        String currency = trip.getCurrency() != null ? trip.getCurrency() : "VND";
-
-        List<ActivityAlternativeEntity> alts = new ArrayList<>();
-
-        if (activity.getActivityType() == ActivityType.FOOD) {
-            generateFoodAlternatives(activity, trip, destination, travelers, currency, alts);
-        } else if (activity.getActivityType() == ActivityType.ACCOMMODATION) {
-            generateLodgingAlternatives(activity, trip, destination, travelers, currency, alts);
+        ActivityEntity activity = activityRepository.findDetachedById(activityId).orElse(null);
+        if (activity == null || (activity.getActivityType() != ActivityType.FOOD
+                && activity.getActivityType() != ActivityType.ACCOMMODATION)) {
+            return List.of();
         }
-
-        return alternativeRepository.saveAll(alts);
+        TripEntity trip = activity.getItineraryDay().getTrip();
+        List<Tier> tiers = activity.getActivityType() == ActivityType.FOOD ? FOOD_TIERS : LODGING_TIERS;
+        Map<Tier, PlaceResponse> candidates = findCandidates(activity, trip, tiers);
+        Map<String, GooglePlace> prefetched = placeAdoptionService.prefetch(candidates.values().stream()
+                .map(p -> new PlaceRef(p.getProvider(), p.getExternalId(), p.getName(), p.getLatitude(), p.getLongitude(),
+                        p.getPriceLevel()))
+                .toList());
+        return transactionTemplate.execute(status -> {
+            List<ActivityAlternativeEntity> again = alternativeRepository.findByActivityIdWithPlace(activityId);
+            return again.isEmpty() ? alternativeRepository.saveAll(build(activity, trip, tiers, candidates, prefetched)) : again;
+        });
     }
 
     @Transactional
@@ -123,168 +131,90 @@ public class ActivityAlternativeService {
                 .build();
     }
 
-    private void generateFoodAlternatives(ActivityEntity activity, TripEntity trip, String destination,
-                                          int travelers, String currency, List<ActivityAlternativeEntity> alts) {
-        PlaceEntity currentPlace = activity.getPlace();
-        String currentName = currentPlace != null ? currentPlace.getName() : activity.getTitle();
+    private Map<Tier, PlaceResponse> findCandidates(ActivityEntity activity, TripEntity trip, List<Tier> tiers) {
+        Map<Tier, PlaceResponse> found = new LinkedHashMap<>();
+        String destination = trip.getDestination() == null ? null : trip.getDestination().getName();
+        if (destination == null || destination.isBlank()) {
+            return found;
+        }
+        Set<String> used = new HashSet<>();
+        if (activity.getPlace() != null) {
+            used.add(activity.getPlace().getExternalId());
+        }
+        for (Tier tier : tiers) {
+            try {
+                placeService.searchPlaces(tier.query(), destination).stream()
+                        .filter(p -> p.getExternalId() != null && !used.contains(p.getExternalId()))
+                        .findFirst()
+                        .ifPresent(p -> {
+                            used.add(p.getExternalId());
+                            found.put(tier, p);
+                        });
+            } catch (RuntimeException e) {
+                log.debug("Khong tim duoc dia diem cho lua chon {} ({}): {}", tier.code(), tier.query(), e.getMessage());
+            }
+        }
+        return found;
+    }
 
-        // 1. Balanced (Hiện tại / Đề xuất)
+    private List<ActivityAlternativeEntity> build(ActivityEntity activity, TripEntity trip, List<Tier> tiers,
+                                                  Map<Tier, PlaceResponse> candidates, Map<String, GooglePlace> prefetched) {
+        boolean food = activity.getActivityType() == ActivityType.FOOD;
+        int travelers = Math.max(1, trip.getTravelers());
+        String currency = trip.getCurrency();
+        PlaceEntity current = activity.getPlace();
+        ActivityEntity ref = activityRepository.getReferenceById(activity.getId());
+
         Long balancedCost = activity.getEstimatedCost() != null ? activity.getEstimatedCost()
-                : suggestCost(2, ActivityType.FOOD, travelers, currency, 150_000L * travelers);
-
-        ActivityAlternativeEntity balanced = ActivityAlternativeEntity.builder()
-                .activity(activity)
-                .place(currentPlace)
-                .placeName(currentName)
+                : food ? costEstimator.suggest(current == null || current.getPriceLevel() == null ? 2
+                : current.getPriceLevel().intValue(), ActivityType.FOOD, travelers, currency) : null;
+        List<ActivityAlternativeEntity> alts = new ArrayList<>();
+        alts.add(ActivityAlternativeEntity.builder()
+                .activity(ref)
+                .place(current)
+                .placeName(current != null ? current.getName() : activity.getTitle())
                 .title(activity.getTitle())
-                .tier("BALANCED")
+                .tier(BALANCED)
                 .tierLabel("Tiêu chuẩn (Đề xuất)")
                 .estimatedCost(balancedCost)
-                .rating(currentPlace != null ? currentPlace.getRating() : BigDecimal.valueOf(4.5))
-                .userRatingsTotal(currentPlace != null ? currentPlace.getUserRatingsTotal() : 120)
-                .address(currentPlace != null ? currentPlace.getAddress() : null)
+                .rating(current != null ? current.getRating() : null)
+                .userRatingsTotal(current != null ? current.getUserRatingsTotal() : null)
+                .address(current != null ? current.getAddress() : null)
                 .isSelected(true)
-                .build();
+                .build());
 
-        // 2. Budget (Tiết kiệm - Bình dân / Món ngon đường phố)
-        PlaceEntity budgetPlace = findOrAdoptCandidate("quán ăn bình dân ngon", destination, currentPlace);
-        Long budgetCost = suggestCost(1, ActivityType.FOOD, travelers, currency, 60_000L * travelers);
-        String budgetName = budgetPlace != null ? budgetPlace.getName() : "Quán ăn bình dân đặc sản";
-        ActivityAlternativeEntity budget = ActivityAlternativeEntity.builder()
-                .activity(activity)
-                .place(budgetPlace)
-                .placeName(budgetName)
-                .title("Ẩm thực bình dân: " + budgetName)
-                .tier("BUDGET")
-                .tierLabel("Tiết kiệm (Bình dân)")
-                .estimatedCost(budgetCost)
-                .rating(budgetPlace != null && budgetPlace.getRating() != null ? budgetPlace.getRating() : BigDecimal.valueOf(4.3))
-                .userRatingsTotal(budgetPlace != null ? budgetPlace.getUserRatingsTotal() : 85)
-                .address(budgetPlace != null ? budgetPlace.getAddress() : null)
-                .isSelected(false)
-                .build();
-
-        // 3. Premium (Trải nghiệm - Nhà hàng cao cấp / view đẹp)
-        PlaceEntity premiumPlace = findOrAdoptCandidate("nhà hàng cao cấp hải sản view đẹp", destination, currentPlace);
-        Long premiumCost = suggestCost(3, ActivityType.FOOD, travelers, currency, 400_000L * travelers);
-        String premiumName = premiumPlace != null ? premiumPlace.getName() : "Nhà hàng cao cấp & View đẹp";
-        ActivityAlternativeEntity premium = ActivityAlternativeEntity.builder()
-                .activity(activity)
-                .place(premiumPlace)
-                .placeName(premiumName)
-                .title("Trải nghiệm ẩm thực: " + premiumName)
-                .tier("PREMIUM")
-                .tierLabel("Trải nghiệm (Cao cấp)")
-                .estimatedCost(premiumCost)
-                .rating(premiumPlace != null && premiumPlace.getRating() != null ? premiumPlace.getRating() : BigDecimal.valueOf(4.7))
-                .userRatingsTotal(premiumPlace != null ? premiumPlace.getUserRatingsTotal() : 250)
-                .address(premiumPlace != null ? premiumPlace.getAddress() : null)
-                .isSelected(false)
-                .build();
-
-        alts.add(budget);
-        alts.add(balanced);
-        alts.add(premium);
-    }
-
-    private void generateLodgingAlternatives(ActivityEntity activity, TripEntity trip, String destination,
-                                             int travelers, String currency, List<ActivityAlternativeEntity> alts) {
-        PlaceEntity currentPlace = activity.getPlace();
-        String currentName = currentPlace != null ? currentPlace.getName() : activity.getTitle();
-
-        // 1. Balanced (Khách sạn 3 sao / tiện nghi)
-        Long balancedCost = activity.getEstimatedCost() != null ? activity.getEstimatedCost() : 650_000L;
-        ActivityAlternativeEntity balanced = ActivityAlternativeEntity.builder()
-                .activity(activity)
-                .place(currentPlace)
-                .placeName(currentName)
-                .title(activity.getTitle())
-                .tier("BALANCED")
-                .tierLabel("Tiêu chuẩn (Khách sạn 3★)")
-                .estimatedCost(balancedCost)
-                .rating(currentPlace != null ? currentPlace.getRating() : BigDecimal.valueOf(4.4))
-                .userRatingsTotal(currentPlace != null ? currentPlace.getUserRatingsTotal() : 150)
-                .address(currentPlace != null ? currentPlace.getAddress() : null)
-                .isSelected(true)
-                .build();
-
-        // 2. Budget (Homestay / Hostel)
-        PlaceEntity budgetPlace = findOrAdoptCandidate("homestay đẹp giá rẻ", destination, currentPlace);
-        Long budgetCost = Math.max(250_000L, (long) (balancedCost * 0.5));
-        String budgetName = budgetPlace != null ? budgetPlace.getName() : "Homestay / Hostel tiện nghi";
-        ActivityAlternativeEntity budget = ActivityAlternativeEntity.builder()
-                .activity(activity)
-                .place(budgetPlace)
-                .placeName(budgetName)
-                .title("Lưu trú tiết kiệm: " + budgetName)
-                .tier("BUDGET")
-                .tierLabel("Tiết kiệm (Homestay)")
-                .estimatedCost(budgetCost)
-                .rating(budgetPlace != null && budgetPlace.getRating() != null ? budgetPlace.getRating() : BigDecimal.valueOf(4.6))
-                .userRatingsTotal(budgetPlace != null ? budgetPlace.getUserRatingsTotal() : 90)
-                .address(budgetPlace != null ? budgetPlace.getAddress() : null)
-                .isSelected(false)
-                .build();
-
-        // 3. Premium (Resort / 4-5 sao)
-        PlaceEntity premiumPlace = findOrAdoptCandidate("resort cao cấp view biển", destination, currentPlace);
-        Long premiumCost = Math.max(1_600_000L, (long) (balancedCost * 2.5));
-        String premiumName = premiumPlace != null ? premiumPlace.getName() : "Resort / Khách sạn 4-5★";
-        ActivityAlternativeEntity premium = ActivityAlternativeEntity.builder()
-                .activity(activity)
-                .place(premiumPlace)
-                .placeName(premiumName)
-                .title("Nghỉ dưỡng cao cấp: " + premiumName)
-                .tier("PREMIUM")
-                .tierLabel("Nghỉ dưỡng (Resort / 4-5★)")
-                .estimatedCost(premiumCost)
-                .rating(premiumPlace != null && premiumPlace.getRating() != null ? premiumPlace.getRating() : BigDecimal.valueOf(4.8))
-                .userRatingsTotal(premiumPlace != null ? premiumPlace.getUserRatingsTotal() : 380)
-                .address(premiumPlace != null ? premiumPlace.getAddress() : null)
-                .isSelected(false)
-                .build();
-
-        alts.add(budget);
-        alts.add(balanced);
-        alts.add(premium);
-    }
-
-    private PlaceEntity findOrAdoptCandidate(String query, String destination, PlaceEntity excludePlace) {
-        try {
-            List<PlaceResponse> results = placeService.searchPlaces(query, destination);
-            for (PlaceResponse p : results) {
-                if (excludePlace == null || !excludePlace.getExternalId().equals(p.getExternalId())) {
-                    return placeAdoptionService.adopt(p.getProvider(), p.getExternalId(), PlaceAdoption.AI_GENERATE);
-                }
+        for (Tier tier : tiers) {
+            PlaceResponse candidate = candidates.get(tier);
+            if (candidate == null) {
+                continue;
             }
-        } catch (Exception e) {
-            log.debug("Khong tim duoc dia diem qua searchPlaces ({}): {}", query, e.getMessage());
-        }
-
-        // Fallback: tìm trong CSDL nếu có địa điểm khác cùng category
-        try {
-            List<PlaceEntity> all = placeRepository.findAll();
-            for (PlaceEntity p : all) {
-                if (excludePlace == null || !excludePlace.getId().equals(p.getId())) {
-                    return p;
-                }
+            PlaceRef placeRef = new PlaceRef(candidate.getProvider(), candidate.getExternalId(), candidate.getName(),
+                    candidate.getLatitude(), candidate.getLongitude(), candidate.getPriceLevel());
+            Optional<PlaceEntity> place = placeAdoptionService.adoptPrefetched(placeRef, prefetched, PlaceAdoption.AI_GENERATE);
+            if (place.isEmpty()) {
+                continue;
             }
-        } catch (Exception e) {
-            // fallback null
+            PlaceEntity p = place.get();
+            Long cost = food
+                    ? costEstimator.suggest(p.getPriceLevel() != null ? p.getPriceLevel().intValue() : tier.priceLevel(),
+                    ActivityType.FOOD, travelers, currency)
+                    : balancedCost == null ? null : Math.round(balancedCost * tier.lodgingFactor());
+            alts.add(ActivityAlternativeEntity.builder()
+                    .activity(ref)
+                    .place(p)
+                    .placeName(p.getName())
+                    .title(tier.titlePrefix() + p.getName())
+                    .tier(tier.code())
+                    .tierLabel(tier.label())
+                    .estimatedCost(cost)
+                    .rating(p.getRating())
+                    .userRatingsTotal(p.getUserRatingsTotal())
+                    .address(p.getAddress())
+                    .isSelected(false)
+                    .build());
         }
-        return null;
-    }
-
-    private Long suggestCost(int priceLevel, ActivityType type, int travelers, String currency, long fallback) {
-        try {
-            Long est = costEstimator.suggest(priceLevel, type, travelers, currency);
-            if (est != null && est > 0) {
-                return est;
-            }
-        } catch (Exception e) {
-            // ignore
-        }
-        return fallback;
+        alts.sort(Comparator.comparingInt(a -> List.of("BUDGET", BALANCED, "PREMIUM").indexOf(a.getTier())));
+        return alts;
     }
 
     public ActivityAlternativeResponse toResponse(ActivityAlternativeEntity entity) {

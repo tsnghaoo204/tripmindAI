@@ -97,6 +97,46 @@ class GenerationApiTest extends IntegrationTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isNotFound());
     }
 
+    @Test
+    @DisplayName("Kế hoạch lỗi một phần vẫn đọc được, ngày trùng được gộp; gọi lại khi đang chạy nhận cùng job; ăn uống có lựa chọn thay thế")
+    void lenientPlanDedupedJobAndAlternatives() throws Exception {
+        String token = registerUser();
+        LocalDate start = LocalDate.now().plusDays(40);
+        long tripId = createTrip(token, start.toString(), start.plusDays(1).toString()).get("id").asLong();
+        String tag = UUID.randomUUID().toString().substring(0, 6);
+        seedPlace("Nha hang Hai San " + tag, "restaurant");
+        seedPlace("Quán ăn bình dân ngon " + tag, "restaurant");
+
+        String plan = "{\"days\":[{\"dayNumber\":1,\"items\":[{\"title\":\"Ăn trưa hải sản\",\"activityType\":\"FOOD\","
+                + "\"placeName\":\"Nha hang Hai San " + tag + "\",\"searchQuery\":\"Nha hang Hai San " + tag + "\","
+                + "\"estimatedCost\":\"300.000đ\"},\"hỏng\"]},"
+                + "{\"dayNumber\":\"1\",\"items\":[{\"title\":\"Nghỉ trưa\",\"activityType\":\"REST\"}]},"
+                + "{\"dayNumber\":\"x\",\"items\":[]}]}";
+        llm.then(p -> {
+            try {
+                Thread.sleep(1500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return com.tripmind.support.FakeLlmGateway.text(plan);
+        });
+
+        String jobId = call(post("/api/trips/" + tripId + "/ai/generate"), token, null, 202).at("/data/jobId").asText();
+        String again = call(post("/api/trips/" + tripId + "/ai/generate"), token, null, 202).at("/data/jobId").asText();
+        assertThat(again).isEqualTo(jobId);
+
+        JsonNode status = waitForJob(token, tripId, jobId);
+        assertThat(status.get("state").asText()).as(status.toString()).isEqualTo("DONE");
+        assertThat(status.at("/result/activitiesCreated").asInt()).isEqualTo(2);
+
+        JsonNode activities = get("/api/trips/" + tripId + "/itinerary", token, 200).at("/data/days/0/activities");
+        JsonNode food = java.util.stream.StreamSupport.stream(activities.spliterator(), false)
+                .filter(a -> "FOOD".equals(a.get("activityType").asText())).findFirst().orElseThrow();
+        assertThat(food.get("estimatedCost").asLong()).isEqualTo(300_000L);
+        assertThat(food.get("alternatives")).extracting(a -> a.get("tier").asText()).contains("BALANCED", "BUDGET");
+        assertThat(food.get("alternatives")).allSatisfy(a -> assertThat(a.get("placeName").isNull()).isFalse());
+    }
+
     private JsonNode waitForJob(String token, long tripId, String jobId) throws Exception {
         JsonNode status = null;
         for (int i = 0; i < 200; i++) {
@@ -110,11 +150,15 @@ class GenerationApiTest extends IntegrationTest {
     }
 
     private void seedPlace(String name) {
+        seedPlace(name, "tourist_attraction");
+    }
+
+    private void seedPlace(String name, String category) {
         placeRepository.save(PlaceEntity.builder()
                 .provider("GOOGLE")
                 .externalId("seed-" + UUID.randomUUID())
                 .name(name)
-                .category("tourist_attraction")
+                .category(category)
                 .latitude(new BigDecimal("16.0"))
                 .longitude(new BigDecimal("108.2"))
                 .adoptedVia(PlaceAdoption.SAVED)
