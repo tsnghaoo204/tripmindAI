@@ -1,14 +1,21 @@
 #!/usr/bin/env python3
 import json
+import os
+import secrets
+import sys
 import time
 import requests
 
-BASE_URL = "http://localhost:8088"
-ADMIN_EMAIL = "admin@tripmind.com"
-ADMIN_PASS = "Admin@123456"
+# Thong tin dang nhap lay tu bien moi truong, khong de mac dinh
+BASE_URL = os.environ.get("TRIPMIND_BASE_URL", "http://localhost:8088")
+ADMIN_EMAIL = os.environ.get("TRIPMIND_ADMIN_EMAIL")
+ADMIN_PASS = os.environ.get("TRIPMIND_ADMIN_PASSWORD")
+if not ADMIN_EMAIL or not ADMIN_PASS:
+    sys.exit("Set TRIPMIND_ADMIN_EMAIL and TRIPMIND_ADMIN_PASSWORD")
 
-USER_EMAIL = "test_user_flow@tripmind.com"
-USER_PASS = "Password@123"
+USER_EMAIL = os.environ.get("TRIPMIND_USER_EMAIL", "test_user_flow@tripmind.com")
+USER_PASS = os.environ.get("TRIPMIND_USER_PASSWORD") or secrets.token_urlsafe(16)
+NEW_USER_PASS = USER_PASS + "-new"
 
 results = []
 
@@ -69,13 +76,13 @@ def main():
     # Change password
     r = requests.put(f"{BASE_URL}/api/users/change-password", headers=user_headers, json={
         "currentPassword": USER_PASS,
-        "newPassword": "NewPassword@123"
+        "newPassword": NEW_USER_PASS
     })
     record("Change Password", "PUT", "/api/users/change-password", r.status_code, 200)
 
     # Revert password back
     requests.put(f"{BASE_URL}/api/users/change-password", headers=user_headers, json={
-        "currentPassword": "NewPassword@123",
+        "currentPassword": NEW_USER_PASS,
         "newPassword": USER_PASS
     })
 
@@ -375,7 +382,7 @@ def main():
     r = requests.post(f"{BASE_URL}/api/admin/users", headers=admin_headers, json={
         "name": "Admin Created User",
         "email": new_admin_user_email,
-        "password": "Password@123",
+        "password": secrets.token_urlsafe(16),
         "role": "USER"
     })
     record("Admin Create User", "POST", "/api/admin/users", r.status_code, [200, 201])

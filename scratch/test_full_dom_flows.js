@@ -1,8 +1,18 @@
-const puppeteer = require('/home/minhnn/.gemini/antigravity-ide/brain/9a033322-e2f6-4d5e-b1fb-2f02f415170f/scratch/node_modules/puppeteer-core');
+// Cau hinh qua bien moi truong, khong de mac dinh cho thong tin dang nhap
+const puppeteer = require(process.env.PUPPETEER_MODULE || 'puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 
-const ARTIFACTS_DIR = '/home/minhnn/.gemini/antigravity-ide/brain/9a033322-e2f6-4d5e-b1fb-2f02f415170f';
+const ARTIFACTS_DIR = process.env.ARTIFACTS_DIR || path.join(__dirname, 'artifacts');
+const FRONTEND_URL = process.env.TRIPMIND_FRONTEND_URL || 'http://localhost:5173';
+const TRIP_ID = process.env.TRIPMIND_TRIP_ID || '14';
+const ADMIN_EMAIL = process.env.TRIPMIND_ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.TRIPMIND_ADMIN_PASSWORD;
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+  console.error('Set TRIPMIND_ADMIN_EMAIL and TRIPMIND_ADMIN_PASSWORD');
+  process.exit(1);
+}
+fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -24,7 +34,7 @@ async function clickButtonWithText(page, text) {
   console.log('Khởi động trình duyệt Chromium Headless...');
   const browser = await puppeteer.launch({
     headless: 'new',
-    executablePath: '/usr/bin/google-chrome',
+    executablePath: process.env.CHROME_PATH || '/usr/bin/google-chrome',
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--window-size=1600,1000']
   });
 
@@ -43,9 +53,9 @@ async function clickButtonWithText(page, text) {
   try {
     // 1. LOGIN
     console.log('1. Mở trang Đăng nhập...');
-    await page.goto('http://localhost:5173/login', { waitUntil: 'networkidle2' });
-    await page.type('input[type="email"]', 'admin@tripmind.com');
-    await page.type('input[type="password"]', 'Admin@123456');
+    await page.goto(`${FRONTEND_URL}/login`, { waitUntil: 'networkidle2' });
+    await page.type('input[type="email"]', ADMIN_EMAIL);
+    await page.type('input[type="password"]', ADMIN_PASSWORD);
     await page.click('button[type="submit"]');
     await page.waitForNavigation({ waitUntil: 'networkidle2' });
     console.log('   Đăng nhập thành công!');
@@ -53,7 +63,7 @@ async function clickButtonWithText(page, text) {
 
     // 2. CHỌN CHUYẾN ĐI (TRIP 14)
     console.log('2. Mở chi tiết chuyến đi số 14...');
-    await page.goto('http://localhost:5173/trips/14', { waitUntil: 'networkidle2' });
+    await page.goto(`${FRONTEND_URL}/trips/${TRIP_ID}`, { waitUntil: 'networkidle2' });
     await sleep(1500);
     await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'dom_flow_2_trip_detail.png') });
 
@@ -158,13 +168,13 @@ async function clickButtonWithText(page, text) {
 
     // 11. TEST KHÁM PHÁ ĐỊA ĐIỂM
     console.log('11. Mở trang Khám phá địa điểm...');
-    await page.goto('http://localhost:5173/places', { waitUntil: 'networkidle2' });
+    await page.goto(`${FRONTEND_URL}/places`, { waitUntil: 'networkidle2' });
     await sleep(1500);
     await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'dom_flow_10_places.png') });
 
     // 12. TEST ADMIN DASHBOARD
     console.log('12. Mở trang Quản trị Hệ Thống Admin...');
-    await page.goto('http://localhost:5173/admin', { waitUntil: 'networkidle2' });
+    await page.goto(`${FRONTEND_URL}/admin`, { waitUntil: 'networkidle2' });
     await sleep(1500);
     await page.screenshot({ path: path.join(ARTIFACTS_DIR, 'dom_flow_11_admin.png') });
 

@@ -89,3 +89,6 @@ npm-debug.log*
 __pycache__/
 *.pyc
 .venv/
+
+# --- Anh chup tu scratch/test_full_dom_flows.js ---------------------------
+scratch/artifacts/
