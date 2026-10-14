@@ -96,15 +96,24 @@ public class AgentService {
         String answer = null;
         while (rounds < properties.maxRounds() && Instant.now().isBefore(turn.getDeadline())) {
             rounds++;
-            ChatResponse response = llm.call(new Prompt(messages, withTools));
-            Usage usage = response.getMetadata() == null ? null : response.getMetadata().getUsage();
+            ChatResponse response;
+            try {
+                response = llm.call(new Prompt(messages, withTools), turn.getDeadline());
+            } catch (AppException e) {
+                if (e.getErrorCode() != ErrorCode.AI_TIMEOUT) {
+                    throw e;
+                }
+                log.info("Luot hoi trip ID={} het gio khi cho mo hinh", tripId);
+                break;
+            }
+            Usage usage = response == null || response.getMetadata() == null ? null : response.getMetadata().getUsage();
             if (usage != null) {
                 promptTokens += nz(usage.getPromptTokens());
                 completionTokens += nz(usage.getCompletionTokens());
             }
-            AssistantMessage output = response.getResult().getOutput();
-            if (!output.hasToolCalls()) {
-                answer = output.getText();
+            AssistantMessage output = LlmGateway.output(response);
+            if (output == null || !output.hasToolCalls()) {
+                answer = output == null || output.getText() == null || output.getText().isBlank() ? null : output.getText();
                 break;
             }
             messages.add(output);
@@ -138,9 +147,16 @@ public class AgentService {
             return FALLBACK_ANSWER;
         }
         messages.add(new UserMessage(WRAP_UP_INSTRUCTION));
-        AssistantMessage output = llm.call(new Prompt(messages, OpenAiChatOptions.builder().build()))
-                .getResult().getOutput();
-        return output.getText() == null || output.getText().isBlank() ? FALLBACK_ANSWER : output.getText();
+        String text;
+        try {
+            text = LlmGateway.text(llm.call(new Prompt(messages, OpenAiChatOptions.builder().build()), turn.getDeadline()));
+        } catch (AppException e) {
+            if (e.getErrorCode() != ErrorCode.AI_TIMEOUT) {
+                throw e;
+            }
+            return FALLBACK_ANSWER;
+        }
+        return text == null || text.isBlank() ? FALLBACK_ANSWER : text;
     }
 
     /** Câu trả lời cuối gửi về thành nhiều sự kiện {@code token} để giao diện hiện dần. */
@@ -158,14 +174,15 @@ public class AgentService {
     }
 
     private ObjectNode attachments(AgentTurn turn) {
-        if (turn.getProposalIds().isEmpty() && turn.getAttachments().isEmpty()) {
+        Map<String, com.fasterxml.jackson.databind.JsonNode> attachments = turn.attachmentsSnapshot();
+        if (turn.getProposalIds().isEmpty() && attachments.isEmpty()) {
             return null;
         }
         ObjectNode node = objectMapper.createObjectNode();
         if (!turn.getProposalIds().isEmpty()) {
             node.set("proposalIds", objectMapper.valueToTree(turn.getProposalIds()));
         }
-        turn.getAttachments().forEach(node::set);
+        attachments.forEach(node::set);
         return node;
     }
 

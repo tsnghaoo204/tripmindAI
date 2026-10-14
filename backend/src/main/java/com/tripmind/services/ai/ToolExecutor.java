@@ -28,6 +28,8 @@ import java.util.concurrent.*;
 @Component
 public class ToolExecutor {
 
+    private static final Duration WRITE_GRACE = Duration.ofSeconds(10);
+
     private final ToolRegistry registry;
     private final AiToolExecutionRepository executionRepository;
     private final AiProperties properties;
@@ -67,25 +69,17 @@ public class ToolExecutor {
             long remainingMs = Duration.between(Instant.now(), turn.getDeadline()).toMillis();
             Future<String> future = executor.submit(() -> callback.call(arguments,
                     new ToolContext(Map.of(AgentTurn.CONTEXT_KEY, turn))));
-            try {
-                result = future.get(Math.max(remainingMs, 1), TimeUnit.MILLISECONDS);
-            } catch (TimeoutException e) {
-                future.cancel(true);
-                status = ToolExecutionStatus.TIMEOUT;
-                error = "Tool timed out";
-                result = errorJson(error);
-            } catch (ExecutionException e) {
-                Throwable cause = e.getCause() == null ? e : e.getCause();
-                status = ToolExecutionStatus.ERROR;
-                error = rootMessage(cause);
-                result = errorJson(error);
-                log.warn("Cong cu {} loi: {}", call.name(), error);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                status = ToolExecutionStatus.ERROR;
-                error = "Interrupted";
-                result = errorJson(error);
+            Outcome outcome = await(future, Math.max(remainingMs, 1), call.name());
+            if (outcome.status() == ToolExecutionStatus.TIMEOUT && !turn.cancel()) {
+                // Công cụ đang ghi dở (dựng đề xuất): chờ nó xong để nhật ký đúng với thực tế.
+                outcome = await(future, WRITE_GRACE.toMillis(), call.name());
             }
+            if (outcome.status() == ToolExecutionStatus.TIMEOUT) {
+                future.cancel(true);
+            }
+            status = outcome.status();
+            error = outcome.error();
+            result = outcome.result();
         }
         int elapsedMs = (int) ((System.nanoTime() - started) / 1_000_000);
         String truncated = truncate(result);
@@ -105,6 +99,25 @@ public class ToolExecutor {
         turn.getResultsByCall().put(dedupeKey, truncated);
         turn.emit("tool_end", Map.of("tool", call.name(), "ms", elapsedMs, "status", status.name()));
         return truncated;
+    }
+
+    private record Outcome(ToolExecutionStatus status, String error, String result) {
+    }
+
+    private Outcome await(Future<String> future, long timeoutMs, String tool) {
+        try {
+            return new Outcome(ToolExecutionStatus.OK, null, future.get(timeoutMs, TimeUnit.MILLISECONDS));
+        } catch (TimeoutException e) {
+            return new Outcome(ToolExecutionStatus.TIMEOUT, "Tool timed out", errorJson("Tool timed out"));
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause() == null ? e : e.getCause();
+            String message = rootMessage(cause);
+            log.warn("Cong cu {} loi: {}", tool, message);
+            return new Outcome(ToolExecutionStatus.ERROR, message, errorJson(message));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new Outcome(ToolExecutionStatus.ERROR, "Interrupted", errorJson("Interrupted"));
+        }
     }
 
     private String normalize(String arguments) {

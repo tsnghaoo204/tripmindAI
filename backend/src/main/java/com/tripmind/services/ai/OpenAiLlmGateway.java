@@ -12,14 +12,32 @@ import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
+import jakarta.annotation.PreDestroy;
+import org.springframework.ai.retry.TransientAiException;
+import org.springframework.web.client.ResourceAccessException;
 
-/** Gọi LLM qua 9router, thử lần lượt các model trong {@code LLM_MODEL}. */
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+/**
+ * Gọi LLM qua 9router, thử lần lượt các model trong {@code LLM_MODEL}. Chỉ thử lại lỗi tạm thời
+ * (5xx, mất kết nối); tổng thời gian bị chặn bởi hạn chót của người gọi.
+ */
 @Slf4j
 @Component
 public class OpenAiLlmGateway implements LlmGateway {
 
+    private static final Duration DEFAULT_BUDGET = Duration.ofMinutes(2);
+
     private final List<NamedModel> chatModels;
+    private final ExecutorService callExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
     private record NamedModel(String name, OpenAiChatModel model) {
     }
@@ -68,6 +86,8 @@ public class OpenAiLlmGateway implements LlmGateway {
                         .retryTemplate(RetryTemplate.builder()
                                 .maxAttempts(2)
                                 .fixedBackoff(1000)
+                                .retryOn(List.of(TransientAiException.class, ResourceAccessException.class))
+                                .traversingCauses()
                                 .build())
                         .build()))
                 .toList();
@@ -83,18 +103,45 @@ public class OpenAiLlmGateway implements LlmGateway {
 
     @Override
     public ChatResponse call(Prompt prompt) {
+        return call(prompt, Instant.now().plus(DEFAULT_BUDGET));
+    }
+
+    /** Thử lần lượt các mô hình, tổng thời gian không vượt {@code deadline}. */
+    @Override
+    public ChatResponse call(Prompt prompt, Instant deadline) {
         if (chatModels.isEmpty()) {
             throw new AppException(ErrorCode.AI_NOT_CONFIGURED);
         }
         RuntimeException lastError = null;
         for (NamedModel candidate : chatModels) {
+            long remainingMs = Duration.between(Instant.now(), deadline).toMillis();
+            if (remainingMs <= 0) {
+                break;
+            }
+            Future<ChatResponse> future = callExecutor.submit(() -> candidate.model().call(prompt));
             try {
-                return candidate.model().call(prompt);
-            } catch (RuntimeException e) {
-                lastError = e;
-                log.warn("Mo hinh [{}] loi ({}), chuyen sang mo hinh tiep theo", candidate.name(), e.getMessage());
+                return future.get(remainingMs, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException e) {
+                future.cancel(true);
+                throw new AppException(ErrorCode.AI_TIMEOUT, "AI model " + candidate.name() + " did not answer in time");
+            } catch (ExecutionException e) {
+                Throwable cause = e.getCause() == null ? e : e.getCause();
+                lastError = cause instanceof RuntimeException re ? re : new RuntimeException(cause);
+                log.warn("Mo hinh [{}] loi ({}), chuyen sang mo hinh tiep theo", candidate.name(), cause.getMessage());
+            } catch (InterruptedException e) {
+                future.cancel(true);
+                Thread.currentThread().interrupt();
+                throw new AppException(ErrorCode.AI_PROVIDER_ERROR, "Interrupted while waiting for the AI model");
             }
         }
+        if (lastError == null) {
+            throw new AppException(ErrorCode.AI_TIMEOUT, "No time left to call the AI model");
+        }
         throw new AppException(ErrorCode.AI_PROVIDER_ERROR, "All AI models failed: " + lastError.getMessage());
+    }
+
+    @PreDestroy
+    void shutdown() {
+        callExecutor.shutdownNow();
     }
 }
