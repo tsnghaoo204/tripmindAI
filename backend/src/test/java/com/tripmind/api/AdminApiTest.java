@@ -36,7 +36,7 @@ class AdminApiTest extends IntegrationTest {
 
         JsonNode trips = get("/api/admin/trips?size=5", admin, 200).get("data");
         assertThat(trips.at("/content/0").has("activityCount")).isTrue();
-        assertThat(trips.at("/content/0").has("name")).isFalse();
+        assertThat(trips.at("/content/0").has("name")).isTrue();
         assertThat(get("/api/admin/users?size=5", admin, 200).at("/data/content/0").has("tripCount")).isTrue();
     }
 

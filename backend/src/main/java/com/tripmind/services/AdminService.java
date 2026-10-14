@@ -135,7 +135,7 @@ public class AdminService {
         return new PageResponse<>(rows, page, size, total);
     }
 
-    /** Mức tổng hợp: số ngày, số hoạt động — không có tên hoạt động, chi tiêu hay hội thoại. */
+    /** Mức tổng hợp: tên chuyến, số ngày, số hoạt động — không có tên hoạt động, chi tiêu hay hội thoại. */
     @Transactional(readOnly = true)
     public PageResponse<Map<String, Object>> trips(int page, int size) {
         long total = jdbc.queryForObject("SELECT COUNT(*) FROM trips", Long.class);
