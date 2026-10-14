@@ -1,53 +1,39 @@
-import { apiClient, request } from "../client"
-import type { User, AuthResponse } from "../types"
+import { saveSession } from "@/lib/auth-storage"
+import { validateAvatarUrl } from "@/lib/validation"
+import { request } from "../client"
+import { ApiError } from "../errors"
+import type { AuthResponse, BudgetPreference, TravelStyle, User } from "../types"
 
 export interface UserPreferences {
-  travelStyle?: string
-  budgetPreference?: string
-  preferences?: string[]
+  travelStyle?: TravelStyle | null
+  budgetPreference?: BudgetPreference | null
+  preferences?: string[] | null
 }
 
 export const authApi = {
-  login: async (credentials: { email: string; password: string }): Promise<AuthResponse> => {
-    return request<AuthResponse>("/api/auth/login", {
-      method: "POST",
-      data: credentials,
-    })
+  login: (credentials: { email: string; password: string }) =>
+    request<AuthResponse>("/api/auth/login", { method: "POST", data: credentials }),
+
+  register: (data: { name: string; email: string; password: string }) =>
+    request<AuthResponse>("/api/auth/register", { method: "POST", data }),
+
+  getProfile: () => request<User>("/api/users/profile"),
+
+  updateProfile: (data: { name?: string; avatarUrl?: string }) => {
+    const avatarError = data.avatarUrl !== undefined ? validateAvatarUrl(data.avatarUrl) : null
+    if (avatarError) return Promise.reject(new ApiError(avatarError))
+    return request<User>("/api/users/profile", { method: "PUT", data })
   },
 
-  register: async (data: { name: string; email: string; password: string }): Promise<AuthResponse> => {
-    return request<AuthResponse>("/api/auth/register", {
-      method: "POST",
-      data,
-    })
+  /** The old token is revoked server-side, so the returned session replaces it. */
+  changePassword: async (data: { currentPassword: string; newPassword: string }) => {
+    const res = await request<AuthResponse>("/api/users/change-password", { method: "PUT", data })
+    saveSession(res.accessToken, res.user)
+    return res
   },
 
-  getProfile: async (): Promise<User> => {
-    return request<User>("/api/users/profile")
-  },
+  getPreferences: () => request<UserPreferences>("/api/me/preferences"),
 
-  updateProfile: async (data: { name?: string; avatarUrl?: string }): Promise<User> => {
-    return request<User>("/api/users/profile", {
-      method: "PUT",
-      data,
-    })
-  },
-
-  changePassword: async (data: { oldPassword: string; newPassword: string }): Promise<void> => {
-    return request<void>("/api/users/change-password", {
-      method: "PUT",
-      data,
-    })
-  },
-
-  getPreferences: async (): Promise<UserPreferences> => {
-    return request<UserPreferences>("/api/me/preferences")
-  },
-
-  updatePreferences: async (data: UserPreferences): Promise<UserPreferences> => {
-    return request<UserPreferences>("/api/me/preferences", {
-      method: "PUT",
-      data,
-    })
-  },
+  updatePreferences: (data: UserPreferences) =>
+    request<UserPreferences>("/api/me/preferences", { method: "PUT", data }),
 }

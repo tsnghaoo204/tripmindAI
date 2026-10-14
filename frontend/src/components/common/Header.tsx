@@ -1,9 +1,9 @@
-import { Link } from "@tanstack/react-router"
-import { useAuth } from "@/contexts/auth-context"
-import { Logo } from "./Logo"
 import { Button } from "@/components/ui/button"
-import { LogOut, Sun, Moon, Plus, ShieldCheck } from "lucide-react"
+import { useAuth } from "@/contexts/auth-context"
+import { Link } from "@tanstack/react-router"
+import { LogOut, Moon, ShieldCheck, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
+import { Logo } from "./Logo"
 
 export function Header() {
   const { user, logout } = useAuth()
@@ -17,13 +17,22 @@ export function Header() {
             <Logo />
           </Link>
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
-            <Link to="/" className="hover:text-foreground transition-colors [&.active]:text-primary [&.active]:font-semibold">
+            <Link
+              to="/"
+              className="hover:text-foreground transition-colors [&.active]:text-primary [&.active]:font-semibold"
+            >
               Chuyến đi của tôi
             </Link>
-            <Link to="/places" className="hover:text-foreground transition-colors [&.active]:text-primary [&.active]:font-semibold">
+            <Link
+              to="/places"
+              className="hover:text-foreground transition-colors [&.active]:text-primary [&.active]:font-semibold"
+            >
               Khám phá địa điểm
             </Link>
-            <Link to="/community" className="hover:text-foreground transition-colors [&.active]:text-primary [&.active]:font-semibold">
+            <Link
+              to="/community"
+              className="hover:text-foreground transition-colors [&.active]:text-primary [&.active]:font-semibold"
+            >
               Cộng đồng &amp; Review
             </Link>
             {user?.role === "ADMIN" && (
@@ -45,6 +54,7 @@ export function Header() {
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
             className="rounded-full"
             title="Đổi giao diện"
+            aria-label="Đổi giao diện sáng/tối"
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -53,23 +63,23 @@ export function Header() {
           {user ? (
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium hidden sm:inline-block">
-                  {user.name}
-                </span>
+                <span className="text-sm font-medium hidden sm:inline-block">{user.name}</span>
                 {user.role === "ADMIN" && (
                   <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
                     Admin
                   </span>
                 )}
               </div>
-              <Button variant="ghost" size="icon" onClick={logout} title="Đăng xuất">
+              <Button variant="ghost" size="icon" onClick={logout} title="Đăng xuất" aria-label="Đăng xuất">
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <Link to="/login">
-                <Button variant="ghost" size="sm">Đăng nhập</Button>
+                <Button variant="ghost" size="sm">
+                  Đăng nhập
+                </Button>
               </Link>
               <Link to="/register">
                 <Button size="sm">Đăng ký</Button>

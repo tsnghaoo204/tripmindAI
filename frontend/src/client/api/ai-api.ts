@@ -1,274 +1,174 @@
-import { apiClient, request } from "../client"
+import { request } from "../client"
+import { ApiError, DEFAULT_ERROR_MESSAGE } from "../errors"
+import { isAbortError, openSseStream, parseJson } from "../sse"
+import type {
+  ApplyProposalResponse,
+  ChatMessage,
+  Conversation,
+  ExplanationResponse,
+  GenerateJobStatus,
+  Proposal,
+  UndoProposalResponse,
+} from "../types"
 
-export interface Conversation {
-  id: number
-  tripId: number
-  title: string
-  createdAt: string
-  updatedAt: string
+// Chat SSE payloads, see AgentService / ToolExecutor / ProposalService
+export interface ChatTokenEvent {
+  text: string
 }
-
-export interface ChatMessage {
-  id: number
-  conversationId: number
-  role: "USER" | "ASSISTANT" | "SYSTEM"
-  content: string
-  attachments?: any
-  createdAt: string
+export interface ChatToolStartEvent {
+  tool: string
+  label?: string
 }
-
-export interface ProposalDetail {
-  id: number
-  tripId: number
+export interface ChatToolEndEvent {
+  tool: string
+  ms?: number
+  status?: string
+}
+export interface ChatProposalEvent {
+  proposalId: number
   summary: string
-  status: "PENDING" | "APPLIED" | "REJECTED" | "EXPIRED" | "REVERTED"
-  changes: Array<{
-    op: "ADD" | "REMOVE" | "UPDATE" | "REORDER"
-    dayNumber?: number
-    title?: string
-    reason?: string
-    estimatedCost?: number
-    place?: { name: string; externalId: string }
-  }>
   estimatedCostDelta: number
   travelTimeDelta: number
-  expiresAt: string
+  /** Number of changes in the proposal. */
+  changes: number
+}
+export interface ChatDoneEvent {
+  messageId: number
+  conversationId: number
+}
+export interface StreamErrorEvent {
+  code?: string
+  message?: string
 }
 
-export interface UndoPreview {
-  proposalId: number
-  canUndo: boolean
-  expiresInSeconds?: number
-  itemsToRevert: Array<{
-    activityId: number
-    action: string
-    title: string
-    isModifiedByUser: boolean
-  }>
+export interface ChatCallbacks {
+  onToken?: (text: string) => void
+  onToolStart?: (evt: ChatToolStartEvent) => void
+  onToolEnd?: (evt: ChatToolEndEvent) => void
+  onProposal?: (evt: ChatProposalEvent) => void
+  /** Called exactly once when the turn finishes; payload is null if the stream ended without a done event. */
+  onDone?: (evt: ChatDoneEvent | null) => void
+  onError?: (err: ApiError) => void
 }
 
-export interface ExplanationResponse {
-  activityId: number
-  known: boolean
-  createdBy: string
-  proposalSummary?: string
-  proposalReason?: string
-  changeReason?: string
-  appliedAt?: string
-  tools?: Array<{
-    toolName: string
-    arguments: string
-    executionTimeMs: number
-  }>
-  rejected?: Array<{
-    dayNumber: number
-    title: string
-    reason: string
-  }>
+export interface GenerateCallbacks {
+  onProgress?: (status: GenerateJobStatus) => void
+  onDone?: (status: GenerateJobStatus) => void
+  onError?: (err: ApiError) => void
+  /** The stream closed before a done or error event. */
+  onInterrupted?: () => void
 }
 
-export interface GenerateJobStatus {
-  jobId: string
-  state: "QUEUED" | "RUNNING" | "DONE" | "FAILED"
-  step: string
-  progress: number
-  result?: {
-    proposalId: number
-    activitiesCreated: number
-    rejectedCount: number
-    undoAvailableUntil: string
-  }
-  error?: string
+function toApiError(err: unknown): ApiError {
+  if (err instanceof ApiError) return err
+  return new ApiError(err instanceof Error && err.message ? err.message : DEFAULT_ERROR_MESSAGE)
 }
 
 export const aiApi = {
-  getConversations: async (tripId: number): Promise<Conversation[]> => {
-    return request<Conversation[]>(`/api/trips/${tripId}/ai/conversations`)
-  },
+  getConversations: (tripId: number) => request<Conversation[]>(`/api/trips/${tripId}/ai/conversations`),
 
-  getMessages: async (conversationId: number): Promise<ChatMessage[]> => {
-    return request<ChatMessage[]>(`/api/conversations/${conversationId}/messages`)
-  },
+  getMessages: (conversationId: number) => request<ChatMessage[]>(`/api/conversations/${conversationId}/messages`),
 
-  getProposal: async (proposalId: number): Promise<ProposalDetail> => {
-    return request<ProposalDetail>(`/api/proposals/${proposalId}`)
-  },
+  getProposal: (proposalId: number) => request<Proposal>(`/api/proposals/${proposalId}`),
 
-  applyProposal: async (tripId: number, proposalId: number): Promise<any> => {
-    return request<any>(`/api/trips/${tripId}/ai/apply`, {
-      method: "POST",
-      data: { proposalId },
-    })
-  },
+  applyProposal: (tripId: number, proposalId: number) =>
+    request<ApplyProposalResponse>(`/api/trips/${tripId}/ai/apply`, { method: "POST", data: { proposalId } }),
 
-  rejectProposal: async (proposalId: number): Promise<void> => {
-    return request<void>(`/api/proposals/${proposalId}/reject`, {
-      method: "POST",
-    })
-  },
+  rejectProposal: (proposalId: number) => request<Proposal>(`/api/proposals/${proposalId}/reject`, { method: "POST" }),
 
-  previewUndo: async (tripId: number, proposalId: number): Promise<UndoPreview> => {
-    return request<UndoPreview>(`/api/trips/${tripId}/ai/undo/${proposalId}/preview`)
-  },
+  previewUndo: (tripId: number, proposalId: number) =>
+    request<UndoProposalResponse>(`/api/trips/${tripId}/ai/undo/${proposalId}/preview`),
 
-  undoProposal: async (tripId: number, proposalId: number): Promise<any> => {
-    return request<any>(`/api/trips/${tripId}/ai/undo`, {
-      method: "POST",
-      data: { proposalId },
-    })
-  },
+  undoProposal: (tripId: number, proposalId: number) =>
+    request<UndoProposalResponse>(`/api/trips/${tripId}/ai/undo`, { method: "POST", data: { proposalId } }),
 
-  getExplanation: async (activityId: number): Promise<ExplanationResponse> => {
-    return request<ExplanationResponse>(`/api/activities/${activityId}/explanation`)
-  },
+  getExplanation: (activityId: number) => request<ExplanationResponse>(`/api/activities/${activityId}/explanation`),
 
-  startGenerateItinerary: async (tripId: number): Promise<GenerateJobStatus> => {
-    return request<GenerateJobStatus>(`/api/trips/${tripId}/ai/generate`, {
-      method: "POST",
-    })
-  },
+  startGenerateItinerary: (tripId: number) =>
+    request<GenerateJobStatus>(`/api/trips/${tripId}/ai/generate`, { method: "POST" }),
 
-  getGenerateStatus: async (tripId: number, jobId: string): Promise<GenerateJobStatus> => {
-    return request<GenerateJobStatus>(`/api/trips/${tripId}/ai/generate/${jobId}`)
-  },
+  getGenerateStatus: (tripId: number, jobId: string) =>
+    request<GenerateJobStatus>(`/api/trips/${tripId}/ai/generate/${jobId}`),
 
-  /** Stream SSE progress of itinerary generation */
-  streamGenerateStatus: (
-    tripId: number,
-    jobId: string,
-    callbacks: {
-      onProgress?: (status: GenerateJobStatus) => void
-      onDone?: (status: GenerateJobStatus) => void
-      onError?: (err: any) => void
-    },
-  ): (() => void) => {
-    const token = localStorage.getItem("access_token")
-    const url = `/api/trips/${tripId}/ai/generate/${jobId}/stream`
+  /** Streams generation progress; returns an abort function. */
+  streamGenerateStatus: (tripId: number, jobId: string, callbacks: GenerateCallbacks): (() => void) => {
     const controller = new AbortController()
+    let finished = false
 
-    fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "text/event-stream",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+    openSseStream({
+      path: `/api/trips/${tripId}/ai/generate/${jobId}/stream`,
       signal: controller.signal,
+      onEvent: ({ event, data }) => {
+        if (finished) return
+        const parsed = parseJson<GenerateJobStatus>(data)
+        if (!parsed) return
+        if (event === "progress") callbacks.onProgress?.(parsed)
+        else if (event === "done") {
+          finished = true
+          callbacks.onDone?.(parsed)
+        } else if (event === "error") {
+          finished = true
+          callbacks.onError?.(new ApiError(parsed.error || "Không thể sinh lịch trình"))
+        }
+      },
     })
-      .then(async (response) => {
-        if (!response.ok) {
-          const errJson = await response.json().catch(() => ({}))
-          throw new Error(errJson.message || `Lỗi máy chủ (${response.status})`)
-        }
-        if (!response.body) return
-
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ""
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split("\n\n")
-          buffer = lines.pop() || ""
-
-          for (const chunk of lines) {
-            const eventMatch = chunk.match(/^event:\s*(\w+)/m)
-            const dataMatch = chunk.match(/^data:\s*(.*)/m)
-            if (eventMatch && dataMatch) {
-              const event = eventMatch[1]
-              const dataText = dataMatch[1]
-              try {
-                const parsed = JSON.parse(dataText)
-                if (event === "progress") {
-                  callbacks.onProgress?.(parsed)
-                } else if (event === "done") {
-                  callbacks.onDone?.(parsed)
-                } else if (event === "error") {
-                  callbacks.onError?.(parsed)
-                }
-              } catch {
-                // Ignore parse errors on raw tokens / keep-alives
-              }
-            }
-          }
-        }
+      .then(() => {
+        if (!finished && !controller.signal.aborted) callbacks.onInterrupted?.()
       })
       .catch((err) => {
-        if (err.name !== "AbortError") {
-          callbacks.onError?.(err)
-        }
+        if (finished || controller.signal.aborted || isAbortError(err)) return
+        finished = true
+        callbacks.onError?.(toApiError(err))
       })
 
     return () => controller.abort()
   },
 
-  /** Stream SSE chat */
-  streamChat: (
-    tripId: number,
-    data: { message: string; conversationId?: number },
-    callbacks: {
-      onToken?: (token: string) => void
-      onToolStart?: (tool: string) => void
-      onToolEnd?: (tool: string) => void
-      onProposal?: (proposal: any) => void
-      onDone?: () => void
-      onError?: (err: any) => void
-    },
-  ) => {
-    const token = localStorage.getItem("access_token")
-    const url = `/api/trips/${tripId}/ai/chat`
+  /** Streams one assistant turn; returns an abort function. */
+  streamChat: (tripId: number, data: { message: string; conversationId?: number }, callbacks: ChatCallbacks) => {
+    const controller = new AbortController()
+    let finished = false
+    const finish = (fn: () => void) => {
+      if (finished) return
+      finished = true
+      fn()
+    }
 
-    fetch(url, {
+    openSseStream({
+      path: `/api/trips/${tripId}/ai/chat`,
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      body: data,
+      signal: controller.signal,
+      onEvent: ({ event, data: raw }) => {
+        if (finished) return
+        if (event === "token") {
+          const parsed = parseJson<ChatTokenEvent>(raw)
+          callbacks.onToken?.(parsed && typeof parsed.text === "string" ? parsed.text : raw)
+          return
+        }
+        const parsed = parseJson<Record<string, unknown>>(raw)
+        if (!parsed) return
+        if (event === "tool_start") callbacks.onToolStart?.(parsed as unknown as ChatToolStartEvent)
+        else if (event === "tool_end") callbacks.onToolEnd?.(parsed as unknown as ChatToolEndEvent)
+        else if (event === "proposal") callbacks.onProposal?.(parsed as unknown as ChatProposalEvent)
+        else if (event === "done") finish(() => callbacks.onDone?.(parsed as unknown as ChatDoneEvent))
+        else if (event === "error") {
+          const e = parsed as StreamErrorEvent
+          finish(() => callbacks.onError?.(new ApiError(e.message || "Lỗi giao tiếp với Trợ lý AI", { code: e.code })))
+        }
       },
-      body: JSON.stringify(data),
     })
-      .then(async (response) => {
-        if (!response.ok) {
-          const errJson = await response.json().catch(() => ({}))
-          throw new Error(errJson.message || `Lỗi máy chủ (${response.status})`)
-        }
-        if (!response.body) return
-
-        const reader = response.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ""
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buffer += decoder.decode(value, { stream: true })
-          const lines = buffer.split("\n\n")
-          buffer = lines.pop() || ""
-
-          for (const chunk of lines) {
-            const eventMatch = chunk.match(/^event:\s*(\w+)/m)
-            const dataMatch = chunk.match(/^data:\s*(.*)/m)
-            if (eventMatch && dataMatch) {
-              const event = eventMatch[1]
-              const dataText = dataMatch[1]
-              try {
-                const parsed = JSON.parse(dataText)
-                if (event === "token") callbacks.onToken?.(parsed.token || parsed)
-                else if (event === "tool_start") callbacks.onToolStart?.(parsed.tool)
-                else if (event === "tool_end") callbacks.onToolEnd?.(parsed.tool)
-                else if (event === "proposal") callbacks.onProposal?.(parsed)
-                else if (event === "done") callbacks.onDone?.()
-                else if (event === "error") callbacks.onError?.(parsed)
-              } catch {
-                if (event === "token") callbacks.onToken?.(dataText)
-              }
-            }
-          }
-        }
-        callbacks.onDone?.()
+      .then(() => {
+        if (!controller.signal.aborted) finish(() => callbacks.onDone?.(null))
       })
       .catch((err) => {
-        callbacks.onError?.(err)
+        if (controller.signal.aborted || isAbortError(err)) return
+        finish(() => callbacks.onError?.(toApiError(err)))
       })
+
+    return () => {
+      finished = true
+      controller.abort()
+    }
   },
 }

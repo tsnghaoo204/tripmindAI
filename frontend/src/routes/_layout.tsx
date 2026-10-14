@@ -1,7 +1,13 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router"
 import { Header } from "@/components/common/Header"
+import { getToken } from "@/lib/auth-storage"
+import { Outlet, createFileRoute, redirect } from "@tanstack/react-router"
 
 export const Route = createFileRoute("/_layout")({
+  beforeLoad: ({ location }) => {
+    if (!getToken()) {
+      throw redirect({ to: "/login", search: { redirect: location.href } })
+    }
+  },
   component: LayoutComponent,
 })
 

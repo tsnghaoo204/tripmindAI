@@ -1,13 +1,19 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { authApi } from "@/client/api/auth-api"
+import { getErrorMessage } from "@/client/errors"
 import { Logo } from "@/components/common/Logo"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { getToken } from "@/lib/auth-storage"
+import { MIN_PASSWORD_LENGTH } from "@/lib/validation"
+import { Link, createFileRoute, redirect, useNavigate } from "@tanstack/react-router"
+import { useState } from "react"
 import { toast } from "sonner"
-import { apiClient } from "@/client/client"
 
 export const Route = createFileRoute("/register")({
+  beforeLoad: () => {
+    if (getToken()) throw redirect({ to: "/" })
+  },
   component: RegisterPage,
 })
 
@@ -22,15 +28,11 @@ function RegisterPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      const res = await apiClient.post("/api/auth/register", { name, email, password })
-      if (res.data?.success) {
-        toast.success("Đăng ký thành công! Vui lòng đăng nhập.")
-        navigate({ to: "/login" })
-      } else {
-        toast.error(res.data?.message || "Đăng ký thất bại")
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Không thể kết nối đến máy chủ")
+      await authApi.register({ name, email, password })
+      toast.success("Đăng ký thành công! Vui lòng đăng nhập.")
+      navigate({ to: "/login" })
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Đăng ký thất bại"))
     } finally {
       setLoading(false)
     }
@@ -44,16 +46,18 @@ function RegisterPage() {
             <Logo />
           </div>
           <CardTitle className="text-2xl font-bold">Tạo tài khoản mới</CardTitle>
-          <CardDescription>
-            Bắt đầu khám phá và lên lịch trình du lịch thông minh cùng AI
-          </CardDescription>
+          <CardDescription>Bắt đầu khám phá và lên lịch trình du lịch thông minh cùng AI</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Họ và tên</label>
+              <label htmlFor="register-name" className="text-sm font-medium">
+                Họ và tên
+              </label>
               <Input
+                id="register-name"
                 type="text"
+                autoComplete="name"
                 placeholder="Nguyễn Văn A"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -61,9 +65,13 @@ function RegisterPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Email</label>
+              <label htmlFor="register-email" className="text-sm font-medium">
+                Email
+              </label>
               <Input
+                id="register-email"
                 type="email"
+                autoComplete="email"
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -71,10 +79,15 @@ function RegisterPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Mật khẩu</label>
+              <label htmlFor="register-password" className="text-sm font-medium">
+                Mật khẩu
+              </label>
               <Input
+                id="register-password"
                 type="password"
-                placeholder="Tối thiểu 6 ký tự"
+                autoComplete="new-password"
+                minLength={MIN_PASSWORD_LENGTH}
+                placeholder={`Tối thiểu ${MIN_PASSWORD_LENGTH} ký tự`}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
