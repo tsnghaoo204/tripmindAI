@@ -1,6 +1,7 @@
 package com.tripmind.api;
 
 import com.tripmind.domains.requests.KnowledgeRequest;
+import com.tripmind.entities.DestinationEntity;
 import com.tripmind.enums.KnowledgeCategory;
 import com.tripmind.services.DestinationKnowledgeService;
 import com.tripmind.support.IntegrationTest;
@@ -32,21 +33,28 @@ class KnowledgePromptApiTest extends IntegrationTest {
         long hiddenId = call(post("/api/admin/knowledge"), admin, request(destination, hide), 201)
                 .at("/data/id").asLong();
 
-        assertThat(knowledgeService.getFormattedKnowledgeForPrompt(destination)).contains(keep, hide);
+        assertThat(knowledgeService.getFormattedKnowledgeForPrompt(byName(destination))).contains(keep, hide);
 
         call(patch("/api/admin/knowledge/" + hiddenId + "/toggle"), admin, null, 200);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT is_active FROM destination_knowledge WHERE id = ?", Boolean.class, hiddenId)).isFalse();
 
-        String prompt = knowledgeService.getFormattedKnowledgeForPrompt(destination);
+        String prompt = knowledgeService.getFormattedKnowledgeForPrompt(byName(destination));
         assertThat(prompt).contains(keep).doesNotContain(hide);
-        assertThat(knowledgeService.getActiveKnowledgeEntities(destination))
+        assertThat(knowledgeService.getActiveKnowledgeEntities(byName(destination)))
                 .extracting(e -> e.getTitle()).containsExactly(keep);
-        assertThat(knowledgeService.searchKnowledge(destination, "", 10))
+        assertThat(knowledgeService.searchKnowledge(null, destination, "", 10))
                 .extracting(k -> k.getTitle()).doesNotContain(hide);
 
         call(patch("/api/admin/knowledge/" + hiddenId + "/toggle"), admin, null, 200);
-        assertThat(knowledgeService.getFormattedKnowledgeForPrompt(destination)).contains(keep, hide);
+        assertThat(knowledgeService.getFormattedKnowledgeForPrompt(byName(destination))).contains(keep, hide);
+    }
+
+    // Mục tri thức chỉ gắn theo tên nên tra bằng điểm đến chưa có id
+    private DestinationEntity byName(String name) {
+        DestinationEntity destination = new DestinationEntity();
+        destination.setName(name);
+        return destination;
     }
 
     private KnowledgeRequest request(String destination, String title) {

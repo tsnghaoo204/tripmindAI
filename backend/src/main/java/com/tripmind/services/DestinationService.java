@@ -33,7 +33,7 @@ import java.util.Set;
  * Điểm đến trên toàn cầu, nạp theo hành động của người dùng.
  *
  * <p>Bảng {@code destinations} không phải một danh mục đóng. Mười lăm dòng gieo sẵn trong
- * {@code schemas.sql} chỉ là gợi ý; mọi thành phố khác vào bảng đúng lúc người dùng chọn
+ * migration V1 chỉ là gợi ý; mọi thành phố khác vào bảng đúng lúc người dùng chọn
  * nó, qua {@link #getOrCreateDestination}. Cùng nguyên tắc với bảng {@code places} —
  * một lượt tìm kiếm KHÔNG sinh dòng nào, chỉ một lượt chọn mới sinh.
  */
@@ -45,7 +45,7 @@ public class DestinationService {
     private static final String PROVIDER_MANUAL = "MANUAL";
     private static final String PROVIDER_GOOGLE = "GOOGLE";
 
-    /** Phải khớp {@code chk_destinations_provider} trong schemas.sql. */
+    /** Phải khớp {@code chk_destinations_provider} trong migration Flyway. */
     private static final Set<String> PROVIDERS = Set.of(PROVIDER_MANUAL, PROVIDER_GOOGLE, "MAPBOX");
 
     private static final int NAME_MAX = 160;
