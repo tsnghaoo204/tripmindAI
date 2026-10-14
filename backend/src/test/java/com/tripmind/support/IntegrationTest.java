@@ -26,8 +26,8 @@ import java.util.UUID;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 
 /**
- * Nền cho test tích hợp: PostgreSQL 16 và Redis thật trong Docker, Flyway chạy toàn bộ
- * migration lên CSDL trống. Container dùng chung cho mọi lớp test con (khởi động một lần).
+ * Nền cho test tích hợp: PostgreSQL 16 và Redis thật trong Docker, schema.sql nạp
+ * lên CSDL trống. Container dùng chung cho mọi lớp test con (khởi động một lần).
  */
 @SpringBootTest
 @AutoConfigureMockMvc

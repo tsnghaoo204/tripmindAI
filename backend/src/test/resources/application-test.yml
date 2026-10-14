@@ -1,7 +1,9 @@
 # Cau hinh rieng cho test tich hop. CSDL va Redis do Testcontainers dung len.
 spring:
-  flyway:
-    enabled: true
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
 
 jwt:
   secret: test-only-secret-key-for-integration-tests-0123456789

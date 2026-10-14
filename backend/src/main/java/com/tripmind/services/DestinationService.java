@@ -45,7 +45,7 @@ public class DestinationService {
     private static final String PROVIDER_MANUAL = "MANUAL";
     private static final String PROVIDER_GOOGLE = "GOOGLE";
 
-    /** Phải khớp {@code chk_destinations_provider} trong migration Flyway. */
+    /** Phải khớp {@code chk_destinations_provider} trong lược đồ CSDL. */
     private static final Set<String> PROVIDERS = Set.of(PROVIDER_MANUAL, PROVIDER_GOOGLE, "MAPBOX");
 
     private static final int NAME_MAX = 160;
