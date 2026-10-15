@@ -44,4 +44,7 @@ export const blogApi = {
 
   convertToKnowledge: (postId: number, data: KnowledgeRequest) =>
     request<DestinationKnowledge>(`/api/admin/blog/posts/${postId}/convert-to-knowledge`, { method: "POST", data }),
+
+  generateTripRecap: (tripId: number) =>
+    request<import("../types").TripRecapResponse>(`/api/blog/trips/${tripId}/recap`, { method: "POST" }),
 }

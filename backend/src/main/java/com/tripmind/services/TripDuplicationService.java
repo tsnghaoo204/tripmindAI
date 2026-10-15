@@ -35,18 +35,38 @@ public class TripDuplicationService {
     private final ActivityRepository activityRepository;
     private final ChecklistItemRepository checklistRepository;
     private final TripMapper tripMapper;
+    private final com.tripmind.repositories.BlogPostRepository blogPostRepository;
+    private final com.tripmind.repositories.UserRepository userRepository;
 
     @Transactional
     public DuplicateTripResponse duplicate(Long userId, Long tripId, DuplicateTripRequest request) {
-        TripEntity source = tripService.getOwnedTrip(userId, tripId);
+        TripEntity source;
+        var owned = tripRepository.findByIdAndUserId(tripId, userId);
+        if (owned.isPresent()) {
+            source = owned.get();
+        } else if (blogPostRepository.existsByTripId(tripId)) {
+            source = tripRepository.findById(tripId)
+                    .orElseThrow(() -> new com.tripmind.exceptions.AppException(com.tripmind.exceptions.ErrorCode.RESOURCE_NOT_FOUND, "Trip not found"));
+        } else {
+            throw new com.tripmind.exceptions.AppException(com.tripmind.exceptions.ErrorCode.RESOURCE_NOT_FOUND, "Trip not found");
+        }
+
+        UserEntity currentUser = userRepository.findById(userId)
+                .orElseThrow(() -> new com.tripmind.exceptions.AppException(com.tripmind.exceptions.ErrorCode.RESOURCE_NOT_FOUND, "User not found"));
+
         LocalDate start = request.getStartDate();
         long shift = ChronoUnit.DAYS.between(source.getStartDate(), start);
 
+        boolean isFromCommunity = !source.getUser().getId().equals(userId);
+        String defaultName = isFromCommunity
+                ? truncate(source.getName() + " (sao chép)", 160)
+                : truncate(source.getName() + " (bản sao)", 160);
+
         TripEntity copy = TripEntity.builder()
-                .user(source.getUser())
+                .user(currentUser)
                 .destination(source.getDestination())
                 .name(request.getName() != null && !request.getName().isBlank() ? request.getName().strip()
-                        : truncate(source.getName() + " (bản sao)", 160))
+                        : defaultName)
                 .startDate(start)
                 .endDate(source.getEndDate().plusDays(shift))
                 .travelers(source.getTravelers())

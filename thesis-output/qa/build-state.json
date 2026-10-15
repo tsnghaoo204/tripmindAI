@@ -1,0 +1,175 @@
+{
+ "figures": {
+  "ASSET-IMG-001": "1.1",
+  "DGM-UC-001-tong-quan": "2.1",
+  "DGM-UC-002-nguoi-dung": "2.2",
+  "DGM-UC-003-quan-tri": "2.3",
+  "DGM-UC-004-xac-thuc": "2.4",
+  "DGM-UC-005-chuyen-di": "2.5",
+  "DGM-UC-006-lich-trinh": "2.6",
+  "DGM-UC-007-sinh-lich-trinh": "2.7",
+  "DGM-UC-008-tro-ly-ai": "2.8",
+  "DGM-UC-009-ngan-sach": "2.9",
+  "DGM-UC-010-checklist": "2.10",
+  "DGM-UC-011-dia-diem": "2.11",
+  "DGM-UC-012-cong-dong": "2.12",
+  "DGM-UC-013-quan-tri": "2.13",
+  "DGM-ARC-001-tong-the": "3.1",
+  "DGM-ACT-001-xac-thuc": "3.2",
+  "DGM-SEQ-001-xac-thuc": "3.3",
+  "DGM-CLS-001-xac-thuc": "3.4",
+  "DGM-ACT-002-tao-chuyen-di": "3.5",
+  "DGM-SEQ-002-tao-chuyen-di": "3.6",
+  "DGM-CLS-002-tao-chuyen-di": "3.7",
+  "DGM-ACT-003-them-hoat-dong": "3.8",
+  "DGM-SEQ-003-them-hoat-dong": "3.9",
+  "DGM-CLS-003-them-hoat-dong": "3.10",
+  "DGM-ACT-004-sinh-lich-trinh": "3.11",
+  "DGM-SEQ-004-sinh-lich-trinh": "3.12",
+  "DGM-CLS-004-sinh-lich-trinh": "3.13",
+  "DGM-ACT-005-tro-ly-ai": "3.14",
+  "DGM-SEQ-005-tro-ly-ai": "3.15",
+  "DGM-CLS-005-tro-ly-ai": "3.16",
+  "DGM-ACT-006-cong-dong": "3.17",
+  "DGM-SEQ-006-cong-dong": "3.18",
+  "DGM-CLS-006-cong-dong": "3.19",
+  "DGM-ACT-007-tri-thuc": "3.20",
+  "DGM-SEQ-007-tri-thuc": "3.21",
+  "DGM-CLS-007-tri-thuc": "3.22",
+  "DGM-ERD-001-chuyen-di": "3.23",
+  "DGM-ERD-002-ai-cong-dong": "3.24",
+  "UI-001-auth": "3.25",
+  "UI-002-dashboard": "3.26",
+  "UI-003-trip-detail": "3.27",
+  "UI-004-budget-checklist": "3.28",
+  "UI-005-places": "3.29",
+  "UI-006-community": "3.30",
+  "UI-007-admin": "3.31",
+  "DGM-ARC-002-backend": "4.1",
+  "DGM-ARC-003-frontend": "4.2",
+  "DGM-ARC-004-tac-tu-ai": "4.3",
+  "DGM-ARC-005-trien-khai": "4.4",
+  "SHOT-001-dang-nhap": "4.5",
+  "SHOT-002-dang-ky": "4.6",
+  "SHOT-003-trang-chu": "4.7",
+  "SHOT-004-tao-chuyen-di": "4.8",
+  "SHOT-005-lich-trinh": "4.9",
+  "SHOT-006-sinh-lich-trinh": "4.10",
+  "SHOT-007-tro-ly-ai": "4.11",
+  "SHOT-008-ngan-sach": "4.12",
+  "SHOT-009-checklist": "4.13",
+  "SHOT-010-dia-diem": "4.14",
+  "SHOT-011-cong-dong": "4.15",
+  "SHOT-012-quan-tri-nguoi-dung": "4.16",
+  "SHOT-013-quan-tri-tri-thuc": "4.17",
+  "SHOT-014-quan-tri-thong-ke": "4.18"
+ },
+ "tables": {
+  "UC01": "2.1",
+  "UC02": "2.2",
+  "UC03": "2.3",
+  "UC04": "2.4",
+  "UC05": "2.5",
+  "UC06": "2.6",
+  "UC07": "2.7",
+  "UC08": "2.8",
+  "UC09": "2.9",
+  "UC10": "2.10",
+  "T-ARCH": "3.1",
+  "T-ENT": "3.2",
+  "T-BE": "4.1",
+  "T-SEC": "4.2",
+  "T-FE": "4.3",
+  "T-TOOLS": "4.4",
+  "KT01": "5.1",
+  "KT02": "5.2",
+  "KT03": "5.3",
+  "KT04": "5.4",
+  "KT05": "5.5",
+  "KT06": "5.6",
+  "T-TESTSUM": "5.7"
+ },
+ "placeholders": [
+  [
+   "Bìa trong",
+   "Logo trường/khoa",
+   "Chèn logo chính thức tại vị trí đánh dấu"
+  ],
+  [
+   "Hình 1.1",
+   "ASSET-IMG-001",
+   "Minh họa đề tài nền tảng lập kế hoạch du lịch thông minh"
+  ],
+  [
+   "Hình 4.5",
+   "SHOT-001-dang-nhap",
+   "Giao diện màn hình \"Đăng nhập\""
+  ],
+  [
+   "Hình 4.6",
+   "SHOT-002-dang-ky",
+   "Giao diện màn hình \"Đăng ký\""
+  ],
+  [
+   "Hình 4.7",
+   "SHOT-003-trang-chu",
+   "Giao diện trang chủ \"Kế hoạch du lịch\""
+  ],
+  [
+   "Hình 4.8",
+   "SHOT-004-tao-chuyen-di",
+   "Giao diện hộp thoại \"Lập kế hoạch chuyến đi mới\""
+  ],
+  [
+   "Hình 4.9",
+   "SHOT-005-lich-trinh",
+   "Giao diện \"Lịch trình chi tiết\" kèm bản đồ trong ngày"
+  ],
+  [
+   "Hình 4.10",
+   "SHOT-006-sinh-lich-trinh",
+   "Giao diện theo dõi tiến độ sinh lịch trình bằng AI"
+  ],
+  [
+   "Hình 4.11",
+   "SHOT-007-tro-ly-ai",
+   "Giao diện \"Trợ lý AI\" và thẻ đề xuất thay đổi"
+  ],
+  [
+   "Hình 4.12",
+   "SHOT-008-ngan-sach",
+   "Giao diện \"Ngân sách & Chi tiêu\""
+  ],
+  [
+   "Hình 4.13",
+   "SHOT-009-checklist",
+   "Giao diện \"Checklist chuẩn bị\" và gợi ý"
+  ],
+  [
+   "Hình 4.14",
+   "SHOT-010-dia-diem",
+   "Giao diện \"Khám phá địa điểm\""
+  ],
+  [
+   "Hình 4.15",
+   "SHOT-011-cong-dong",
+   "Giao diện \"Cộng đồng & Review\""
+  ],
+  [
+   "Hình 4.16",
+   "SHOT-012-quan-tri-nguoi-dung",
+   "Giao diện \"Quản trị hệ thống\" – quản lý người dùng"
+  ],
+  [
+   "Hình 4.17",
+   "SHOT-013-quan-tri-tri-thuc",
+   "Giao diện \"Quản trị hệ thống\" – quản lý tri thức điểm đến"
+  ],
+  [
+   "Hình 4.18",
+   "SHOT-014-quan-tri-thong-ke",
+   "Giao diện \"Quản trị hệ thống\" – thống kê sử dụng AI"
+  ]
+ ],
+ "warnings": []
+}

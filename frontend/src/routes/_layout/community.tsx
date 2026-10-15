@@ -1,10 +1,12 @@
 import { blogApi } from "@/client/api/blog-api"
+import { tripApi } from "@/client/api/trip-api"
 import { getErrorMessage } from "@/client/errors"
 import type { BlogPost } from "@/client/types"
 import { CreatePostDialog } from "@/components/pages/community/CreatePostDialog"
 import { ExtractKnowledgeModal } from "@/components/pages/community/ExtractKnowledgeModal"
 import { PostCard } from "@/components/pages/community/PostCard"
 import { flattenPosts, nextPageParam, updateCachedPosts } from "@/components/pages/community/blog-cache"
+import { DuplicateTripModal } from "@/components/pages/trips/DuplicateTripModal"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -12,7 +14,7 @@ import { Input } from "@/components/ui/input"
 import { useAuth } from "@/contexts/auth-context"
 import { queryKeys } from "@/hooks/query-keys"
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, useNavigate } from "@tanstack/react-router"
 import { Compass, Loader2, MapPin, Plus, Search, ShieldCheck, Sparkles } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
@@ -25,6 +27,7 @@ const PAGE_SIZE = 10
 
 function CommunityPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const isAdmin = user?.role === "ADMIN"
 
@@ -34,6 +37,27 @@ function CommunityPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [extractingPost, setExtractingPost] = useState<BlogPost | null>(null)
   const [deletingPost, setDeletingPost] = useState<BlogPost | null>(null)
+  const [cloningPost, setCloningPost] = useState<BlogPost | null>(null)
+
+  const cloneMutation = useMutation({
+    mutationFn: ({ tripId, startDate, name }: { tripId: number; startDate: string; name?: string }) =>
+      tripApi.duplicateTrip(tripId, { startDate, name }),
+    onSuccess: (res) => {
+      toast.success(`Đã sao chép lịch trình! Sao chép ${res.activitiesCopied || 0} hoạt động.`)
+      setCloningPost(null)
+      queryClient.invalidateQueries({ queryKey: ["trips"] })
+      navigate({ to: "/trips/$tripId", params: { tripId: String(res.trip.id) } })
+    },
+    onError: (err) => toast.error(getErrorMessage(err, "Không thể sao chép chuyến đi")),
+  })
+
+  const handleCloneTrip = (post: BlogPost) => {
+    if (!user) {
+      toast.error("Vui lòng đăng nhập để sao chép lịch trình về tài khoản!")
+      return
+    }
+    setCloningPost(post)
+  }
 
   const filters = { destination: selectedDest === "ALL" ? undefined : selectedDest, search: search || undefined }
 
@@ -196,6 +220,7 @@ function CommunityPage() {
               onUpvote={(p) => upvoteMutation.mutate(p)}
               onDelete={(p) => setDeletingPost(p)}
               onExtract={setExtractingPost}
+              onCloneTrip={handleCloneTrip}
             />
           ))}
 
@@ -220,6 +245,22 @@ function CommunityPage() {
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onCreated={() => queryClient.invalidateQueries({ queryKey: ["blog"] })}
+      />
+
+      <DuplicateTripModal
+        open={cloningPost != null}
+        onOpenChange={(open) => !open && setCloningPost(null)}
+        defaultDate={new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]}
+        isLoading={cloneMutation.isPending}
+        onDuplicate={(startDate) => {
+          if (cloningPost?.tripId) {
+            cloneMutation.mutate({
+              tripId: cloningPost.tripId,
+              startDate,
+              name: `Lịch trình ${cloningPost.destinationName} (sao chép từ ${cloningPost.user.name})`,
+            })
+          }
+        }}
       />
 
       {extractingPost && (

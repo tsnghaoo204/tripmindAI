@@ -1,6 +1,7 @@
 import { placeApi } from "@/client/api/place-api"
 import { getErrorMessage } from "@/client/errors"
 import type { Place } from "@/client/types"
+import { type MapPoint, TripMap } from "@/components/common/TripMap"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -14,7 +15,9 @@ import {
   Compass,
   ExternalLink,
   Heart,
+  LayoutGrid,
   Loader2,
+  Map as MapIcon,
   MapPin,
   Search,
   Sparkles,
@@ -71,6 +74,8 @@ function PlacesPage() {
   const [queryText, setQueryText] = useState("")
   const [selectedDestination, setSelectedDestination] = useState<string>("ALL")
   const [activeTab, setActiveTab] = useState<string>("explore")
+  const [viewMode, setViewMode] = useState<"grid" | "map">("grid")
+  const [selectedMapPointId, setSelectedMapPointId] = useState<number | string | null>(null)
 
   // Query: Search places
   const effectiveQuery = queryText || (selectedDestination !== "ALL" ? selectedDestination : "Đà Nẵng")
@@ -99,6 +104,44 @@ function PlacesPage() {
       }
     }
     return map
+  }, [savedPlaces])
+
+  const exploreMapPoints = useMemo(() => {
+    return searchResults
+      .filter(
+        (p) => p.latitude != null && p.longitude != null && !Number.isNaN(p.latitude) && !Number.isNaN(p.longitude),
+      )
+      .map((p, idx) => ({
+        id: p.id,
+        name: p.name,
+        latitude: Number(p.latitude),
+        longitude: Number(p.longitude),
+        address: p.address,
+        category: p.category || p.primaryType,
+        orderIndex: idx,
+        rating: p.rating,
+      }))
+  }, [searchResults])
+
+  const savedMapPoints = useMemo(() => {
+    return savedPlaces
+      .filter(
+        (sp) =>
+          sp.place?.latitude != null &&
+          sp.place?.longitude != null &&
+          !Number.isNaN(sp.place.latitude) &&
+          !Number.isNaN(sp.place.longitude),
+      )
+      .map((sp, idx) => ({
+        id: sp.place.id,
+        name: sp.place.name,
+        latitude: Number(sp.place.latitude),
+        longitude: Number(sp.place.longitude),
+        address: sp.place.address,
+        category: sp.place.category || sp.place.primaryType,
+        orderIndex: idx,
+        rating: sp.place.rating,
+      }))
   }, [savedPlaces])
 
   // Save place mutation
@@ -298,23 +341,46 @@ function PlacesPage() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <div className="flex items-center justify-between border-b pb-3">
-          <TabsList>
-            <TabsTrigger value="explore" className="gap-2">
-              <Compass className="h-4 w-4" />
-              Khám phá ({searchResults.length})
-            </TabsTrigger>
-            <TabsTrigger value="saved" className="gap-2">
-              <Bookmark className="h-4 w-4" />
-              Đã lưu ({savedPlaces.length})
-            </TabsTrigger>
-          </TabsList>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
+          <div className="flex items-center gap-3">
+            <TabsList>
+              <TabsTrigger value="explore" className="gap-2">
+                <Compass className="h-4 w-4" />
+                Khám phá ({searchResults.length})
+              </TabsTrigger>
+              <TabsTrigger value="saved" className="gap-2">
+                <Bookmark className="h-4 w-4" />
+                Đã lưu ({savedPlaces.length})
+              </TabsTrigger>
+            </TabsList>
 
-          <span className="text-xs text-muted-foreground hidden sm:inline-block">
-            {activeTab === "explore"
-              ? `Hiển thị kết quả cho "${effectiveQuery}"`
-              : `${savedPlaces.length} địa điểm trong danh sách yêu thích`}
-          </span>
+            <span className="text-xs text-muted-foreground hidden md:inline-block">
+              {activeTab === "explore"
+                ? `Kết quả cho "${effectiveQuery}"`
+                : `${savedPlaces.length} địa điểm trong danh sách yêu thích`}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 self-start sm:self-auto bg-muted/70 p-1 rounded-xl border border-border/50">
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              className="h-8 px-3 text-xs gap-1.5 rounded-lg"
+              onClick={() => setViewMode("grid")}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" /> Dạng lưới
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={viewMode === "map" ? "default" : "ghost"}
+              className="h-8 px-3 text-xs gap-1.5 rounded-lg"
+              onClick={() => setViewMode("map")}
+            >
+              <MapIcon className="h-3.5 w-3.5" /> Dạng bản đồ
+            </Button>
+          </div>
         </div>
 
         {/* Tab 1: Explore */}
@@ -339,6 +405,35 @@ function PlacesPage() {
                 điểm đến khác.
               </p>
             </div>
+          ) : viewMode === "map" ? (
+            exploreMapPoints.length === 0 ? (
+              <div className="py-16 text-center space-y-2 bg-muted/20 rounded-2xl border border-dashed border-border p-8">
+                <MapIcon className="h-8 w-8 text-muted-foreground mx-auto opacity-50" />
+                <p className="font-semibold text-sm">Chưa có toạ độ địa lý cho các địa điểm tìm kiếm này</p>
+                <p className="text-xs text-muted-foreground">
+                  Vui lòng chuyển lại Dạng lưới để xem danh sách chi tiết.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-2xl overflow-hidden border border-border shadow-md">
+                <div className="bg-muted/40 px-4 py-2.5 border-b border-border flex items-center justify-between text-xs">
+                  <span className="font-semibold flex items-center gap-1.5">
+                    <MapIcon className="h-3.5 w-3.5 text-primary" /> Bản đồ {exploreMapPoints.length} địa điểm tại{" "}
+                    {effectiveQuery}
+                  </span>
+                  <span className="text-muted-foreground text-[11px] hidden sm:inline">
+                    Bấm vào từng ghim để xem thông tin chi tiết
+                  </span>
+                </div>
+                <TripMap
+                  points={exploreMapPoints}
+                  height="h-[520px]"
+                  selectedPointId={selectedMapPointId}
+                  onSelectPoint={(p: MapPoint) => setSelectedMapPointId(p.id)}
+                  showRoute={false}
+                />
+              </div>
+            )
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {searchResults.map((p) => renderPlaceCard(p, savedPlaceIds.has(p.id)))}
@@ -367,6 +462,34 @@ function PlacesPage() {
                 Khám phá ngay
               </Button>
             </div>
+          ) : viewMode === "map" ? (
+            savedMapPoints.length === 0 ? (
+              <div className="py-16 text-center space-y-2 bg-muted/20 rounded-2xl border border-dashed border-border p-8">
+                <MapIcon className="h-8 w-8 text-muted-foreground mx-auto opacity-50" />
+                <p className="font-semibold text-sm">Chưa có toạ độ địa lý cho các địa điểm đã lưu</p>
+                <p className="text-xs text-muted-foreground">
+                  Vui lòng chuyển lại Dạng lưới để xem danh sách chi tiết.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-2xl overflow-hidden border border-border shadow-md">
+                <div className="bg-muted/40 px-4 py-2.5 border-b border-border flex items-center justify-between text-xs">
+                  <span className="font-semibold flex items-center gap-1.5">
+                    <MapIcon className="h-3.5 w-3.5 text-primary" /> Bản đồ {savedMapPoints.length} địa điểm đã lưu
+                  </span>
+                  <span className="text-muted-foreground text-[11px] hidden sm:inline">
+                    Bấm vào từng ghim để xem thông tin chi tiết
+                  </span>
+                </div>
+                <TripMap
+                  points={savedMapPoints}
+                  height="h-[520px]"
+                  selectedPointId={selectedMapPointId}
+                  onSelectPoint={(p: MapPoint) => setSelectedMapPointId(p.id)}
+                  showRoute={false}
+                />
+              </div>
+            )
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {savedPlaces.map((sp) => renderPlaceCard(sp.place, true))}

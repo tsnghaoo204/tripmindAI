@@ -113,7 +113,7 @@ export function ChecklistView({ tripId }: ChecklistViewProps) {
       </div>
 
       <Card className="p-4">
-        <form onSubmit={handleAddItem} className="flex flex-wrap sm:flex-nowrap gap-2 items-center text-xs">
+        <form onSubmit={handleAddItem} className="flex flex-col sm:flex-row gap-2 sm:items-center text-xs">
           <Input
             aria-label="Tên mục chuẩn bị"
             maxLength={120}
@@ -122,30 +122,32 @@ export function ChecklistView({ tripId }: ChecklistViewProps) {
             onChange={(e) => setNewTitle(e.target.value)}
             className="flex-1"
           />
-          <select
-            aria-label="Loại mục"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none"
-            value={newKind}
-            onChange={(e) => setNewKind(e.target.value as ChecklistKind)}
-          >
-            <option value="PACK">Đồ mang theo</option>
-            <option value="TODO">Việc cần làm</option>
-          </select>
-          <select
-            aria-label="Nhóm"
-            className="rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none"
-            value={newCategory}
-            onChange={(e) => setNewCategory(e.target.value as ChecklistCategory)}
-          >
-            {CATEGORIES.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-          <Button type="submit" size="sm" className="gap-1 shrink-0" disabled={addMutation.isPending}>
-            <Plus className="h-3.5 w-3.5" /> Thêm
-          </Button>
+          <div className="flex items-center gap-2">
+            <select
+              aria-label="Loại mục"
+              className="flex-1 sm:flex-initial rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none"
+              value={newKind}
+              onChange={(e) => setNewKind(e.target.value as ChecklistKind)}
+            >
+              <option value="PACK">Đồ mang theo</option>
+              <option value="TODO">Việc cần làm</option>
+            </select>
+            <select
+              aria-label="Nhóm"
+              className="flex-1 sm:flex-initial rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none"
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value as ChecklistCategory)}
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            <Button type="submit" size="sm" className="gap-1 shrink-0" disabled={addMutation.isPending}>
+              <Plus className="h-3.5 w-3.5" /> Thêm
+            </Button>
+          </div>
         </form>
       </Card>
 

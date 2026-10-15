@@ -12,23 +12,54 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { useTrips } from "@/hooks/use-trips"
 import { MAX_BLOG_PHOTOS, validatePhotoUrls } from "@/lib/validation"
 import { useMutation } from "@tanstack/react-query"
-import { Image as ImageIcon, Loader2, MapPin, Plus, Send } from "lucide-react"
-import { useState } from "react"
+import { Compass, Image as ImageIcon, Loader2, MapPin, Plus, Send, Sparkles } from "lucide-react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
+
+export interface InitialPostData {
+  title?: string
+  destinationName?: string
+  content?: string
+  tripId?: number
+  photoUrls?: string[]
+}
 
 interface CreatePostDialogProps {
   isOpen: boolean
   onClose: () => void
   onCreated: (post: BlogPost) => void
+  initialData?: InitialPostData | null
 }
 
-export function CreatePostDialog({ isOpen, onClose, onCreated }: CreatePostDialogProps) {
+export function CreatePostDialog({ isOpen, onClose, onCreated, initialData }: CreatePostDialogProps) {
   const [destination, setDestination] = useState("")
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
   const [photos, setPhotos] = useState("")
+  const [selectedTripId, setSelectedTripId] = useState<number | undefined>(undefined)
+
+  const { data: myTrips = [] } = useTrips()
+
+  useEffect(() => {
+    if (isOpen) {
+      if (initialData) {
+        setDestination(initialData.destinationName || "")
+        setTitle(initialData.title || "")
+        setContent(initialData.content || "")
+        setSelectedTripId(initialData.tripId)
+        setPhotos(initialData.photoUrls?.join("\n") || "")
+      } else {
+        setDestination("")
+        setTitle("")
+        setContent("")
+        setSelectedTripId(undefined)
+        setPhotos("")
+      }
+    }
+  }, [isOpen, initialData])
 
   const createMutation = useMutation({
     mutationFn: blogApi.createPost,
@@ -37,6 +68,7 @@ export function CreatePostDialog({ isOpen, onClose, onCreated }: CreatePostDialo
       setTitle("")
       setContent("")
       setPhotos("")
+      setSelectedTripId(undefined)
       toast.success("Đăng bài chia sẻ thành công!")
       onCreated(created)
       onClose()
@@ -63,6 +95,7 @@ export function CreatePostDialog({ isOpen, onClose, onCreated }: CreatePostDialo
       destinationName: destination.trim(),
       title: title.trim(),
       content: content.trim(),
+      tripId: selectedTripId,
       photoUrls,
     })
   }
@@ -125,6 +158,48 @@ export function CreatePostDialog({ isOpen, onClose, onCreated }: CreatePostDialo
                 onChange={(e) => setContent(e.target.value)}
                 className="w-full rounded-lg border border-border bg-background p-2.5 text-xs outline-none focus:ring-1 focus:ring-primary resize-none leading-relaxed"
               />
+            </div>
+
+            {initialData && (
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300">
+                <Sparkles className="h-4 w-4 shrink-0 text-amber-500 animate-pulse" />
+                <span>
+                  Nội dung đã được Trợ lý AI tổng hợp tự động từ chuyến đi thực tế. Bạn có thể kiểm tra và chỉnh sửa
+                  trước khi đăng!
+                </span>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label htmlFor="post-trip" className="font-semibold text-foreground flex items-center gap-1">
+                <Compass className="h-3 w-3 text-primary" aria-hidden /> Gắn kèm lịch trình chuyến đi (Tùy chọn)
+              </label>
+              <select
+                id="post-trip"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                value={selectedTripId ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value ? Number(e.target.value) : undefined
+                  setSelectedTripId(val)
+                  if (val) {
+                    const found = myTrips.find((t) => t.id === val)
+                    if (found && !destination) {
+                      setDestination(found.destination?.name || "")
+                    }
+                  }
+                }}
+              >
+                <option value="">-- Không gắn kèm lịch trình --</option>
+                {myTrips.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.destination?.name || "Điểm đến"})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground">
+                Khi gắn kèm, thành viên khác trên Cộng đồng có thể bấm &quot;Sao chép lịch trình&quot; này về chuyến đi
+                của họ.
+              </p>
             </div>
 
             <div className="space-y-1">

@@ -2,13 +2,14 @@ import { itineraryApi } from "@/client/api/itinerary-api"
 import { tripApi } from "@/client/api/trip-api"
 import { getErrorMessage } from "@/client/errors"
 import type { ItineraryDay, TripWeather } from "@/client/types"
+import { type MapPoint, TripMap } from "@/components/common/TripMap"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { formatCurrency } from "@/lib/utils"
 import { useMutation } from "@tanstack/react-query"
-import { Calendar, CloudRain, CloudSun, Download, Plus, Sparkles, Utensils } from "lucide-react"
-import { useState } from "react"
+import { Calendar, CloudRain, CloudSun, Download, Map as MapIcon, Plus, Sparkles, Utensils } from "lucide-react"
+import { useMemo, useState } from "react"
 import { toast } from "sonner"
 import { ActivityCard } from "./ActivityCard"
 import { AddActivityModal } from "./AddActivityModal"
@@ -28,10 +29,30 @@ export function DayTimeline({ tripId, currency, days, weather, onRefresh, onOpen
   const [explainingActivityId, setExplainingActivityId] = useState<number | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [deletingActivityId, setDeletingActivityId] = useState<number | null>(null)
+  const [showMap, setShowMap] = useState(true)
+  const [selectedPointId, setSelectedPointId] = useState<number | string | null>(null)
 
   const activeDay = days.find((d) => d.dayNumber === selectedDayNumber) || days[0]
   const activeDayNumber = activeDay?.dayNumber ?? selectedDayNumber
   const dayWeather = weather?.days?.find((w) => w.dayNumber === activeDayNumber)
+
+  const mapPoints = useMemo(() => {
+    if (!activeDay) return []
+    return activeDay.activities
+      .map((a, idx) => ({
+        id: a.id,
+        name: a.place?.name || a.title,
+        latitude: a.place?.latitude ?? Number.NaN,
+        longitude: a.place?.longitude ?? Number.NaN,
+        address: a.place?.address || undefined,
+        category: a.place?.category || undefined,
+        time:
+          a.startTime && a.endTime ? `${a.startTime.slice(0, 5)} - ${a.endTime.slice(0, 5)}` : a.startTime?.slice(0, 5),
+        orderIndex: idx,
+        rating: a.place?.rating,
+      }))
+      .filter((p) => !Number.isNaN(p.latitude) && !Number.isNaN(p.longitude))
+  }, [activeDay])
 
   const totalEstimatedCost = days.reduce(
     (sum, d) => sum + d.activities.reduce((s, a) => s + (a.estimatedCost || 0), 0),
@@ -83,6 +104,14 @@ export function DayTimeline({ tripId, currency, days, weather, onRefresh, onOpen
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={showMap ? "default" : "outline"}
+            onClick={() => setShowMap(!showMap)}
+            className="text-xs gap-1.5"
+          >
+            <MapIcon className="h-3.5 w-3.5" /> {showMap ? "Ẩn bản đồ" : "Bản đồ lộ trình"}
+          </Button>
           <Button
             size="sm"
             variant="outline"
@@ -150,6 +179,27 @@ export function DayTimeline({ tripId, currency, days, weather, onRefresh, onOpen
               </p>
             </div>
           </div>
+        </div>
+      )}
+
+      {showMap && mapPoints.length > 0 && (
+        <div className="rounded-2xl overflow-hidden border border-border shadow-sm">
+          <div className="bg-muted/40 px-4 py-2 border-b border-border flex items-center justify-between text-xs">
+            <span className="font-semibold flex items-center gap-1.5">
+              <MapIcon className="h-3.5 w-3.5 text-primary" /> Lộ trình di chuyển Ngày {activeDayNumber} (
+              {mapPoints.length} điểm đến)
+            </span>
+            <span className="text-muted-foreground text-[11px] hidden sm:inline">
+              Bấm vào điểm để xem thông tin & chỉ đường
+            </span>
+          </div>
+          <TripMap
+            points={mapPoints}
+            height="h-64 sm:h-72"
+            selectedPointId={selectedPointId}
+            onSelectPoint={(p: MapPoint) => setSelectedPointId(p.id)}
+            showRoute={true}
+          />
         </div>
       )}
 

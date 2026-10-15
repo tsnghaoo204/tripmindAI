@@ -1,7 +1,18 @@
 import type { BlogPost } from "@/client/types"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Calendar, ChevronDown, ChevronUp, Heart, MapPin, MessageSquare, Share2, Sparkles, Trash2 } from "lucide-react"
+import {
+  Calendar,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Heart,
+  MapPin,
+  MessageSquare,
+  Share2,
+  Sparkles,
+  Trash2,
+} from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
 import { PostComments } from "./PostComments"
@@ -16,6 +27,7 @@ interface PostCardProps {
   onUpvote: (post: BlogPost) => void
   onDelete: (post: BlogPost) => void
   onExtract: (post: BlogPost) => void
+  onCloneTrip?: (post: BlogPost) => void
 }
 
 export function PostCard({
@@ -27,6 +39,7 @@ export function PostCard({
   onUpvote,
   onDelete,
   onExtract,
+  onCloneTrip,
 }: PostCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false)
   const commentsId = `post-${post.id}-comments`
@@ -170,6 +183,19 @@ export function PostCard({
               <span>Bình luận ({post.commentCount})</span>
               {commentsOpen ? <ChevronUp className="h-3 w-3 ml-0.5" /> : <ChevronDown className="h-3 w-3 ml-0.5" />}
             </Button>
+
+            {post.tripId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onCloneTrip?.(post)}
+                className="h-8 gap-1.5 text-xs font-semibold text-primary border-primary/30 bg-primary/5 hover:bg-primary/10 shadow-xs cursor-pointer"
+                title="Sao chép khung lịch trình chuyến đi này về tài khoản của bạn"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                <span>Sao chép lịch trình</span>
+              </Button>
+            )}
           </div>
 
           <Button

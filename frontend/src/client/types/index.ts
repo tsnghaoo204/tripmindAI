@@ -553,3 +553,14 @@ export interface AdminTripRow {
   conversationCount: number
   createdAt: string
 }
+
+export interface TripRecapResponse {
+  title: string
+  destinationName: string
+  content: string
+  tripId: number
+  photoUrls: string[]
+  totalSpent: number
+  currency: string
+  placesVisited: number
+}

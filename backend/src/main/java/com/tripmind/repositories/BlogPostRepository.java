@@ -34,4 +34,6 @@ public interface BlogPostRepository extends JpaRepository<BlogPostEntity, Long> 
     @Modifying
     @Query("UPDATE BlogPostEntity p SET p.commentCount = GREATEST(0, p.commentCount + :delta) WHERE p.id = :postId")
     void updateCommentCount(@Param("postId") Long postId, @Param("delta") int delta);
+
+    boolean existsByTripId(Long tripId);
 }

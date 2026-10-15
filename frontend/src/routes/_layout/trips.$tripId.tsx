@@ -1,9 +1,11 @@
+import { blogApi } from "@/client/api/blog-api"
 import { tripApi } from "@/client/api/trip-api"
 import { getErrorMessage } from "@/client/errors"
-import type { TripPhase } from "@/client/types"
+import type { TripPhase, TripRecapResponse } from "@/client/types"
 import { AiChatDrawer } from "@/components/pages/ai/AiChatDrawer"
 import { BudgetView } from "@/components/pages/budget/BudgetView"
 import { ChecklistView } from "@/components/pages/checklist/ChecklistView"
+import { CreatePostDialog } from "@/components/pages/community/CreatePostDialog"
 import { DayTimeline } from "@/components/pages/itinerary/DayTimeline"
 import { PlaceReviewModal } from "@/components/pages/itinerary/PlaceReviewModal"
 import { DuplicateTripModal } from "@/components/pages/trips/DuplicateTripModal"
@@ -44,6 +46,18 @@ function TripDetailPage() {
   const [isReviewOpen, setIsReviewOpen] = useState(false)
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false)
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [recapData, setRecapData] = useState<TripRecapResponse | null>(null)
+  const [isRecapModalOpen, setIsRecapModalOpen] = useState(false)
+
+  const recapMutation = useMutation({
+    mutationFn: () => blogApi.generateTripRecap(tripId),
+    onSuccess: (data) => {
+      setRecapData(data)
+      setIsRecapModalOpen(true)
+      toast.success("AI đã hoàn thành bản thảo review chuyến đi!")
+    },
+    onError: (err) => toast.error(getErrorMessage(err, "Không thể tạo bài review tổng kết")),
+  })
 
   const trip = tripQuery.data
   const itinerary = itineraryQuery.data
@@ -115,6 +129,8 @@ function TripDetailPage() {
         onReview={() => setIsReviewOpen(true)}
         onDuplicate={handleDuplicateTrip}
         onDelete={handleDeleteTrip}
+        onRecap={() => recapMutation.mutate()}
+        isGeneratingRecap={recapMutation.isPending}
       />
 
       {generation.isGenerating && job && (
@@ -175,12 +191,15 @@ function TripDetailPage() {
       <button
         type="button"
         onClick={() => setIsAiOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-semibold text-sm shadow-xl shadow-blue-500/30 hover:scale-105 transition-all cursor-pointer group"
+        className="fixed bottom-5 right-5 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 sm:gap-2.5 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-semibold text-xs sm:text-sm shadow-xl shadow-blue-500/30 hover:scale-105 transition-all cursor-pointer group"
+        title="Trợ lý AI TripMind"
+        aria-label="Mở Trợ lý AI TripMind"
       >
         <div className="p-1 rounded-full bg-white/20">
-          <Sparkles className="h-4 w-4 text-amber-300 animate-pulse" aria-hidden />
+          <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-300 animate-pulse" aria-hidden />
         </div>
-        <span>Trợ lý AI TripMind</span>
+        <span className="hidden sm:inline">Trợ lý AI TripMind</span>
+        <span className="sm:hidden font-bold">Trợ lý AI</span>
       </button>
 
       <AiChatDrawer
@@ -191,6 +210,16 @@ function TripDetailPage() {
       />
 
       <PlaceReviewModal tripId={tripId} isOpen={isReviewOpen} onClose={() => setIsReviewOpen(false)} />
+
+      <CreatePostDialog
+        isOpen={isRecapModalOpen}
+        onClose={() => setIsRecapModalOpen(false)}
+        initialData={recapData}
+        onCreated={() => {
+          queryClient.invalidateQueries({ queryKey: ["blog"] })
+          toast.success("Đã đăng bài review tổng kết lên Cộng đồng!")
+        }}
+      />
 
       <DuplicateTripModal
         open={isDuplicateOpen}

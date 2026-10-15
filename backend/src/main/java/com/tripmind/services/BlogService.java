@@ -52,6 +52,10 @@ public class BlogService {
     private final LlmGateway llm;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
+    private final com.tripmind.repositories.ActivityRepository activityRepository;
+    private final com.tripmind.repositories.ExpenseRepository expenseRepository;
+    private final com.tripmind.repositories.PlaceRatingRepository placeRatingRepository;
+    private final TripService tripService;
 
     @Transactional
     public BlogPostResponse createPost(Long userId, BlogPostRequest request) {
@@ -360,5 +364,145 @@ public class BlogService {
             case TIP -> "Kinh nghiệm";
             case WARNING -> "Lưu ý quan trọng";
         };
+    }
+
+    @Transactional(readOnly = true)
+    public com.tripmind.domains.responses.TripRecapResponse generateTripRecap(Long userId, Long tripId) {
+        TripEntity trip = tripService.getOwnedTrip(userId, tripId);
+        String destinationName = trip.getDestination() != null ? trip.getDestination().getName() : trip.getName();
+
+        List<ActivityEntity> activities = activityRepository.findWithPlacesByTripId(tripId);
+        List<ActivityEntity> activeActivities = activities.stream()
+                .filter(a -> a.getStatus() != com.tripmind.enums.ActivityStatus.SKIPPED)
+                .toList();
+
+        List<String> placeNames = activeActivities.stream()
+                .map(a -> a.getPlace() != null ? a.getPlace().getName() : a.getTitle())
+                .filter(Objects::nonNull)
+                .filter(s -> !s.isBlank())
+                .distinct()
+                .toList();
+
+        List<ExpenseEntity> expenses = expenseRepository.findByTripIdOrderByExpenseDateDescCreatedAtDesc(tripId);
+        long totalSpent = expenses.stream().mapToLong(ExpenseEntity::getAmount).sum();
+
+        StringBuilder ratingsSummary = new StringBuilder();
+        for (ActivityEntity a : activeActivities) {
+            if (a.getPlace() != null) {
+                placeRatingRepository.findByUserIdAndPlaceId(userId, a.getPlace().getId()).ifPresent(r -> {
+                    ratingsSummary.append("- ").append(a.getPlace().getName())
+                            .append(": ").append(r.getVerdict() != null ? r.getVerdict() : "Đã trải nghiệm")
+                            .append(r.getNote() != null && !r.getNote().isBlank() ? " (" + r.getNote() + ")" : "")
+                            .append("\n");
+                });
+            }
+        }
+
+        long daysCount = java.time.temporal.ChronoUnit.DAYS.between(trip.getStartDate(), trip.getEndDate()) + 1;
+        String promptUser = String.format("""
+                Dữ liệu chuyến đi:
+                - Tên chuyến đi: %s
+                - Điểm đến: %s
+                - Thời gian: %s đến %s (%d ngày)
+                - Số người: %d
+                - Các địa điểm nổi bật đã ghé thăm: %s
+                - Chi tiêu thực tế: %d %s
+                - Đánh giá của tác giả về các địa điểm:
+                %s
+
+                Hãy viết một bài blog review du lịch hoàn chỉnh bằng tiếng Việt (định dạng Markdown).
+                Trả về DUY NHẤT một JSON format sau (không kèm markdown block hay văn bản thừa):
+                {
+                  "title": "Tiêu đề bài viết cuốn hút (tối đa 180 ký tự)",
+                  "content": "Nội dung bài viết review chi tiết định dạng Markdown..."
+                }
+                """,
+                trip.getName(),
+                destinationName,
+                trip.getStartDate(),
+                trip.getEndDate(),
+                daysCount,
+                trip.getTravelers(),
+                placeNames.isEmpty() ? "Các địa điểm tham quan tại " + destinationName : String.join(", ", placeNames),
+                totalSpent,
+                trip.getCurrency(),
+                ratingsSummary.length() > 0 ? ratingsSummary.toString() : "Không có ghi chú thêm."
+        );
+
+        String generatedTitle = null;
+        String generatedContent = null;
+
+        if (llm != null && llm.isConfigured()) {
+            try {
+                Prompt prompt = new Prompt(List.of(
+                        new SystemMessage("Bạn là travel blogger truyền cảm hứng. Hãy viết bài chia sẻ kinh nghiệm du lịch thực tế, chân thực, hấp dẫn dựa trên số liệu chuyến đi được cung cấp."),
+                        new UserMessage(promptUser)
+                ));
+                ChatResponse resp = llm.call(prompt);
+                String text = LlmGateway.text(resp);
+                if (text != null && !text.isBlank()) {
+                    int start = text.indexOf('{');
+                    int end = text.lastIndexOf('}');
+                    if (start >= 0 && end > start) {
+                        Map<?, ?> map = objectMapper.readValue(text.substring(start, end + 1), Map.class);
+                        generatedTitle = (String) map.get("title");
+                        generatedContent = (String) map.get("content");
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("AI trip recap generation failed for trip ID={}: {}", tripId, e.getMessage());
+            }
+        }
+
+        if (generatedTitle == null || generatedTitle.isBlank()) {
+            generatedTitle = "Kinh nghiệm du lịch " + destinationName + ": Lịch trình & Tổng kết thực tế";
+        }
+
+        if (generatedContent == null || generatedContent.isBlank()) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("# Review chuyến đi: ").append(trip.getName()).append("\n\n");
+            sb.append("Vừa qua, mình đã có kỳ nghỉ tuyệt vời tại **").append(destinationName).append("** từ ngày ")
+                    .append(trip.getStartDate()).append(" đến ").append(trip.getEndDate())
+                    .append(" cùng ").append(trip.getTravelers()).append(" thành viên.\n\n");
+
+            sb.append("## 📍 Các điểm đến nổi bật trong lịch trình\n");
+            if (placeNames.isEmpty()) {
+                sb.append("- Đã tham quan các danh lam thắng cảnh và ẩm thực địa phương tại ").append(destinationName).append(".\n");
+            } else {
+                for (String place : placeNames) {
+                    sb.append("- **").append(place).append("**\n");
+                }
+            }
+
+            sb.append("\n## 💰 Tổng kết chi phí & Ngân sách thực tế\n");
+            if (totalSpent > 0) {
+                sb.append("- Tổng số tiền thực tế đã chi: **").append(String.format("%,d", totalSpent)).append(" ").append(trip.getCurrency()).append("**\n");
+                sb.append("- Đã ghi nhận ").append(expenses.size()).append(" khoản chi trong suốt hành trình.\n");
+            } else {
+                sb.append("- Ngân sách dự kiến: **").append(trip.getBudget() != null ? String.format("%,d", trip.getBudget()) : "Linh hoạt").append(" ").append(trip.getCurrency()).append("**\n");
+            }
+
+            if (ratingsSummary.length() > 0) {
+                sb.append("\n## ⭐ Cảm nhận & Đánh giá các điểm đến\n");
+                sb.append(ratingsSummary);
+            }
+
+            sb.append("\n## 💡 Mẹo & Lưu ý cho chuyến đi\n");
+            sb.append("- Lên lịch trình sớm và sắp xếp các điểm gần nhau để tiết kiệm thời gian di chuyển.\n");
+            sb.append("- Đừng quên kiểm tra dự báo thời tiết trước mỗi ngày khởi hành!\n");
+
+            generatedContent = sb.toString();
+        }
+
+        return com.tripmind.domains.responses.TripRecapResponse.builder()
+                .title(generatedTitle.trim())
+                .destinationName(destinationName)
+                .content(generatedContent.trim())
+                .tripId(tripId)
+                .totalSpent(totalSpent)
+                .currency(trip.getCurrency())
+                .placesVisited(placeNames.size())
+                .photoUrls(new ArrayList<>())
+                .build();
     }
 }

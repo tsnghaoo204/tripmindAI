@@ -19,6 +19,8 @@ interface TripHeroProps {
   onReview: () => void
   onDuplicate: () => void
   onDelete: () => void
+  onRecap?: () => void
+  isGeneratingRecap?: boolean
 }
 
 export function TripHero({
@@ -30,6 +32,8 @@ export function TripHero({
   onReview,
   onDuplicate,
   onDelete,
+  onRecap,
+  isGeneratingRecap,
 }: TripHeroProps) {
   return (
     <div className="rounded-3xl bg-gradient-to-r from-blue-700 via-indigo-600 to-violet-700 p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
@@ -95,13 +99,27 @@ export function TripHero({
           )}
 
           {trip.phase === "AFTER" && (
-            <Button
-              size="sm"
-              onClick={onReview}
-              className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-semibold gap-1.5 shadow"
-            >
-              <ThumbsUp className="h-3.5 w-3.5" /> Đánh giá địa điểm
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                onClick={onReview}
+                className="bg-amber-400 hover:bg-amber-500 text-slate-900 font-semibold gap-1.5 shadow"
+              >
+                <ThumbsUp className="h-3.5 w-3.5" /> Đánh giá địa điểm
+              </Button>
+              {onRecap && (
+                <Button
+                  size="sm"
+                  onClick={onRecap}
+                  disabled={isGeneratingRecap}
+                  className="bg-gradient-to-r from-amber-300 via-amber-400 to-orange-400 hover:from-amber-400 hover:to-orange-500 text-slate-900 font-bold gap-1.5 shadow"
+                  title="AI tự động tổng hợp chi phí, địa điểm và đánh giá để viết bài review lên Cộng đồng"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {isGeneratingRecap ? "AI đang soạn bài..." : "AI Viết Review Tổng Kết"}
+                </Button>
+              )}
+            </div>
           )}
 
           <div className="flex gap-2">

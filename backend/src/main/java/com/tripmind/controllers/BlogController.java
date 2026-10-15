@@ -65,6 +65,15 @@ public class BlogController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created("Đăng bài viết thành công", post));
     }
 
+    @PostMapping("/trips/{tripId}/recap")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "AI tự động tổng hợp dữ liệu chuyến đi và soạn bài review nháp")
+    public ResponseEntity<ApiResponse<com.tripmind.domains.responses.TripRecapResponse>> generateTripRecap(
+            @PathVariable Long tripId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return ResponseEntity.ok(ApiResponse.ok("Đã tổng hợp bài viết review từ AI", blogService.generateTripRecap(userId, tripId)));
+    }
+
     @DeleteMapping("/posts/{id}")
     @SecurityRequirement(name = "bearerAuth")
     @Operation(summary = "Xóa bài viết (chỉ tác giả hoặc Admin)")
