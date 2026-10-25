@@ -1,0 +1,26 @@
+12 
+ 
+ 
+- Xác thực người dùng: Cho phép khách vãng lai đăng ký, người dùng đăng 
+nhập hoặc quên mật khẩu. 
+- Khám phá tin đăng: Cho phép khách vãng lai/người dùng có thể xem danh 
+sách tin đăng, danh sách cây danh mục, lọc và tìm kiếm sản phẩm. 
+- Quản lý tin đăng bán: Cho phép người dùng tạo tin đăng mới, chỉnh sửa nội 
+dung tin, cập nhật trạng thái tin (hiển thị/ẩn) và quản lý hình ảnh sản phẩm. Các 
+tin đăng mới được đưa vào trạng thái chờ duyệt trước khi công khai. 
+- Thương lượng giá: Cho phép người mua gửi đề nghị giá cho tin đăng có bật 
+thương lượng; người bán có thể chấp nhận, từ chối hoặc phản hồi bằng mức giá 
+khác.  
+- Thực hiện giao dịch: Cho phép người mua thực hiện mua ngay hoặc tạo 
+giao dịch từ đề nghị giá đã được chấp nhận. 
+- Quản lý đơn hàng: Cho phép người dùng theo dõi danh sách đơn mua/đơn 
+bán, xem chi tiết đơn hàng, xác nhận hoàn thành hoặc hủy đơn. 
+- Đánh giá: Cho phép người dùng đánh giá đối tác sau khi đơn hàng hoàn 
+thành. 
+2.3.1.2. Mô hình use case phía quản trị 
+ 
+Hình 2.3. Biểu đồ Use case tổng quan phía quản trị viên 
+- Kiểm duyệt tin đăng: Cho phép quản trị viên xem danh sách tin đăng chờ 
+duyệt, kiểm tra nội dung/hình ảnh, sau đó phê duyệt hoặc từ chối theo chính sách 
+nền tảng. Khi xử lý xong, hệ thống cập nhật trạng thái tin đăng và gửi thông báo 
+cho người bán. 

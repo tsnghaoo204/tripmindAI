@@ -1,0 +1,51 @@
+15 
+ 
+ 
+13 Người 
+dùng 
+Nhập email hợp lệ và nhấn nút 
+“Gửi mã”. 
+ Hệ thống Kiểm tra xem email có tồn tại 
+trong bảng USERS hay không và gửi đường 
+dẫn xác nhận đến email của người dùng. 
+14 Người 
+dùng 
+ 
+  
+Nhấn vào đường dẫn xác nhận email trong 
+hòm thư 
+15 Hệ thống Kiểm tra token reset email của người dùng.  
+Hiển thị form “Đặt lại mật khẩu mới” và xác 
+nhận mật khẩu mới. 
+16 Người 
+dùng 
+Nhập mật khẩu mới và click “Đặt lại mật 
+khẩu”. 
+17 Hệ thống Cập nhật mật khẩu mới trong 
+bảng USERS, thông báo thành 
+công và chuyển đến trang “Đăng 
+nhập”. 
+ 
+Luồng sự 
+kiện thay thế 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+# Thực 
+hiện bởi 
+Hành động 
+4a Hệ thống Nếu email đã tồn tại, thông báo “Email đã 
+được sử dụng” và quay lại bước 2. 
+4b Hệ thống Nếu dữ liệu đăng ký không hợp lệ thông báo 
+lỗi và quay lại bước 2. 
+5a Hệ thống Nếu người dùng chưa xác minh email, từ 
+chối đăng nhập và yêu cầu xác minh email 
+trước. 
+6a Hệ thống Nếu sai email hoặc mật khẩu, thông báo lỗi 
+và quay lại bước 8. 

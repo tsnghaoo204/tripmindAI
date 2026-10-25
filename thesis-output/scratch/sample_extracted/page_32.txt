@@ -1,0 +1,44 @@
+22 
+ 
+ 
+Mô tả Chức năng cho phép người dùng gửi đề nghị giá mua cho các tin 
+đăng cho phép trả giá. Người bán có thể chấp nhận, từ chối hoặc 
+phản hồi bằng một mức giá khác. 
+Sự kiện 
+kích hoạt 
+chức 
+năng 
+Người dùng chọn nút "Thương lượng" trong trang chi tiết tin đăng. 
+Tiền điều 
+kiện 
+Người dùng đăng nhập thành công vào hệ thống. 
+Luồng sự 
+kiện 
+chính 
+# Thực hiện 
+bởi 
+Hành động 
+Thương lượng phía người mua 
+1 Người 
+dùng 
+Truy cập trang chi tiết tin đăng 
+2 Hệ thống Kiểm tra xem tin đăng có cho phép thương 
+lượng không. Nếu có, hiển thị nút "Thương 
+lượng giá" 
+3 Người 
+dùng 
+Nhấn nút "Thương lượng giá" và nhập mức 
+giá đề xuất 
+4 Hệ thống Xác thực dữ liệu, kiểm tra hợp lẹ. Tạo Offer 
+với status=PENDING, gửi thông báo cho 
+người bán 
+Thương lượng phía người bán 
+5 Người 
+dùng 
+Nhận thông báo và truy cập Quản lý tin đăng 
+để xem danh sách đề nghị 
+6 Người 
+dùng 
+ 
+Chọn một đề nghị cụ thể để xem chi tiết và 
+quyết định hành động 

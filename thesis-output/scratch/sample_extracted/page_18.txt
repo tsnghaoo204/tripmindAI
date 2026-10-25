@@ -1,0 +1,32 @@
+8 
+ 
+ 
+Người dùng s ẽ nhận được thông báo t ức thì kèm tr ạng thái đã đ ọc hoặc 
+chưa đọc khi có sự kiện mới như có người trả giá, đề nghị giá được chấp nhận, từ 
+chối, phản hồi, đơn hàng đư ợc tạo, đơn hàng b ị hủy, hoàn thành, tin đăng đư ợc 
+duyệt, từ chối hoặc khi nhận được đánh giá mới. Điều này giúp người dùng nắm 
+bắt thông tin nhanh chóng và tương tác liền mạch với các bên liên quan. 
+Người bán có thể đăng tin mới với đầy đủ thông số sản phẩm, tải lên nhiều 
+hình ảnh, cập nhật trạng thái tin và theo dõi các đề nghị trả giá. Người bán có thể 
+chỉnh sửa thông tin khi tin đang ho ạt động hoặc chủ động ẩn tin. Tuy nhiên, các 
+tin đăng mới luôn phải trải qua quy trình kiểm duyệt trước khi được hiển thị công 
+khai tới người mua. 
+Ở cấp cao nhất, Quản trị viên sở hữu toàn quyền giám sát và v ận hành hệ 
+thống thông qua một bảng điều khiển chuyên biệt. Quản trị viên chịu trách nhiệm 
+kiểm duyệt tin đăng bằng cách phê duyệt hoặc từ chối kèm lý do, quản lý cấu trúc 
+cây danh mục và theo dõi toàn bộ danh sách đơn hàng.  
+Tích hợp chatbot thông minh đ ể đóng vai trò như m ột trợ lý mua sắm ảo, 
+chuyên hỗ trợ gợi ý sản phẩm dựa trên nhu cầu thực tế của người dùng. Khi khách 
+hàng nhập các thông tin mô tả về món đồ đang tìm kiếm, khoảng giá mong muốn 
+hoặc mục đích sử dụng, hệ thống chatbot sẽ tự động phân tích từ khóa và truy xuất 
+cơ sở dữ liệu để đưa ra các đề xuất tin đăng phù hợp nhất đang ở trạng thái hoạt 
+động. 
+2.2. Yêu cầu của Website sàn giao dịch đồ cũ Rehub 
+2.2.1. Yêu cầu chức năng  
+• Về phía khách vãng lai: 
+- Khám phá tin đăng: Cho phép khách vãng lai xem cây danh mục sản phẩm, 
+tìm kiếm, lọc, sắp xếp và xem thông tin chi tiết của các tin đăng đang ở trạng thái 
+hoạt động. 
+- Xem hồ sơ công khai người bán: Cho phép xem các thông tin minh bạch 
+của người bán bao gồm điểm tin cậy, đánh giá trung bình và số lượng đơn hàng 
+đã hoàn thành. 

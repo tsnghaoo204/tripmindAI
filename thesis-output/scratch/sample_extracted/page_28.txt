@@ -1,0 +1,42 @@
+18 
+ 
+ 
+7 Hệ thống Áp dụng điều kiện lọc, cập nhật danh sách 
+kết quả theo phân trang. 
+Xem chi tiết tin đăng 
+8 Tác nhân 
+ 
+Chọn một tin đăng trong danh sách hiển thị 
+9 Hệ thống Lấy thông tin định danh của tin đăng và tìm 
+kiếm thông tin chi tiết của tin đăng trong 
+bảng LISTINGS 
+10 Hệ thống Chuyển hướng tác nhân sang trang chỉ tiết 
+tin đăng 
+Xem hồ sơ người bán 
+11 Tác nhân Tại trang chi tiết tin đăng, chọn vào khu vực 
+thông tin người bán. 
+12 Hệ thống Lấy thông tin bài đăng và tìm kiếm định 
+danh người bán trong bảng LISTINGS  
+13 Hệ thống Kiểm tra sự tồn tại tài khoản người bán và 
+trạng thái hoạt động. Truy xuất thông tin hồ 
+sơ công khai và hiển thị hồ sơ người bán. 
+ 
+Luồng sự 
+kiện thay thế 
+ 
+# Thực 
+hiện bởi 
+Hành động 
+2a Hệ 
+thống 
+Nếu chưa có tin đăng ACTIVE nào, trả về 
+danh sách rỗng và thông báo “Chưa có tin 
+đăng phù hợp”. 
+5a Hệ 
+thống 
+Nếu từ khóa không khớp dữ liệu, trả về 
+danh sách rỗng. 
+7a Hệ 
+thống 
+Nếu giá trị lọc không hợp lệ từ chối yêu 
+cầu và báo lỗi. 

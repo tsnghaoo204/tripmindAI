@@ -69,7 +69,7 @@ Quản trị viên quản lý tài khoản người dùng (tạo, đổi vai tr�
 
 #### 2.3.1.1. Mô hình use case tổng quan
 
-Hệ thống có ba tác nhân chính là Khách, Người dùng và Quản trị viên; trong đó Quản trị viên kế thừa toàn bộ chức năng của Người dùng. Các dịch vụ bên ngoài gồm Dịch vụ LLM, Google Places và Open-Meteo tham gia với vai trò tác nhân phụ.
+Hệ thống có ba tác nhân chính là Khách, Người dùng và Quản trị viên; trong đó Quản trị viên kế thừa toàn bộ chức năng của Người dùng, và Người dùng kế thừa chức năng của Khách. Các dịch vụ bên ngoài gồm Dịch vụ LLM, Google Places và Open-Meteo tham gia với vai trò tác nhân phụ hỗ trợ dữ liệu và xử lý thông minh. Toàn bộ hệ thống được tổ chức thành 6 nhóm use case chính: Xác thực và quản lý tài khoản, Quản lý chuyến đi và lịch trình, Trợ lý AI lập và điều chỉnh lịch trình, Quản lý ngân sách và chuẩn bị hành lý, Khám phá địa điểm và cộng đồng chia sẻ, cùng Quản trị hệ thống.
 
 @fig{DGM-UC-001-tong-quan}{Biểu đồ use case tổng quan}
 
@@ -77,322 +77,226 @@ Hệ thống có ba tác nhân chính là Khách, Người dùng và Quản tr�
 
 @fig{DGM-UC-002-nguoi-dung}{Biểu đồ use case tổng quan phía người dùng}
 
-- Xác thực và quản lý tài khoản: đăng ký, đăng nhập, đăng xuất, cập nhật hồ sơ và đổi mật khẩu.
-- Quản lý chuyến đi: tạo, xem, thay đổi giai đoạn, nhân bản, xóa chuyến đi và xuất lịch trình.
-- Quản lý lịch trình: xem lịch trình và bản đồ, thêm, xóa hoạt động, xem phương án thay thế.
-- Sinh lịch trình tự động bằng AI: tạo lịch trình hoàn chỉnh từ địa điểm có thật.
-- Trò chuyện với trợ lý AI: hỏi đáp, nhận và xử lý đề xuất thay đổi lịch trình.
-- Quản lý ngân sách và chi tiêu, quản lý danh sách chuẩn bị.
-- Khám phá và đánh giá địa điểm; tham gia cộng đồng chia sẻ kinh nghiệm.
+- Xác thực và quản lý tài khoản: đăng ký tài khoản, đăng nhập, đăng xuất và quản lý thông tin hồ sơ cá nhân.
+- Quản lý chuyến đi và lịch trình: tạo chuyến đi (nhập liệu hoặc phân tích câu mô tả), quản lý danh sách chuyến đi, theo dõi và tùy chỉnh lịch trình chi tiết theo từng ngày trên bản đồ, xuất lịch trình ra tệp lịch.
+- Trợ lý AI lập và điều chỉnh lịch trình: yêu cầu AI tự động sinh lịch trình hoàn chỉnh từ địa điểm có thật, hỏi đáp với trợ lý AI, nhận và xử lý các đề xuất thay đổi lịch trình có thể hoàn tác.
+- Quản lý ngân sách và chuẩn bị hành lý: theo dõi dự toán và chi tiêu thực tế, quản lý danh sách đồ mang theo và việc cần làm, nhận gợi ý chuẩn bị phù hợp theo thời tiết và chuyến đi.
+- Khám phá địa điểm và cộng đồng chia sẻ: tìm kiếm địa điểm, lưu địa điểm yêu thích, đánh giá địa điểm đã đến, chia sẻ bài viết kinh nghiệm và sao chép lịch trình từ cộng đồng.
 
 #### 2.3.1.3. Mô hình use case phía quản trị
 
 @fig{DGM-UC-003-quan-tri}{Biểu đồ use case tổng quan phía quản trị viên}
 
-- Quản lý người dùng: tra cứu, tạo tài khoản, đổi vai trò, khóa/mở khóa, đặt lại mật khẩu, xóa tài khoản.
-- Quản lý chuyến đi trên toàn hệ thống: xem, chỉnh sửa thông tin cơ bản, xóa.
-- Quản lý tri thức điểm đến và trích xuất tri thức từ bài viết cộng đồng.
-- Xem thống kê sử dụng AI và nhật ký thực thi công cụ của trợ lý.
+- Quản lý người dùng: tra cứu danh sách, tạo tài khoản mới, cập nhật vai trò, khóa hoặc mở khóa, đặt lại mật khẩu và xóa tài khoản.
+- Quản lý chuyến đi toàn hệ thống: tra cứu, xem chi tiết, chỉnh sửa thông tin cơ bản và xóa chuyến đi bất kỳ.
+- Quản lý tri thức điểm đến: thêm, sửa, xóa, bật/tắt các mục tri thức và trích xuất tri thức du lịch từ bài viết cộng đồng bằng AI.
+- Giám sát AI: xem thống kê số lượt tương tác, lượng token tiêu thụ, tỷ lệ lỗi và kiểm tra nhật ký thực thi công cụ của trợ lý AI.
 
 ### 2.3.2. Mô tả các chức năng
 
-#### 2.3.2.1. Mô tả chức năng "Xác thực và quản lý tài khoản"
+#### 2.3.2.1. Mô tả chức năng "Khám phá địa điểm & Chia sẻ kinh nghiệm"
 
-@usecase[UC01]{Mô tả chức năng "Xác thực và quản lý tài khoản"}
-name: Xác thực và quản lý tài khoản
+@usecase[UC01]{Mô tả chức năng "Khám phá địa điểm & Chia sẻ kinh nghiệm"}
+name: Khám phá địa điểm & Chia sẻ kinh nghiệm
 code: UC_01
-actors: Khách, Người dùng, Quản trị viên
-desc: Chức năng cho phép tác nhân:
-- Đăng ký tài khoản mới
-- Đăng nhập, đăng xuất
-- Cập nhật hồ sơ, đổi mật khẩu
-trigger: Tác nhân chọn “Đăng ký”, “Đăng nhập”, “Đăng xuất” hoặc mở hộp thoại hồ sơ cá nhân.
-pre: Đăng ký: email chưa tồn tại. Đăng nhập: tài khoản tồn tại và đang hoạt động. Cập nhật hồ sơ, đổi mật khẩu: đã đăng nhập.
+actors: Khách vãng lai, Người dùng, Quản trị viên; tác nhân phụ: Google Places
+desc: Chức năng cho phép tác nhân tìm kiếm và khám phá các địa điểm du lịch, lưu địa điểm yêu thích, đánh giá địa điểm đã đến; xem, lọc bài viết cộng đồng, đăng bài chia sẻ kinh nghiệm (có hỗ trợ AI tạo bản nháp), tương tác bình chọn/bình luận và sao chép lịch trình trực tiếp từ bài viết.
+trigger: Tác nhân mở trang “Khám phá địa điểm”, trang “Cộng đồng & Review” hoặc chọn “Đánh giá” trên chuyến đi đã kết thúc.
+pre: Xem và tìm kiếm: không yêu cầu đăng nhập. Lưu địa điểm, đánh giá, đăng bài và tương tác: yêu cầu Người dùng đã đăng nhập.
 main:
-== Đăng ký
-1 | Khách | Chọn “Đăng ký”.
-2 | Hệ thống | Hiển thị biểu mẫu gồm họ tên, email, mật khẩu.
-3 | Khách | Nhập thông tin và nhấn “Đăng ký”.
-4 | Hệ thống | Kiểm tra dữ liệu, chuẩn hóa email, băm mật khẩu, tạo tài khoản vai trò Người dùng; thông báo thành công và chuyển sang trang đăng nhập.
-== Đăng nhập
-5 | Người dùng | Nhập email, mật khẩu và nhấn “Đăng nhập”.
-6 | Hệ thống | Kiểm tra số lần đăng nhập sai, đối chiếu mật khẩu, trạng thái tài khoản; cấp mã thông báo phiên và chuyển tới trang chủ.
-== Đăng xuất
-7 | Người dùng | Nhấn “Đăng xuất”.
-8 | Hệ thống | Xóa phiên đăng nhập trên trình duyệt và chuyển về trang đăng nhập.
-== Cập nhật hồ sơ, đổi mật khẩu
-9 | Người dùng | Mở hồ sơ, sửa họ tên, ảnh đại diện hoặc nhập mật khẩu hiện tại và mật khẩu mới.
-10 | Hệ thống | Kiểm tra dữ liệu, lưu thay đổi; khi đổi mật khẩu thì vô hiệu hóa các phiên cũ và cấp phiên mới.
+== Khám phá và đánh giá địa điểm
+1 | Tác nhân | Nhập từ khóa, chọn điểm đến và nhấn “Tìm kiếm”.
+2 | Hệ thống | Tìm kiếm qua dịch vụ địa điểm, lưu đệm kết quả, hiển thị danh sách địa điểm và đánh dấu trực quan trên bản đồ.
+3 | Người dùng | Chọn “Lưu” địa điểm vào danh sách yêu thích hoặc mở thẻ “Đã lưu”.
+4 | Hệ thống | Lưu địa điểm vào danh mục yêu thích của người dùng; hiển thị danh sách đã lưu.
+5 | Người dùng | Với chuyến đi đã kết thúc, chọn đánh giá “Thích” hoặc “Không thích” cho từng địa điểm đã trải nghiệm.
+6 | Hệ thống | Lưu đánh giá; các địa điểm “không thích” được tự động loại khỏi gợi ý lập lịch về sau.
+== Xem và tương tác cộng đồng
+7 | Tác nhân | Chọn điểm đến hoặc nhập từ khóa để lọc các bài viết chia sẻ, cuộn trang để xem thêm.
+8 | Hệ thống | Hiển thị danh sách bài viết mới nhất kèm lượt bình chọn hữu ích, bình luận và tác giả.
+9 | Người dùng | Nhấn bình chọn hữu ích hoặc gửi nội dung bình luận vào bài viết.
+10 | Hệ thống | Bật/tắt trạng thái bình chọn, cập nhật số đếm thời gian thực và lưu nội dung bình luận.
+== Đăng bài và sao chép lịch trình
+11 | Người dùng | Chọn “Viết bài”, nhập tiêu đề, điểm đến, nội dung, ảnh đính kèm và chọn liên kết chuyến đi (tùy chọn); hoặc chọn “AI viết review” từ chuyến đi đã hoàn thành.
+12 | Hệ thống | Với hỗ trợ AI: tổng hợp danh sách địa điểm đã đi, chi phí và đánh giá, tự động sinh bản nháp bài tổng kết; hoặc kiểm tra dữ liệu bài viết nhập tay và lưu bài viết.
+13 | Người dùng | Chọn “Sao chép lịch trình” trên bài viết có đính kèm chuyến đi, chọn ngày khởi hành mới.
+14 | Hệ thống | Khởi tạo chuyến đi mới trong tài khoản người dùng với toàn bộ hoạt động lịch trình được dời theo ngày đã chọn.
 alt:
-4a | Hệ thống | Email đã được sử dụng: thông báo lỗi, quay lại bước 2.
-4b | Hệ thống | Dữ liệu không hợp lệ (email sai định dạng, mật khẩu dưới 8 ký tự): thông báo lỗi.
-6a | Hệ thống | Sai email hoặc mật khẩu: thông báo lỗi và ghi nhận một lần thất bại.
-6b | Hệ thống | Tài khoản bị khóa: từ chối đăng nhập.
-6c | Hệ thống | Sai quá 5 lần trong 5 phút: tạm khóa đăng nhập và thông báo thời gian chờ.
-10a | Hệ thống | Mật khẩu hiện tại không đúng hoặc ảnh đại diện không phải địa chỉ https: thông báo lỗi.
-post: Tài khoản được tạo; phiên đăng nhập được thiết lập hoặc hủy; thông tin hồ sơ, mật khẩu được cập nhật.
+2a | Hệ thống | Dịch vụ địa điểm bên ngoài gặp sự cố hoặc không có kết quả: chuyển sang tìm kiếm trong danh mục địa điểm nội bộ.
+5a | Hệ thống | Chuyến đi chưa kết thúc: từ chối thực hiện đánh giá.
+12a | Hệ thống | Dịch vụ AI lỗi khi sinh bản nháp bài viết: tạo bản nháp thay thế theo mẫu cấu trúc từ dữ liệu chuyến đi.
+12b | Hệ thống | Ảnh đính kèm không phải định dạng https hợp lệ hoặc vượt độ dài cho phép: thông báo lỗi và yêu cầu chỉnh sửa.
+post: Địa điểm được tìm kiếm và lưu; đánh giá được ghi nhận; bài viết/bình luận được cập nhật; chuyến đi mới được sao chép thành công.
+@end
+
+@fig{DGM-UC-008-dia-diem-chia-se}{Biểu đồ use case phân rã chức năng "Khám phá địa điểm & Chia sẻ kinh nghiệm"}
+
+#### 2.3.2.2. Mô tả chức năng "Xác thực và quản lý tài khoản"
+
+@usecase[UC02]{Mô tả chức năng "Xác thực và quản lý tài khoản"}
+name: Xác thực và quản lý tài khoản
+code: UC_02
+actors: Khách vãng lai, Người dùng, Quản trị viên
+desc: Chức năng cho phép tác nhân đăng ký tài khoản mới, đăng nhập, đăng xuất khỏi hệ thống, cập nhật thông tin hồ sơ cá nhân, đổi mật khẩu và thực hiện quy trình khôi phục mật khẩu qua email.
+trigger: Tác nhân chọn “Đăng ký”, “Đăng nhập”, “Đăng xuất”, mở trang hồ sơ cá nhân hoặc chọn “Quên mật khẩu”.
+pre: Đăng ký: email chưa tồn tại trên hệ thống. Đăng nhập: tài khoản đã tồn tại và đang ở trạng thái hoạt động. Cập nhật hồ sơ, đổi mật khẩu: tác nhân đã đăng nhập.
+main:
+== Đăng ký tài khoản
+1 | Khách vãng lai | Chọn “Đăng ký”, nhập họ tên, email, mật khẩu và xác nhận.
+2 | Hệ thống | Kiểm tra định dạng dữ liệu, chuẩn hóa email, băm mật khẩu bảo mật (BCrypt), tạo tài khoản vai trò Người dùng; hiển thị thông báo thành công và chuyển sang trang đăng nhập.
+== Đăng nhập và đăng xuất
+3 | Người dùng | Nhập email, mật khẩu và nhấn “Đăng nhập”.
+4 | Hệ thống | Kiểm tra số lần đăng nhập sai, đối chiếu thông tin xác thực, kiểm tra trạng thái khóa tài khoản; cấp mã thông báo phiên (JWT token) và chuyển hướng tới trang làm việc.
+5 | Người dùng | Chọn “Đăng xuất”.
+6 | Hệ thống | Vô hiệu hóa phiên làm việc trên trình duyệt và điều hướng về màn hình đăng nhập.
+== Cập nhật hồ sơ và đổi mật khẩu
+7 | Người dùng | Mở trang hồ sơ, cập nhật họ tên, ảnh đại diện hoặc nhập mật khẩu hiện tại cùng mật khẩu mới.
+8 | Hệ thống | Kiểm tra tính hợp lệ của dữ liệu, lưu thay đổi vào cơ sở dữ liệu; khi đổi mật khẩu thành công thì hủy các phiên đăng nhập cũ và cấp phiên mới.
+== Khôi phục mật khẩu
+9 | Tác nhân | Chọn “Quên mật khẩu”, nhập địa chỉ email đã đăng ký và yêu cầu cấp lại.
+10 | Hệ thống | Xác thực email tồn tại, tạo mã xác thực an toàn gửi tới email người dùng; sau khi người dùng xác nhận mã hợp lệ, cho phép đặt lại mật khẩu mới.
+alt:
+2a | Hệ thống | Email đã tồn tại trên hệ thống: thông báo lỗi trùng lặp và yêu cầu sử dụng email khác.
+2b | Hệ thống | Mật khẩu không đủ độ dài an toàn (dưới 8 ký tự): thông báo lỗi quy chuẩn.
+4a | Hệ thống | Nhập sai email hoặc mật khẩu: ghi nhận thất bại và hiển thị thông báo sai thông tin.
+4b | Hệ thống | Tài khoản đang bị quản trị viên khóa: từ chối quyền truy cập và thông báo lý do.
+4c | Hệ thống | Đăng nhập sai quá 5 lần liên tiếp trong 5 phút: tạm khóa đăng nhập và thông báo thời gian chờ.
+post: Tài khoản được khởi tạo; phiên đăng nhập được cấp hoặc hủy; hồ sơ và mật khẩu được cập nhật an toàn.
 @end
 
 @fig{DGM-UC-004-xac-thuc}{Biểu đồ use case phân rã chức năng "Xác thực và quản lý tài khoản"}
 
-#### 2.3.2.2. Mô tả chức năng "Quản lý chuyến đi"
+#### 2.3.2.3. Mô tả chức năng "Quản lý chuyến đi và lịch trình"
 
-@usecase[UC02]{Mô tả chức năng "Quản lý chuyến đi"}
-name: Quản lý chuyến đi
-code: UC_02
-actors: Người dùng
-desc: Chức năng cho phép người dùng tạo chuyến đi, xem danh sách và chi tiết, thay đổi giai đoạn, nhân bản, xóa chuyến đi và xuất lịch trình ra tệp lịch.
-trigger: Người dùng chọn “Tạo chuyến đi mới”, nhập mô tả ở ô “Lập kế hoạch bằng AI” hoặc thao tác trên trang chi tiết chuyến đi.
-pre: Người dùng đã đăng nhập.
-main:
-== Tạo chuyến đi
-1 | Người dùng | Nhập câu mô tả chuyến đi (tùy chọn) và nhấn “Phân tích & Tạo”, hoặc chọn “Tạo chuyến đi mới”.
-2 | Hệ thống | Phân tích câu mô tả bằng AI (nếu có) và điền sẵn biểu mẫu nhiều bước.
-3 | Người dùng | Chọn hoặc nhập điểm đến, ngày đi, ngày về, đoàn đi, sở thích, ngân sách và xác nhận.
-4 | Hệ thống | Kiểm tra dữ liệu, xác định điểm đến (danh mục có sẵn, dịch vụ địa điểm hoặc nhập tay), tạo chuyến đi cùng các ngày lịch trình.
-== Xem danh sách và chi tiết
-5 | Người dùng | Chọn nhóm “Sắp tới & Đang đi” hoặc “Đã hoàn thành”, chọn một chuyến đi.
-6 | Hệ thống | Hiển thị danh sách theo giai đoạn; trang chi tiết gồm thông tin chung, lịch trình, ngân sách, danh sách chuẩn bị và thời tiết.
-== Thay đổi giai đoạn, nhân bản, xóa, xuất lịch
-7 | Người dùng | Chọn giai đoạn, “Nhân bản” (chọn ngày bắt đầu mới), “Xóa” hoặc “Xuất lịch”.
-8 | Hệ thống | Cập nhật giai đoạn; hoặc tạo bản sao dời toàn bộ ngày, hoạt động, danh sách chuẩn bị theo ngày mới; hoặc xóa chuyến đi cùng dữ liệu liên quan sau khi xác nhận; hoặc tạo tệp lịch để tải về.
-alt:
-2a | Hệ thống | AI lỗi hoặc chưa cấu hình: dùng bộ phân tích dự phòng theo mẫu câu tiếng Việt.
-2b | Hệ thống | Vượt 20 lượt dùng AI trong giờ: thông báo giới hạn.
-4a | Hệ thống | Ngày về trước ngày đi hoặc chuyến đi dài quá 30 ngày: thông báo lỗi.
-4b | Hệ thống | Số trẻ em và người cao tuổi vượt tổng số người hoặc thiếu điểm đến: thông báo lỗi.
-4c | Hệ thống | Dịch vụ địa điểm lỗi khi xác định điểm đến: thông báo lỗi dịch vụ bên ngoài.
-8a | Hệ thống | Chuyến đi không thuộc người dùng: thông báo không tìm thấy.
-post: Chuyến đi được tạo, cập nhật, nhân bản hoặc xóa; tệp lịch được tải về.
-@end
-
-@fig{DGM-UC-005-chuyen-di}{Biểu đồ use case phân rã chức năng "Quản lý chuyến đi"}
-
-#### 2.3.2.3. Mô tả chức năng "Quản lý lịch trình"
-
-@usecase[UC03]{Mô tả chức năng "Quản lý lịch trình"}
-name: Quản lý lịch trình
+@usecase[UC03]{Mô tả chức năng "Quản lý chuyến đi và lịch trình"}
+name: Quản lý chuyến đi và lịch trình
 code: UC_03
 actors: Người dùng
-desc: Chức năng cho phép xem lịch trình theo ngày cùng bản đồ, thêm và xóa hoạt động, nhận gợi ý chi phí, xem và chọn phương án thay thế, xem lý do AI đề xuất hoạt động.
-trigger: Người dùng mở thẻ “Lịch trình chi tiết” trong trang chuyến đi.
-pre: Người dùng đã đăng nhập và là chủ chuyến đi.
+desc: Chức năng cho phép người dùng tạo chuyến đi mới (thủ công hoặc phân tích câu mô tả bằng AI), quản lý danh sách chuyến đi theo từng giai đoạn, theo dõi và tùy biến chi tiết hoạt động lịch trình theo từng ngày trên bản đồ số, xem phương án địa điểm thay thế, nhân bản, xóa chuyến đi và xuất lịch trình ra định dạng lịch iCalendar (.ics).
+trigger: Người dùng nhấn “Tạo chuyến đi mới”, nhập câu lệnh tại ô “Lập kế hoạch bằng AI” hoặc thao tác trực tiếp trên trang chi tiết chuyến đi.
+pre: Người dùng đã đăng nhập thành công vào hệ thống.
 main:
-== Xem lịch trình
-1 | Người dùng | Chọn một ngày trong lịch trình.
-2 | Hệ thống | Hiển thị các hoạt động theo thứ tự, khoảng cách, thời gian di chuyển ước tính giữa các hoạt động, tổng chi phí và bản đồ trong ngày.
-== Thêm hoạt động
-3 | Người dùng | Chọn “Thêm hoạt động”, nhập tiêu đề, loại, thời gian, chi phí hoặc chọn từ địa điểm đã lưu.
-4 | Hệ thống | Gợi ý chi phí theo mức giá địa điểm và số người khi được yêu cầu.
-5 | Người dùng | Xác nhận lưu.
-6 | Hệ thống | Kiểm tra dữ liệu, ghi nhận địa điểm vào danh mục nếu cần, thêm hoạt động vào cuối ngày.
-== Xóa hoạt động
-7 | Người dùng | Chọn xóa một hoạt động và xác nhận.
-8 | Hệ thống | Xóa hoạt động và đánh lại thứ tự các hoạt động còn lại.
-== Phương án thay thế và giải thích
-9 | Người dùng | Mở phương án thay thế của hoạt động ăn uống/lưu trú, hoặc chọn “Vì sao?”.
-10 | Hệ thống | Hiển thị tối đa ba phương án theo mức tiết kiệm, cân bằng, cao cấp từ địa điểm có thật; hoặc hiển thị lý do, công cụ đã dùng và các ứng viên bị loại.
-11 | Người dùng | Chọn một phương án thay thế.
-12 | Hệ thống | Cập nhật địa điểm, tiêu đề và chi phí của hoạt động.
+== Tạo chuyến đi mới
+1 | Người dùng | Nhập câu mô tả chuyến đi (tùy chọn) và nhấn “Phân tích & Tạo”, hoặc chọn tạo thủ công.
+2 | Hệ thống | Phân tích tự động nội dung mô tả (nếu có) và điền sẵn thông tin vào biểu mẫu; hỗ trợ người dùng chọn điểm đến, ngày đi/về, số lượng thành viên đoàn, phong cách và dự toán ngân sách.
+3 | Người dùng | Kiểm tra thông tin và nhấn “Xác nhận tạo”.
+4 | Hệ thống | Kiểm tra tính hợp lệ của thời gian, lưu chuyến đi và tự động khởi tạo khung lịch trình theo từng ngày tương ứng.
+== Quản lý danh sách và theo dõi lịch trình
+5 | Người dùng | Chọn nhóm chuyến đi “Sắp tới & Đang đi” hoặc “Đã hoàn thành”, mở xem một chuyến đi cụ thể.
+6 | Hệ thống | Hiển thị danh sách hoạt động theo thứ tự thời gian trong ngày, tính toán khoảng cách và thời gian di chuyển ước tính giữa các điểm, tổng hợp chi phí và đánh dấu trực quan trên bản đồ.
+== Tùy chỉnh hoạt động và phương án thay thế
+7 | Người dùng | Thêm mới một hoạt động (tiêu đề, thời gian, loại hình, chi phí ước tính) hoặc chọn xóa một hoạt động hiện có.
+8 | Hệ thống | Cập nhật hoạt động vào ngày tương ứng, sắp xếp lại trình tự thời gian và tự động tính lại tổng chi phí ngày.
+9 | Người dùng | Chọn xem “Phương án thay thế” cho một hoạt động ăn uống/lưu trú, hoặc nhấn “Vì sao?” để xem lý do lựa chọn.
+10 | Hệ thống | Đề xuất tối đa 3 phương án địa điểm thay thế theo các tiêu chí (tiết kiệm, cân bằng, cao cấp) từ nguồn dữ liệu thực tế và cập nhật hoạt động khi người dùng chọn.
+== Nhân bản, đổi giai đoạn và xuất lịch
+11 | Người dùng | Chọn “Nhân bản” (chọn ngày bắt đầu mới), chuyển đổi trạng thái chuyến đi, hoặc chọn “Xuất lịch”.
+12 | Hệ thống | Tạo bản sao độc lập dời toàn bộ lịch trình và dữ liệu liên quan sang mốc thời gian mới; hoặc tạo và tải về tệp tin lịch .ics để đồng bộ vào Google Calendar/Apple Calendar.
 alt:
-6a | Hệ thống | Giờ kết thúc trước giờ bắt đầu hoặc thiếu thông tin bắt buộc: thông báo lỗi.
-6b | Hệ thống | Ngày không thuộc chuyến đi: thông báo không tìm thấy.
-4a | Hệ thống | Không đủ dữ liệu để ước tính: trả về lý do, không tự đoán giá.
-post: Lịch trình được cập nhật và hiển thị lại.
+2a | Hệ thống | Dịch vụ AI phân tích câu mô tả gặp sự cố: chuyển hướng người dùng nhập liệu từng bước qua biểu mẫu chuẩn.
+4a | Hệ thống | Ngày kết thúc trước ngày khởi hành hoặc chuyến đi vượt quá giới hạn 30 ngày: thông báo lỗi ngày tháng.
+4b | Hệ thống | Dữ liệu cấu trúc đoàn không hợp lệ (số trẻ em/người cao tuổi vượt tổng người): thông báo lỗi nhập liệu.
+post: Chuyến đi và khung lịch trình được khởi tạo, cập nhật, nhân bản hoặc xuất tệp tin lịch thành công.
 @end
 
-@fig{DGM-UC-006-lich-trinh}{Biểu đồ use case phân rã chức năng "Quản lý lịch trình"}
+@fig{DGM-UC-005-chuyen-di-lich-trinh}{Biểu đồ use case phân rã chức năng "Quản lý chuyến đi và lịch trình"}
 
-#### 2.3.2.4. Mô tả chức năng "Sinh lịch trình tự động bằng AI"
+#### 2.3.2.4. Mô tả chức năng "Trợ lý AI lập và điều chỉnh lịch trình"
 
-@usecase[UC04]{Mô tả chức năng "Sinh lịch trình tự động bằng AI"}
-name: Sinh lịch trình tự động bằng AI
+@usecase[UC04]{Mô tả chức năng "Trợ lý AI lập và điều chỉnh lịch trình"}
+name: Trợ lý AI lập và điều chỉnh lịch trình
 code: UC_04
 actors: Người dùng; tác nhân phụ: Dịch vụ LLM, Google Places, Open-Meteo
-desc: Chức năng tạo lịch trình hoàn chỉnh cho chuyến đi từ các địa điểm có thật, có kiểm chứng và theo dõi tiến độ.
-trigger: Người dùng nhấn “Tạo lịch trình AI” trên trang chi tiết chuyến đi.
-pre: Người dùng là chủ chuyến đi; lịch trình chưa có hoạt động nào; dịch vụ AI đã được cấu hình.
+desc: Chức năng cho phép tự động sinh lịch trình hoàn chỉnh từ các địa điểm có thật thông qua mô hình ngôn ngữ lớn kết hợp xác thực thời tiết và tri thức du lịch; hỗ trợ hỏi đáp trực tiếp với trợ lý AI trong ngữ cảnh chuyến đi, tự động gọi công cụ nghiệp vụ và tạo đề xuất thay đổi lịch trình có thể hoàn tác an toàn.
+trigger: Người dùng nhấn “Tạo lịch trình AI” hoặc mở khung hội thoại “Trợ lý AI” trong trang chi tiết chuyến đi.
+pre: Người dùng là chủ sở hữu chuyến đi; dịch vụ AI đã được cấu hình và sẵn sàng hoạt động.
 main:
-1 | Người dùng | Nhấn “Tạo lịch trình AI”.
-2 | Hệ thống | Tạo tác vụ nền, đưa vào hàng đợi và trả về mã tác vụ.
-3 | Hệ thống | Thu thập địa điểm thực theo điểm đến, chế độ ăn và sở thích; loại bỏ địa điểm người dùng không thích.
-4 | Hệ thống | Lấy thời tiết từng ngày và tri thức điểm đến, gửi yêu cầu lập lịch tới mô hình ngôn ngữ.
-5 | Hệ thống | Kiểm chứng từng hoạt động: phải khớp địa điểm thực, không trùng lặp; loại các mục không hợp lệ kèm lý do.
-6 | Hệ thống | Lưu đề xuất, áp dụng vào lịch trình, sinh phương án thay thế và gửi tiến độ theo thời gian thực.
-7 | Người dùng | Theo dõi thanh tiến độ, xem kết quả và số hoạt động bị loại.
+== Sinh lịch trình tự động bằng AI
+1 | Người dùng | Nhấn “Tạo lịch trình AI” trên trang chi tiết chuyến đi.
+2 | Hệ thống | Khởi tạo tác vụ chạy ngầm, cấp mã tác vụ và đưa vào hàng đợi xử lý.
+3 | Hệ thống | Thu thập địa điểm thực tế theo điểm đến, khẩu vị ăn uống, sở thích du lịch; đồng thời loại bỏ các địa điểm mà người dùng đã từng đánh giá không thích.
+4 | Hệ thống | Truy vấn dự báo thời tiết cho từng ngày của chuyến đi và tích hợp dữ liệu tri thức điểm đến, sau đó gửi prompt có cấu trúc tới mô hình LLM.
+5 | Hệ thống | Kiểm chứng nghiêm ngặt từng hoạt động do AI sinh ra: bắt buộc phải khớp địa điểm thực tế, không bị trùng lặp tọa độ và thời gian; loại bỏ các hoạt động ảo kèm lý do chi tiết.
+6 | Hệ thống | Lưu đề xuất vào cơ sở dữ liệu, áp dụng vào lịch trình chuyến đi và phát tiến độ xử lý theo thời gian thực (SSE) lên giao diện người dùng.
+== Trò chuyện và điều chỉnh lịch trình qua AI
+7 | Người dùng | Nhập câu hỏi hoặc yêu cầu điều chỉnh lịch trình vào khung chat trợ lý AI.
+8 | Hệ thống | Dựng ngữ cảnh hội thoại gồm thông tin chuyến đi, thời tiết và lịch sử trao đổi; gửi yêu cầu tới mô hình AI và thực thi các công cụ nghiệp vụ (function calling) được yêu cầu.
+9 | Hệ thống | Truyền phản hồi dạng dòng (streaming) về giao diện; nếu có sự thay đổi lịch trình, hiển thị thẻ đề xuất trực quan kèm mức chênh lệch chi phí.
+10 | Người dùng | Xem xét thẻ đề xuất và nhấn “Áp dụng” hoặc “Từ chối”.
+11 | Hệ thống | Áp dụng thay đổi vào các ngày lịch trình tương ứng, ghi nhận điểm lưu vết hoàn tác; hoặc hủy bỏ đề xuất.
+12 | Người dùng | Nhấn “Hoàn tác” trong khoảng thời gian cho phép nếu không ưng ý với kết quả vừa áp dụng.
+13 | Hệ thống | Khôi phục lại trạng thái lịch trình trước đó, bảo toàn nguyên vẹn các hoạt động người dùng đã tự chỉnh sửa thủ công.
 alt:
-2a | Hệ thống | Lịch trình đã có hoạt động: từ chối yêu cầu.
-2b | Hệ thống | Đã có tác vụ đang chạy cho chuyến đi: trả về tác vụ hiện có.
-2c | Hệ thống | AI chưa cấu hình hoặc vượt giới hạn sử dụng: thông báo lỗi.
-5a | Hệ thống | Mô hình trả về dữ liệu không đọc được hoặc không có hoạt động hợp lệ: tác vụ thất bại, đề xuất bị đánh dấu hết hạn.
-7a | Người dùng | Kết nối thời gian thực bị gián đoạn: giao diện chuyển sang hỏi trạng thái định kỳ.
-post: Lịch trình được điền các hoạt động đã kiểm chứng; có thể hoàn tác trong 10 phút.
+2a | Hệ thống | Lịch trình hiện tại đã có hoạt động: yêu cầu người dùng xác nhận xóa lịch cũ trước khi tạo mới bằng AI.
+5a | Hệ thống | Mô hình AI trả về dữ liệu sai định dạng hoặc không có địa điểm hợp lệ: đánh dấu tác vụ thất bại và thông báo người dùng thử lại.
+9a | Hệ thống | Quá trình gọi công cụ AI vượt giới hạn thời gian (timeout): thông báo lỗi và yêu cầu người dùng tinh chỉnh lại câu hỏi ngắn gọn hơn.
+12a | Hệ thống | Quá thời hạn hoàn tác (10 phút) hoặc đã có thay đổi mới ghi đè: từ chối yêu cầu hoàn tác.
+post: Lịch trình chuyến đi được tự động tạo lập từ địa điểm thực; các đề xuất tinh chỉnh qua AI được áp dụng hoặc hoàn tác an toàn.
 @end
 
-@fig{DGM-UC-007-sinh-lich-trinh}{Biểu đồ use case phân rã chức năng "Sinh lịch trình tự động bằng AI"}
+@fig{DGM-UC-006-tro-ly-ai}{Biểu đồ use case phân rã chức năng "Trợ lý AI lập và điều chỉnh lịch trình"}
 
-#### 2.3.2.5. Mô tả chức năng "Trò chuyện với trợ lý AI"
+#### 2.3.2.5. Mô tả chức năng "Quản lý ngân sách và chuẩn bị hành lý"
 
-@usecase[UC05]{Mô tả chức năng "Trò chuyện với trợ lý AI"}
-name: Trò chuyện với trợ lý AI
+@usecase[UC05]{Mô tả chức năng "Quản lý ngân sách và chuẩn bị hành lý"}
+name: Quản lý ngân sách và chuẩn bị hành lý
 code: UC_05
-actors: Người dùng; tác nhân phụ: Dịch vụ LLM
-desc: Chức năng cho phép người dùng hỏi đáp với trợ lý AI về chuyến đi; trợ lý gọi các công cụ nghiệp vụ và có thể tạo đề xuất thay đổi lịch trình để người dùng áp dụng, từ chối hoặc hoàn tác.
-trigger: Người dùng mở khung “Trợ lý AI” trong trang chi tiết chuyến đi.
-pre: Người dùng là chủ chuyến đi; dịch vụ AI đã được cấu hình.
-main:
-== Hỏi đáp
-1 | Người dùng | Nhập câu hỏi và gửi.
-2 | Hệ thống | Lưu tin nhắn, dựng ngữ cảnh gồm hướng dẫn hệ thống, thông tin chuyến đi và lịch sử hội thoại gần nhất.
-3 | Hệ thống | Lặp: gửi yêu cầu tới mô hình; nếu mô hình yêu cầu công cụ thì thực thi, ghi nhật ký và báo trạng thái công cụ lên giao diện.
-4 | Hệ thống | Truyền dần câu trả lời về giao diện, lưu tin nhắn trả lời.
-== Xử lý đề xuất
-5 | Người dùng | Xem thẻ đề xuất (danh sách thay đổi, chênh lệch chi phí) và chọn “Áp dụng” hoặc “Từ chối”.
-6 | Hệ thống | Kiểm tra đề xuất còn hiệu lực, áp dụng các thay đổi và lưu nhật ký hoàn tác; hoặc đánh dấu bị từ chối.
-7 | Người dùng | Chọn “Hoàn tác” trong thời gian cho phép.
-8 | Hệ thống | Khôi phục lịch trình, giữ nguyên các hoạt động người dùng đã sửa tay sau khi áp dụng.
-alt:
-3a | Hệ thống | Vượt số vòng hoặc thời gian cho phép: yêu cầu mô hình kết luận với thông tin đã có.
-3b | Hệ thống | Lỗi trong quá trình xử lý: gửi sự kiện lỗi và đóng kết nối.
-6a | Hệ thống | Đề xuất đã hết hạn, đã xử lý hoặc không còn phù hợp với lịch trình hiện tại: từ chối áp dụng.
-8a | Hệ thống | Quá 10 phút hoặc có đề xuất áp dụng sau đó chạm cùng hoạt động: từ chối hoàn tác.
-post: Hội thoại được lưu; lịch trình được thay đổi chỉ khi người dùng áp dụng đề xuất.
-@end
-
-@fig{DGM-UC-008-tro-ly-ai}{Biểu đồ use case phân rã chức năng "Trò chuyện với trợ lý AI"}
-
-#### 2.3.2.6. Mô tả chức năng "Quản lý ngân sách và chi tiêu"
-
-@usecase[UC06]{Mô tả chức năng "Quản lý ngân sách và chi tiêu"}
-name: Quản lý ngân sách và chi tiêu
-code: UC_06
-actors: Người dùng
-desc: Chức năng tổng hợp ngân sách dự kiến và thực tế, cảnh báo vượt ngân sách, tính mức chi mỗi ngày và quản lý các khoản chi.
-trigger: Người dùng mở thẻ “Ngân sách & Chi tiêu”.
-pre: Người dùng là chủ chuyến đi.
-main:
-1 | Người dùng | Mở thẻ ngân sách.
-2 | Hệ thống | Hiển thị tổng ngân sách, chi phí ước tính từ lịch trình, số đã chi, số còn lại, mức cảnh báo và mức chi khuyến nghị mỗi ngày.
-3 | Người dùng | Nhập số tiền, danh mục, ngày chi, ghi chú và lưu khoản chi.
-4 | Hệ thống | Kiểm tra dữ liệu, lưu khoản chi, cập nhật tổng hợp.
-5 | Người dùng | Xem lịch sử chi tiêu, chọn xóa một khoản chi.
-6 | Hệ thống | Xóa khoản chi và cập nhật tổng hợp.
-alt:
-4a | Hệ thống | Số tiền âm hoặc đơn vị tiền khác với đơn vị của chuyến đi: thông báo lỗi.
-2a | Hệ thống | Chưa đặt ngân sách: chỉ hiển thị số liệu, không cảnh báo.
-post: Khoản chi được ghi nhận hoặc xóa; tổng hợp ngân sách được cập nhật.
-@end
-
-@fig{DGM-UC-009-ngan-sach}{Biểu đồ use case phân rã chức năng "Quản lý ngân sách và chi tiêu"}
-
-#### 2.3.2.7. Mô tả chức năng "Quản lý danh sách chuẩn bị"
-
-@usecase[UC07]{Mô tả chức năng "Quản lý danh sách chuẩn bị"}
-name: Quản lý danh sách chuẩn bị
-code: UC_07
 actors: Người dùng; tác nhân phụ: Open-Meteo
-desc: Chức năng quản lý hai nhóm “đồ mang theo” và “việc cần làm”, đồng thời gợi ý các mục phù hợp với chuyến đi.
-trigger: Người dùng mở thẻ “Checklist chuẩn bị”.
-pre: Người dùng là chủ chuyến đi.
+desc: Chức năng quản lý tài chính chuyến đi (dự toán, chi phí ước tính từ lịch trình, ghi nhận các khoản chi tiêu thực tế, tính hạn mức chi khuyến nghị mỗi ngày và cảnh báo nguy cơ vượt ngân sách) cùng quản lý danh sách chuẩn bị (checklist đồ dùng mang theo, danh mục việc cần làm, tự động gợi ý thông minh dựa theo điều kiện thời tiết thực tế).
+trigger: Người dùng mở thẻ “Ngân sách & Chi tiêu” hoặc thẻ “Checklist chuẩn bị” trên trang chi tiết chuyến đi.
+pre: Người dùng là chủ sở hữu chuyến đi.
 main:
-1 | Người dùng | Nhập tên mục, chọn loại và nhấn “Thêm”.
-2 | Hệ thống | Lưu mục mới, bỏ qua mục trùng tên trong cùng nhóm.
-3 | Người dùng | Đánh dấu hoàn thành hoặc xóa mục.
-4 | Hệ thống | Cập nhật danh sách.
-5 | Người dùng | Chọn “Gợi ý”.
-6 | Hệ thống | Áp dụng các quy tắc theo thời tiết (mưa, nóng, lạnh), độ dài chuyến đi, đi nước ngoài, trẻ em, phương tiện, loại hoạt động; trả về danh sách gợi ý kèm lý do.
-7 | Người dùng | Chọn các mục gợi ý muốn thêm.
-8 | Hệ thống | Lưu các mục đã chọn với nguồn “gợi ý”.
+== Quản lý ngân sách và chi tiêu
+1 | Người dùng | Mở thẻ “Ngân sách & Chi tiêu”.
+2 | Hệ thống | Hiển thị bảng tổng hợp gồm tổng ngân sách thiết lập, chi phí ước tính từ lịch trình, số tiền đã chi, số dư còn lại, biểu đồ phân bổ danh mục và hạn mức chi tiêu khuyến nghị mỗi ngày.
+3 | Người dùng | Nhấn “Thêm khoản chi”, nhập số tiền, chọn danh mục chi (ăn uống, đi lại, lưu trú, vé tham quan, mua sắm...), ngày chi và ghi chú.
+4 | Hệ thống | Kiểm tra tính hợp lệ của số tiền và loại tiền tệ, lưu khoản chi vào cơ sở dữ liệu và tự động cập nhật lại các chỉ số tổng hợp tài chính.
+5 | Người dùng | Xem danh sách lịch sử chi tiêu, thực hiện chỉnh sửa hoặc xóa một khoản chi đã ghi nhận.
+6 | Hệ thống | Xóa khoản chi và tính toán lại tức thì số dư ngân sách khả dụng.
+== Quản lý danh sách chuẩn bị và gợi ý thông minh
+7 | Người dùng | Mở thẻ “Checklist chuẩn bị”, nhập tên mục đồ dùng hoặc đầu việc cần làm, chọn nhóm phân loại và nhấn “Thêm”.
+8 | Hệ thống | Lưu mục chuẩn bị vào danh sách; tự động phát hiện và bỏ qua các mục bị trùng tên trong cùng một nhóm.
+9 | Người dùng | Đánh dấu hoàn thành (tick chọn) khi đã chuẩn bị xong hoặc nhấn xóa mục không cần thiết.
+10 | Người dùng | Nhấn nút “Gợi ý thông minh”.
+11 | Hệ thống | Tự động phân tích các yếu tố: điều kiện thời tiết dự báo (mưa, nắng nóng, lạnh), độ dài chuyến đi, phương tiện di chuyển, có trẻ em hoặc người cao tuổi đi cùng; sinh danh sách gợi ý kèm lý do trực quan.
+12 | Người dùng | Đánh dấu chọn các mục gợi ý mong muốn và nhấn “Thêm vào danh sách”.
+13 | Hệ thống | Bổ sung các mục đã chọn vào danh sách chuẩn bị chính thức với nguồn gốc ghi nhận là “Gợi ý AI”.
 alt:
-6a | Hệ thống | Không lấy được thời tiết: bỏ qua nhóm quy tắc thời tiết và thông báo.
-2a | Hệ thống | Tên mục trống hoặc quá dài: thông báo lỗi.
-post: Danh sách chuẩn bị được cập nhật.
+4a | Hệ thống | Số tiền nhập vào mang giá trị âm hoặc khác đơn vị tiền tệ của chuyến đi: từ chối lưu và thông báo lỗi.
+2a | Hệ thống | Chi phí thực tế vượt ngưỡng 80% hoặc 100% ngân sách: hiển thị cảnh báo màu vàng/đỏ nổi bật trên giao diện.
+11a | Hệ thống | Dịch vụ thời tiết không phản hồi: bỏ qua nhóm quy tắc thời tiết và áp dụng các quy tắc gợi ý cơ bản theo thời lượng chuyến đi.
+post: Các khoản chi tiêu được ghi nhận và tính toán chính xác; danh sách chuẩn bị đồ dùng và công việc được cập nhật đầy đủ.
 @end
 
-@fig{DGM-UC-010-checklist}{Biểu đồ use case phân rã chức năng "Quản lý danh sách chuẩn bị"}
+@fig{DGM-UC-007-ngan-sach-hanh-ly}{Biểu đồ use case phân rã chức năng "Quản lý ngân sách và chuẩn bị hành lý"}
 
-#### 2.3.2.8. Mô tả chức năng "Khám phá và đánh giá địa điểm"
+#### 2.3.2.6. Mô tả chức năng "Quản trị hệ thống"
 
-@usecase[UC08]{Mô tả chức năng "Khám phá và đánh giá địa điểm"}
-name: Khám phá và đánh giá địa điểm
-code: UC_08
-actors: Người dùng; tác nhân phụ: Google Places
-desc: Chức năng tìm kiếm địa điểm, hiển thị trên bản đồ, lưu địa điểm yêu thích và đánh giá các địa điểm đã đến sau chuyến đi.
-trigger: Người dùng mở trang “Khám phá địa điểm” hoặc chọn “Đánh giá” trên chuyến đi đã kết thúc.
-pre: Người dùng đã đăng nhập; đánh giá chỉ khả dụng khi chuyến đi đã kết thúc.
-main:
-1 | Người dùng | Nhập từ khóa, chọn điểm đến và nhấn “Tìm kiếm”.
-2 | Hệ thống | Tìm kiếm qua dịch vụ địa điểm, lưu đệm kết quả, hiển thị danh sách và đánh dấu trên bản đồ.
-3 | Người dùng | Chọn “Lưu” một địa điểm hoặc mở thẻ “Đã lưu”.
-4 | Hệ thống | Lưu địa điểm vào danh sách yêu thích; hiển thị danh sách đã lưu.
-5 | Người dùng | Với chuyến đi đã kết thúc, chọn “Thích” hoặc “Không thích” cho từng địa điểm đã đến.
-6 | Hệ thống | Lưu đánh giá; địa điểm “không thích” bị loại khỏi các gợi ý về sau.
-alt:
-2a | Hệ thống | Dịch vụ địa điểm lỗi hoặc không có kết quả: tìm trong danh mục địa điểm nội bộ.
-6a | Hệ thống | Chuyến đi chưa kết thúc: từ chối đánh giá.
-post: Danh sách địa điểm đã lưu và đánh giá được cập nhật.
-@end
-
-@fig{DGM-UC-011-dia-diem}{Biểu đồ use case phân rã chức năng "Khám phá và đánh giá địa điểm"}
-
-#### 2.3.2.9. Mô tả chức năng "Cộng đồng chia sẻ kinh nghiệm"
-
-@usecase[UC09]{Mô tả chức năng "Cộng đồng chia sẻ kinh nghiệm"}
-name: Cộng đồng chia sẻ kinh nghiệm
-code: UC_09
-actors: Người dùng, Quản trị viên
-desc: Chức năng xem, lọc, tìm kiếm bài viết; đăng bài, bình luận, bình chọn hữu ích; sao chép lịch trình từ bài viết; tạo bản nháp bài tổng kết bằng AI; xóa bài viết.
-trigger: Người dùng mở trang “Cộng đồng & Review” hoặc chọn “AI viết review tổng kết” trên chuyến đi đã kết thúc.
-pre: Người dùng đã đăng nhập.
-main:
-== Xem và tương tác
-1 | Người dùng | Chọn điểm đến hoặc nhập từ khóa để lọc bài viết, cuộn để tải thêm.
-2 | Hệ thống | Hiển thị bài viết mới nhất kèm số bình chọn, số bình luận, trạng thái đã bình chọn.
-3 | Người dùng | Bình chọn hoặc viết bình luận.
-4 | Hệ thống | Bật/tắt bình chọn và cập nhật số đếm; lưu bình luận.
-== Đăng bài
-5 | Người dùng | Chọn “Viết bài”, nhập tiêu đề, điểm đến, nội dung, ảnh và chuyến đi liên kết (tùy chọn); hoặc chọn “AI viết review” để nhận bản nháp.
-6 | Hệ thống | Với bản nháp AI: tổng hợp địa điểm đã đi, chi tiêu và đánh giá, sinh nội dung và điền sẵn biểu mẫu.
-7 | Người dùng | Chỉnh sửa và nhấn “Đăng bài”.
-8 | Hệ thống | Kiểm tra dữ liệu, kiểm tra chuyến đi liên kết thuộc người dùng, lưu bài viết.
-== Sao chép lịch trình, xóa bài
-9 | Người dùng | Chọn “Sao chép lịch trình” trên bài viết có liên kết chuyến đi, chọn ngày bắt đầu.
-10 | Hệ thống | Tạo chuyến đi mới thuộc người dùng với lịch trình dời theo ngày đã chọn.
-11 | Người dùng/Quản trị viên | Xóa bài viết.
-12 | Hệ thống | Xóa bài cùng bình luận, bình chọn.
-alt:
-6a | Hệ thống | AI lỗi hoặc chưa cấu hình: tạo bản nháp theo mẫu từ dữ liệu chuyến đi.
-8a | Hệ thống | Ảnh không phải địa chỉ https hoặc vượt giới hạn độ dài: thông báo lỗi.
-12a | Hệ thống | Người xóa không phải tác giả hay quản trị viên: từ chối.
-post: Bài viết, bình luận, bình chọn được cập nhật; chuyến đi sao chép được tạo.
-@end
-
-@fig{DGM-UC-012-cong-dong}{Biểu đồ use case phân rã chức năng "Cộng đồng chia sẻ kinh nghiệm"}
-
-#### 2.3.2.10. Mô tả chức năng "Quản trị hệ thống"
-
-@usecase[UC10]{Mô tả chức năng "Quản trị hệ thống"}
+@usecase[UC06]{Mô tả chức năng "Quản trị hệ thống"}
 name: Quản trị hệ thống
-code: UC_10
+code: UC_06
 actors: Quản trị viên
-desc: Chức năng quản lý người dùng, chuyến đi, tri thức điểm đến và giám sát việc sử dụng AI.
-trigger: Quản trị viên mở trang “Quản trị hệ thống”.
-pre: Tài khoản có vai trò Quản trị viên.
+desc: Chức năng dành riêng cho quản trị viên nhằm quản lý người dùng toàn hệ thống, quản lý và kiểm duyệt chuyến đi, quản lý cơ sở tri thức điểm đến du lịch (thêm, sửa, xóa, trích xuất tự động từ bài viết cộng đồng bằng AI), đồng thời giám sát các chỉ số vận hành và nhật ký thực thi của mô hình AI.
+trigger: Quản trị viên truy cập vào khu vực “Quản trị hệ thống” (Admin Dashboard).
+pre: Tài khoản người dùng đã đăng nhập và được cấp quyền vai trò Quản trị viên (ADMIN).
 main:
-== Quản lý người dùng và chuyến đi
-1 | Quản trị viên | Tìm kiếm, tạo, sửa (vai trò, trạng thái, mật khẩu) hoặc xóa tài khoản; xem, sửa, xóa chuyến đi.
-2 | Hệ thống | Kiểm tra quyền và dữ liệu, lưu thay đổi; khi khóa tài khoản hoặc đặt lại mật khẩu thì vô hiệu các phiên cũ.
+== Quản lý người dùng và phân quyền
+1 | Quản trị viên | Tìm kiếm theo họ tên/email, tạo tài khoản mới, cập nhật vai trò (USER/ADMIN), khóa hoặc mở khóa tài khoản, đặt lại mật khẩu hoặc xóa tài khoản.
+2 | Hệ thống | Kiểm tra tính hợp lệ và thẩm quyền, cập nhật cơ sở dữ liệu; khi tài khoản bị khóa hoặc đặt lại mật khẩu, tự động hủy bỏ toàn bộ phiên đăng nhập đang hoạt động của người dùng đó.
+== Quản lý chuyến đi toàn hệ thống
+3 | Quản trị viên | Tra cứu danh sách chuyến đi của tất cả người dùng, xem thông tin chi tiết, chỉnh sửa thông tin hành chính hoặc xóa các chuyến đi vi phạm.
+4 | Hệ thống | Lưu lại các thay đổi hoặc xóa chuyến đi cùng toàn bộ dữ liệu lịch trình, ngân sách, checklist liên quan.
 == Quản lý tri thức điểm đến
-3 | Quản trị viên | Thêm, sửa, xóa, bật/tắt mục tri thức; hoặc chọn “Trích xuất tri thức” trên một bài viết cộng đồng.
-4 | Hệ thống | Lưu mục tri thức; với trích xuất, dùng AI tóm tắt bài viết thành bản nháp tri thức để quản trị viên xác nhận.
-== Giám sát AI
-5 | Quản trị viên | Mở thẻ “Thống kê” hoặc “Công cụ AI”, chọn khoảng thời gian, bộ lọc.
-6 | Hệ thống | Hiển thị số lượt trò chuyện, lượng token, tỷ lệ lỗi, công cụ dùng nhiều nhất và nhật ký thực thi có phân trang.
+5 | Quản trị viên | Xem danh mục tri thức, thêm mới các mẹo du lịch/thông tin điểm đến, chỉnh sửa, bật/tắt kích hoạt; hoặc chọn “Trích xuất tri thức” từ một bài viết cộng đồng hữu ích.
+6 | Hệ thống | Lưu mục tri thức; với yêu cầu trích xuất, tự động sử dụng AI để tóm tắt các thông tin giá trị từ bài viết thành bản nháp tri thức chuẩn hóa để quản trị viên kiểm tra và phê duyệt.
+== Giám sát hoạt động và hiệu năng AI
+7 | Quản trị viên | Mở khu vực “Thống kê & Giám sát AI”, lựa chọn mốc thời gian và các bộ lọc phân tích.
+8 | Hệ thống | Hiển thị bảng điều khiển trực quan gồm: tổng số lượt tương tác AI, lượng token tiêu thụ, chi phí ước tính, tỷ lệ cuộc gọi lỗi, biểu đồ tần suất gọi các công cụ (tools) và nhật ký chi tiết các yêu cầu có phân trang.
 alt:
-2a | Hệ thống | Quản trị viên tự xóa tài khoản của mình: từ chối.
-2b | Hệ thống | Tài khoản không có quyền quản trị: từ chối truy cập.
-4a | Hệ thống | AI lỗi khi trích xuất: dùng nội dung gốc của bài viết làm bản nháp.
-post: Dữ liệu quản trị được cập nhật; tri thức mới được dùng trong ngữ cảnh AI.
+2a | Hệ thống | Quản trị viên thao tác tự khóa hoặc tự xóa tài khoản của chính mình: từ chối thực hiện và thông báo cảnh báo.
+1a | Hệ thống | Tài khoản thao tác không có quyền Quản trị viên: lập tức điều hướng về trang chủ và ghi nhận cảnh báo bảo mật.
+6a | Hệ thống | Dịch vụ AI gặp sự cố khi trích xuất tri thức: giữ nguyên nội dung bài viết gốc làm bản nháp thô cho quản trị viên tự biên tập.
+post: Dữ liệu người dùng, chuyến đi và tri thức điểm đến được cập nhật chuẩn xác; hệ thống ghi nhận đầy đủ nhật ký kiểm toán và giám sát AI.
 @end
 
-@fig{DGM-UC-013-quan-tri}{Biểu đồ use case phân rã chức năng "Quản trị hệ thống"}
+@fig{DGM-UC-009-quan-tri}{Biểu đồ use case phân rã chức năng "Quản trị hệ thống"}

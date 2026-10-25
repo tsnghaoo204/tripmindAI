@@ -1,5 +1,5 @@
 @section LỜI NÓI ĐẦU
-Em xin gửi lời cảm ơn chân thành đến [HỌC HÀM, HỌC VỊ, HỌ TÊN GVHD], giảng viên hướng dẫn, người đã tận tình định hướng, góp ý và hỗ trợ em trong suốt quá trình thực hiện đồ án tốt nghiệp “Xây dựng nền tảng lập kế hoạch và quản lý chuyến du lịch thông minh TripMind sử dụng AI Agent”.
+Em xin gửi lời cảm ơn chân thành đến PGS.Ts Nguyễn Thị Mỹ Bình, giảng viên hướng dẫn, người đã tận tình định hướng, góp ý và hỗ trợ em trong suốt quá trình thực hiện đồ án tốt nghiệp “XÂY DỰNG ỨNG DỤNG WEB LẬP KẾ HOẠCH DU LỊCH THÔNG MINH TRIPMIND AI”.
 
 Em cũng xin cảm ơn Đại học Công nghiệp Hà Nội và Trường Công nghệ Thông tin và Truyền thông đã tạo điều kiện thuận lợi về môi trường học tập, tài liệu và cơ sở vật chất để em có thể hoàn thành đồ án này.
 

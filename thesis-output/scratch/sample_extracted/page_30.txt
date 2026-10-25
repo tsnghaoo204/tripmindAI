@@ -1,0 +1,37 @@
+20 
+ 
+ 
+Mô tả Chức năng cho phép tác nhân tạo mới, xem danh sách tin đăng 
+của mình, cập nhật nội dung, ẩn tin đăng. 
+Sự kiện kích 
+hoạt chức 
+năng 
+Tác nhân chọn mục “Tin đăng của tôi”, “Đăng bán”, “Chỉnh sửa 
+tin”, “Ẩn tin” trên giao diện quản lý tin đăng. 
+Tiền điều 
+kiện 
+Tác nhân đã đăng nhập hợp lệ. Khi tạo và cập nhật thì danh 
+mục phải tồn tại. 
+Luồng sự 
+kiện chính 
+# Thực hiện bởi Hành động 
+Xem danh sách tin đăng bán 
+1 Người dùng Truy cập khu vực “Quản lý tin đăng 
+bán”. 
+2 Hệ thống Hiển thị danh sách tin đăng của tài 
+khoản theo bộ lọc/trạng thái và phân 
+trang. 
+Tạo tin đăng bán mới 
+3 Người dùng Chọn “Đăng tin mới”. 
+4 Hệ thống Hiển thị form nhập thông tin đăng bán 
+gồm tiêu đề, mô tả, giá, danh mục, tình 
+trạng, cho phép thương lượng. 
+5 Người dùng Nhập thông tin và bấm "Đăng tin" 
+6 Hệ thống Kiểm tra hợp lệ dữ liệu, tạo tin đăng 
+mới với trạng thái PENDING. 
+Chỉnh sửa tin đăng bán 
+7 Người dùng Chọn một tin đăng có để chỉnh sửa nội 
+dung hoặc ẩn tin. 
+8 Hệ thống Kiểm tra quyền sở hữu tin đăng và 
+điều kiện trạng thái cho phép chỉnh 
+sửa. 

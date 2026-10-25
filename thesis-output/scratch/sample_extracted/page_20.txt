@@ -1,0 +1,30 @@
+10 
+ 
+ 
+- Giám sát toàn bộ đơn hàng: Cho phép quản trị viên theo dõi và kiểm soát 
+danh sách tất cả các đơn hàng đang diễn ra trên hệ thống. 
+2.2.2. Yêu cầu phi chức năng 
+• Giao diện người dùng 
+- Tính tương thích và linh hoạt: Giao diện cần tương thích tốt trên nhiều kích 
+thước màn hình, đặc biệt tối ưu cho thiết bị di động vì người dùng có thể sử dụng 
+điện thoại để chụp ảnh và đăng bán sản phẩm. 
+- Bố cục dễ nhìn: Trang chủ và trang kết quả tìm kiếm phải làm nổi bật hệ 
+thống cây danh mục, thanh tìm kiếm và bộ lọc chi tiết, trạng thái của sản phẩm 
+phải được hiển thị rõ ràng. 
+- Trang chi tiết sản phẩm: Phải tối ưu hóa không gian để hiển thị rõ bộ ảnh 
+sản phẩm, mô tả chi tiết và đặc biệt là thông tin Hồ sơ người bán. 
+- Luồng giao dịch mượt mà: Giao diện tính năng Thương lượng giá và Quản 
+lý đơn hàng phải rành mạch, giúp người dùng dễ dàng theo dõi trạng thái các đề 
+xuất giá mà không gây nhầm lẫn. 
+• Bảo mật hệ thống 
+- Xác thực và phân quyền: Hệ thống phải sử dụng cơ chế bảo mật xác thực 
+với chiến lược cấp mới và thu hồi token an toàn.  
+- Ràng buộc logic nghiệp vụ: Người dùng không thể tự gửi đề nghị giá cho 
+chính tin đăng của mình; khi người bán chấp nhận một lời đề nghị giá phải tự 
+động từ chối toàn bộ các đề nghị khác cho cùng sản phẩm đó. 
+• Hiệu năng và Hạ tầng hệ thống: 
+- Hiệu năng và Tốc độ phản hồi: Các thao tác tìm kiếm, lọc tin đăng và tải 
+trang chi tiết sản phẩm phải diễn ra nhanh chóng, độ trễ phản hồi từ máy chủ phải 
+ở mức tối thiểu. 
+- Khả năng chịu tải và Mở rộng: Kiến trúc máy chủ phía sau phải được thiết 
+kế theo cơ chế xử lý đa luồng và sẵn sàng mở rộng ngang.  

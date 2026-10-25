@@ -1,0 +1,38 @@
+17 
+ 
+ 
+2.3.2.2. Mô tả chức năng "Khám phá tin đăng" 
+Bảng 2.2. Mô tả chức năng "Khám phá tin đăng" 
+Tên use case Khám phá tin đăng Mã Use Case UC_02 
+Tác nhân Khách vãng lai, Người dùng, Quản trị viên 
+Mô tả 
+Chức năng cho phép tác nhân thực hiện: 
+- Xem danh sách tin đăng đang hoạt động  
+- Lọc và tìm kiếm tin đăng  
+- Xem chi tiết tin đăng 
+- Xem hồ sơ người bán  
+Sự kiện kích 
+hoạt chức 
+năng 
+Tác nhân truy cập trang danh sách tin đăng hoặc thao tác tìm 
+kiếm/lọc trên giao diện khám phá. 
+Tiền điều 
+kiện 
+Không 
+ 
+Luồng sự 
+kiện chính 
+# Thực 
+hiện bởi 
+Hành động 
+Xem danh sách tin đăng đang hoạt động 
+1 Tác nhân Truy cập trang chủ  
+2 Hệ thống Tải danh sách tin đăng công khai ở trạng 
+thái hoạt động theo phân trang mới nhất. 
+3 Hệ thống Hiển thị danh sách kết quả gồm thông tin cơ 
+bản tin đăng và ảnh đại diện. 
+Lọc và tìm kiếm 
+4 Tác nhân Nhập từ khóa tìm kiếm và nhấn Tìm kiếm 
+5 Hệ thống Lọc danh sách theo từ khóa và trả về kết quả 
+phù hợp. 
+6 Tác nhân Chọn bộ lọc và gửi yêu cầu lọc. 

@@ -1,0 +1,39 @@
+14 
+ 
+ 
+2 Hệ thống Hiển thị form đăng ký  email, mật khẩu, họ 
+tên, dòng chữ link đến trang Đăng nhập cùng 
+tùy chọn Quên mật khẩu 
+3 Khách 
+vãng lai 
+Nhập thông tin và chọn nút "Đăng ký". 
+4 Hệ thống Kiểm tra hợp lệ dữ liệu, tạo tài khoản mới với 
+vai trò User và gửi email xác minh tài khoản. 
+5 Khách 
+vãng lai 
+Mở email và nhấn liên kết xác minh tài 
+khoản. 
+6 Hệ thống Xác thực và cập nhật trạng thái email xác 
+minh, thông báo đăng ký thành công. 
+Đăng nhập 
+7 Người 
+dùng 
+Chọn nút “Đăng nhập”. 
+ 
+8 Hệ thống Hiển thị form đăng nhập email, mật khẩu , 
+dòng chữ 
+link đến trang Đăng ký cùng tùy chọn Quên 
+mật khẩu 
+9 Người 
+dùng 
+Nhập thông tin và nhấn nút "Đăng nhập" 
+10 Hệ thống Kiểm tra tài khoản trong bảng 
+USERS và trả về access token đưa người 
+dùng đến trang chủ. 
+Quên mật khẩu 
+11 Người 
+dùng 
+Tại trang đăng nhập, click vào 
+liên kết “Quên mật khẩu”. 
+12 Hệ thống Hiển thị form yêu cầu nhập địa chỉ email đã 
+đăng ký. 

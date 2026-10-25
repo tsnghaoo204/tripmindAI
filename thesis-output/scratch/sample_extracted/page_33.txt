@@ -1,0 +1,43 @@
+23 
+ 
+ 
+7 Hệ thống Truy vấn offer_id bảng OFFERS hiện thị 
+Mức giá đề xuất, thời gian gửi, hồ sơ người 
+mua,... 
+8 Người 
+dùng 
+Lựa chọn một trong 3 tùy chọn: "Chấp nhận", 
+"Từ chối", "Đề xuất mức giá khác" 
+9 Hệ thống Gửi thông báo lại cho người mua 
+ 
+Luồng sự 
+kiện thay 
+thế 
+ 
+# Thực 
+hiện bởi 
+Hành động 
+2a Hệ thống Nếu tin đăng trang thái is_negotiable = false 
+thì không hiển thị "Thương lượng". 
+4a Hệ thống  Mức giá đề xuất không hợp lệ thì sẽ báo lỗi 
+yêu cầu nhập lại. 
+9a Hệ thống Nếu người dùng chọn " Chấp nhận". Hệ thống 
+tạo Order và Từ chối hết các đề xuất khác. 
+9b Hệ thống Nếu người dùng chọn "Từ chối" , gửi thông 
+báo cho người mua. 
+ 
+9c Hệ thống Nếu người dùng chọn " Đề xuất giá mới ". 
+Hiển thị form nhập giá đề xuất và gửi yêu cầu 
+tới người mua. 
+2b, 
+4b, 7a 
+Hệ thống Nếu lỗi truy vấn, hiển thị thông báo lỗi và kết 
+thúc use case. 
+4c Hệ thống Nếu người dùng chưa đăng nhập. Hệ thống 
+thông báo yêu cầu đăng nhập và hiển thị nút 
+chuyển hướng sang trang đăng nhập 
+ 
+Hậu điều 
+kiện 
+Không 
+ 

@@ -1,0 +1,38 @@
+19 
+ 
+ 
+2b, 
+5b, 
+7b, 9a 
+Hệ 
+thống 
+Nếu xảy ra lỗi truy vấn dữ liệu, trả thông 
+báo lỗi hệ thống phù hợp. 
+12a Hệ 
+thống 
+Nếu không tìm thấy người dùng theo 
+user_id, trả lỗi “Không tìm thấy người 
+dùng”. 
+12b Hệ 
+thống 
+Nếu tài khoản người bán đã bị vô hiệu hóa, 
+không trả hồ sơ công khai và phản hồi 
+“Không tìm thấy người dùng”. 
+13a Hệ 
+thống 
+Nếu lỗi truy vấn dữ liệu tạm thời, hiển thị 
+thông báo lỗi hệ thống phù hợp. 
+ 
+Hậu điều 
+kiện 
+− Tác nhân nhận được danh sách tin đăng công khai theo điều 
+kiện tìm kiếm/lọc. 
+− Trạng thái hiển thị kết quả được cập nhật theo tham số tìm 
+kiếm, lọc và phân trang hiện tại. 
+ 
+ 
+Hình 2.5. Biểu đồ Use case phân rã chức năng "Khám phá tin đăng" 
+2.3.2.3. Mô tả chức năng "Quản lý tin đăng bán" 
+Bảng 2.3. Mô tả chức năng "Quản lý tin đăng bán" 
+Tên use case Quản lý tin đăng bán Mã Use Case UC_03 
+Tác nhân Người dùng, Quản trị viên 

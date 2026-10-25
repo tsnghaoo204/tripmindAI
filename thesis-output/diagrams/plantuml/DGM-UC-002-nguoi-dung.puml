@@ -1,0 +1,40 @@
+@startuml DGM-UC-002-nguoi-dung
+title Biểu đồ Use Case phân hệ Người dùng
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+
+skinparam usecase {
+  BackgroundColor #FFF2CC
+  BorderColor #D6B656
+  FontSize 12
+}
+
+skinparam actor {
+  BackgroundColor #DAE8FC
+  BorderColor #6C8EBF
+}
+
+actor "Khách" as Guest
+actor "Người dùng" as User
+
+Guest <|-- User
+
+rectangle "Phân hệ Người dùng - TripMind AI" {
+  usecase "Xác thực & Quản lý tài khoản" as UC1
+  usecase "Quản lý chuyến đi & Lịch trình" as UC2
+  usecase "Trợ lý AI lập & Điều chỉnh lịch trình" as UC3
+  usecase "Quản lý ngân sách & Chuẩn bị hành lý" as UC4
+  usecase "Khám phá địa điểm & Cộng đồng chia sẻ" as UC5
+}
+
+Guest --> UC1
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+@enduml

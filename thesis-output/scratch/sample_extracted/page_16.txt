@@ -1,0 +1,32 @@
+6 
+ 
+ 
+CHƯƠNG 2. PHÂN TÍCH VÀ ĐẶC TẢ YÊU CẦU WEBSITE 
+SÀN GIAO DỊCH ĐỒ CŨ REHUB 
+Phân tích và đặc tả yêu cầu phần mềm là giai đoạn đầu tiên và quan trọng 
+nhất trong quy trình phát triển phần mềm, nhằm xác định chính xác những gì hệ 
+thống cần thực hiện. Chúng ta sẽ tiến hành thu thập, tìm hiểu, phân loại và làm rõ 
+các yêu cầu từ người dùng thông qua phỏng vấn, khảo sát hoặc quan sát thực tế, 
+giúp hiểu đúng nhu cầu thật sự của khách hàng. 
+Sau đó đặc tả yêu cầu là bước chuyển các yêu cầu đã phân tích thành tài 
+liệu chi tiết, có cấu trúc và rõ ràng, thường gọi là Tài liệu Đặc tả yêu cầu phần 
+mềm. Bao gồm yêu cầu chức năng yêu cầu phi chức năng cùng các ràng buộc kỹ 
+thuật, và được mô tả bằng các công cụ như biểu đồ. 
+2.1. Mô tả bài toán 
+Nền tảng ReHub cung c ấp dịch vụ giao dịch đồ cũ C2C trực tuyến thông 
+qua một website thương mại điện tử. Website này giúp ngư ời dùng dễ dàng tìm 
+kiếm, mua bán và trao đổi các sản phẩm đa dạng từ Điện tử và Công nghệ, Thời 
+trang, Đồ gia dụng,... Trang chủ của website được thiết kế với cây phân cấp danh 
+mục bao gồm danh mục rõ ràng và đường dẫn thân thiện để người dùng có thể dễ 
+dàng điều hướng. Khách vãng lai và người dùng có tài khoản đều có thể lướt xem 
+các tin đăng bán đang ở trạng thái hoạt động. 
+Hệ thống cho phép khách hàng tìm kiếm toàn văn và lọc tin đăng theo nhiều 
+tiêu chí chi tiết như danh mục, tình trạng đồ cũ được phân loại chuẩn hóa từ mới 
+nguyên bản, như mới, tốt, khá đến kém, khoảng giá tối thiểu, tối đa và khu v ực 
+tỉnh hoặc thành phố. Kết quả tìm kiếm sẽ hiển thị danh sách sản phẩm phù hợp 
+được phân trang, đ ồng thời có thể sắp xếp theo giá c ả tăng giảm hoặc thời gian 
+đăng mới nhất, giúp người mua nhanh chóng tìm thấy mặt hàng mong muốn. 
+Khi khách hàng nh ấp vào một tin đăng, h ệ thống sẽ chuyển họ đến trang 
+chi tiết của sản phẩm đó. Trang chi ti ết bao gồm các thông tin như b ộ hình ảnh 
+sản phẩm với một ảnh đại diện chính được tối ưu lưu trữ, tiêu đề, mô tả chi tiết, 
+giá mong muốn, tình trạng sản phẩm và trạng thái cho phép thương lư ợng. Đặc 

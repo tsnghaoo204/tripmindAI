@@ -1,0 +1,32 @@
+21 
+ 
+ 
+9 Người dùng Cập nhật thông tin cần sửa nhấn lưu 
+thay đổi. 
+10 Hệ thống Cập nhật dữ liệu hợp lệ, lưu kết quả 
+mới nhất và trả về thông tin tin đăng 
+sau cập nhật. 
+ 
+Luồng sự 
+kiện thay thế 
+ 
+# Thực hiện bởi Hành động 
+6a Hệ thống Nếu dữ liệu tạo tin không hợp lệ từ 
+chối và thông báo lỗi. 
+8a Hệ thống Nếu tin đã ở trạng thái SOLD, không 
+cho phép chỉnh sửa/xóa. 
+7a Hệ thống Nếu tin không tồn tại, trả thông báo 
+“Không tìm thấy tin đăng”. 
+ 
+Hậu điều 
+kiện 
+Tin đăng mới được lưu thành công ở trạng thái chờ duyệt trước 
+khi công khai. 
+ 
+Hình 2.6. Biểu đồ Use case phân rã chức năng "Quản lý tin đăng bán" 
+2.3.2.4. Mô tả chức năng "Thương lượng giá" 
+Bảng 2.4. Mô tả chức năng "Thương lượng giá" 
+Tên use 
+case 
+Thương lượng giá Mã Use Case UC_04 
+Tác nhân Người dùng  

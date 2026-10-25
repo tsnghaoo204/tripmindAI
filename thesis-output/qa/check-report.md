@@ -1,6 +1,6 @@
 # Kết quả kiểm tra tự động báo cáo (NỘI BỘ)
 
-- Số đoạn văn bản: 1714; ảnh nhúng: 48; chú thích hình: 125; chú thích bảng: 45
+- Số đoạn văn bản: 1353; ảnh nhúng: 44; chú thích hình: 59; chú thích bảng: 19
 - Tham chiếu chéo không phân giải được khi build: 0
 - Placeholder ảnh đang chờ bổ sung: 16
 
@@ -8,16 +8,7 @@
 
 | Quy tắc | Chuỗi | Ngữ cảnh |
 |---|---|---|
-| Placeholder chưa thay | [HỌ VÀ TÊN | KỸ THUẬT PHẦN MỀM                                        [HỌ VÀ TÊN SINH VIÊN] |
-| Placeholder chưa thay | [HỌC HÀM | GVHD:[HỌC HÀM, HỌC VỊ, HỌ TÊN GVHD] |
-| Placeholder chưa thay | [HỌ VÀ TÊN | Sinh viên:[HỌ VÀ TÊN SINH VIÊN] |
-| Placeholder chưa thay | [MÃ SINH VIÊN | Mã sinh viên:[MÃ SINH VIÊN] |
 | Placeholder chưa thay | [LOGO | [LOGO TRƯỜNG — người dùng bổ sung] |
-| Placeholder chưa thay | [HỌC HÀM | [HỌC HÀM, HỌC VỊ, HỌ TÊN GVHD] |
-| Placeholder chưa thay | [HỌ VÀ TÊN | [HỌ VÀ TÊN SINH VIÊN] |
-| Placeholder chưa thay | [MÃ SINH VIÊN | [MÃ SINH VIÊN] |
-| Placeholder chưa thay | [LỚP | [LỚP] |
-| Placeholder chưa thay | [HỌC HÀM | Em xin gửi lời cảm ơn chân thành đến [HỌC HÀM, HỌC VỊ, HỌ TÊN GVHD], giảng viên hướng dẫn, người đã tận tình định hướng, góp ý và hỗ trợ em  |
 | Placeholder chưa thay | [ẢNH CẦN BỔ SUNG | [ẢNH CẦN BỔ SUNG] Minh họa đề tài nền tảng lập kế hoạch du lịch thông minh |
 | Tên tệp mã nguồn/cấu hình | Node.js | Hệ thống được đóng gói bằng Docker Compose gồm ba vùng chứa: máy chủ ứng dụng Backend (chạy với người dùng không có đặc quyền và có kiểm tra |
 | Placeholder chưa thay | [ẢNH CẦN BỔ SUNG | [ẢNH CẦN BỔ SUNG] Giao diện màn hình "Đăng nhập" |

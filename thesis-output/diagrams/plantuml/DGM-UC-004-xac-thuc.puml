@@ -1,0 +1,41 @@
+@startuml
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam dpi 200
+
+skinparam usecase {
+  BackgroundColor #FFF1AA
+  BorderColor #000000
+  FontSize 12
+}
+
+skinparam actor {
+  BackgroundColor #FFF1AA
+  BorderColor #000000
+}
+
+skinparam arrow {
+  Color #000000
+}
+
+actor "Tác nhân" as Actor
+
+usecase "Xác thực người dùng" as Main
+
+usecase "Đăng nhập" as UC1
+usecase "Đăng ký" as UC2
+usecase "Khôi phục mật khẩu" as UC3
+
+usecase "Xác thực Email" as Sub1
+
+Actor -- Main
+
+UC1 -up-|> Main
+UC2 --|> Main
+UC3 -down-|> Main
+
+UC2 ..> Sub1 : <<Include>>
+UC3 ..> Sub1 : <<Include>>
+@enduml

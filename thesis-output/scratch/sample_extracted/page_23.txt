@@ -1,0 +1,40 @@
+13 
+ 
+ 
+- Quản lý người dùng: Cho phép quản trị viên tra cứu danh sách người dùng, 
+xem thông tin tài khoản và thực hiện khóa/mở khóa tài khoản khi phát hiện vi 
+phạm quy định. Các thao tác quản trị được thực hiện theo cơ chế phân quyền và 
+lưu vết phục vụ kiểm soát. 
+- Giám sát đơn hàng: Cho phép quản trị viên theo dõi toàn bộ đơn hàng trên 
+hệ thống, xem trạng thái xử lý của từng đơn. 
+2.3.2. Mô tả các chức năng 
+2.3.2.1. Mô tả chức năng "Xác thực người dùng" 
+• Mô tả dưới dạng bảng: 
+Bảng 2.1. Mô tả chức năng "Xác thực người dùng" 
+Tên use case Xác thực người dùng Mã Use Case UC_01 
+Tác nhân Khách vãng lai, Người dùng, Quản trị viên 
+Mô tả Chức năng cho phép người dùng thực hiện các hoạt động xác 
+thực tài khoản bao gồm:  
+- Đăng ký tài khoản mới 
+- Đăng nhập hệ thống,  
+- Quên/khôi phục mật khẩu. 
+Sự kiện kích 
+hoạt chức 
+năng 
+Người dùng chọn “Đăng ký”, “Đăng nhập” hoặc “Quên mật 
+khẩu” tại khu vực xác thực của website 
+Tiền điều 
+kiện 
+− Đăng ký: Email chưa tồn tại trong hệ thống. 
+− Đăng nhập: Tài khoản tồn tại, chưa bị khóa/vô hiệu hóa.  
+− Quên mật khẩu: Tài khoản đã đăng ký email hợp lệ. 
+ 
+Luồng sự 
+kiện chính 
+# Thực 
+hiện bởi 
+Hành động 
+Đăng ký 
+1 Khách 
+vãng lai 
+Chọn nút “Đăng ký”. 

@@ -1,0 +1,20 @@
+5 
+ 
+ 
+1.2.2. FastAPI  
+FastAPI là framework backend hi ện đại cho Python, t ối ưu cho xây d ựng 
+RESTful API hiệu năng cao. Ưu điểm: 
+- Tốc độ xử lý tốt, hỗ trợ async/await.  
+- Tự sinh tài liệu API (OpenAPI/Swagger), thuận lợi cho tích hợp frontend.  
+- Dễ tổ chức theo kiến trúc module, phù hợp với các domain của ReHub.  
+1.2.3. React + TypeScript + Vite  
+Frontend ReHub được xây dựng bằng React và TypeScript, bundler là Vite. 
+Ưu điểm: 
+- Giao diện component-based, dễ tái sử dụng và mở rộng.  
+- TypeScript giúp giảm lỗi runtime, tăng độ an toàn khi phát triển. 
+1.2.4. Docker 
+Docker được sử dụng để chuẩn hóa môi trường chạy backend, frontend và 
+database, hỗ trợ: 
+- Tính nhất quán giữa môi trường phát triển và triển khai.  
+- Đóng gói, triển khai nhanh, thuận tiện mở rộng và vận hành. 
+  

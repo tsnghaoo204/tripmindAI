@@ -1,0 +1,32 @@
+4 
+ 
+ 
+- Dễ dàng mua bán đồ cũ theo danh mục, khu vực, mức giá và tình trạng. 
+- Tiết kiệm chi phí nhờ khả năng thương lượng và so sánh nhiều tin đăng. 
+- Tăng độ an tâm khi giao dịch nhờ hồ sơ uy tín và cơ chế đánh giá. 
+• Đối với nhóm phát triển: 
+- Rèn luyện năng lực phân tích nghiệp vụ và hiện thực hóa quy trình giao dịch 
+thực tế. 
+- Nâng cao kỹ năng thiết kế API, quản lý dữ liệu, xác thực và phân quyền. 
+- Tích lũy kinh nghiệm triển khai kiến trúc module hóa, kiểm thử và bảo trì hệ 
+thống. 
+1.1.4. Thách thức 
+- Đảm bảo niềm tin giao dịch: cần kiểm soát tin rác, nội dung sai lệch và hành 
+vi gian lận. 
+- Bảo mật và an toàn dữ liệu: phải bảo vệ thông tin tài khoản, token xác thực 
+và dữ liệu giao dịch. 
+- Trải nghiệm người dùng: cần giữ luồng mua bán đơn giản nhưng vẫn chặt 
+chẽ về ràng buộc nghiệp vụ. 
+1.1.5. Xu hướng phát triển 
+- Tích hợp AI gợi ý tin đăng phù hợp theo hành vi tìm kiếm và lịch sử tương 
+tác. 
+- Mở rộng đa nền tảng và liên kết dịch vụ ngoài. 
+- Nâng cấp hệ thống thông báo thời gian thực và cá nhân hóa nội dung thông 
+báo. 
+1.2. Các công nghệ sử dụng 
+1.2.1. PostgreSQL  
+PostgreSQL là hệ quản trị cơ sở dữ liệu quan hệ mã nguồn mở mạnh mẽ, phù 
+hợp với hệ thống nghiệp vụ có ràng buộc dữ liệu cao. Lý do lựa chọn:  
+- Đảm bảo toàn vẹn dữ liệu với khóa ngoại, transaction và ràng buộc chặt chẽ.  
+- Hỗ trợ truy v ấn linh ho ạt, phù h ợp cho các module listing, offer, order, 
+review.  

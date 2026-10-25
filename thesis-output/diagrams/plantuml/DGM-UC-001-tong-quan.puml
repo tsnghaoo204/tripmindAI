@@ -1,0 +1,65 @@
+@startuml
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam dpi 200
+
+skinparam usecase {
+  BackgroundColor #7ACFF5
+  BorderColor #000000
+  FontSize 12
+}
+
+skinparam actor {
+  BackgroundColor #7ACFF5
+  BorderColor #000000
+}
+
+skinparam arrow {
+  Color #000000
+}
+
+actor "Khách vãng lai" as Guest
+actor "Người dùng" as User
+actor "Người quản trị" as Admin
+
+actor "Hệ thống" as System
+
+Admin -up-|> User
+User -up-|> Guest
+
+usecase "Xác thực người dùng" as UC1
+usecase "Quản lý chuyến đi và lịch trình" as UC2
+usecase "Sinh lịch trình tự động bằng AI" as UC3
+usecase "Trò chuyện với trợ lý AI" as UC4
+usecase "Quản lý ngân sách và chi tiêu" as UC5
+usecase "Quản lý danh sách chuẩn bị" as UC6
+usecase "Khám phá và đánh giá địa điểm" as UC7
+usecase "Cộng đồng chia sẻ kinh nghiệm" as UC8
+usecase "Quản trị hệ thống" as UC9
+
+Guest -- UC1
+Guest -- UC7
+
+User -- UC1
+User -- UC2
+User -- UC3
+User -- UC4
+User -- UC5
+User -- UC6
+User -- UC7
+User -- UC8
+
+Admin -- UC9
+
+UC1 -- System
+UC2 -- System
+UC3 -- System
+UC4 -- System
+UC5 -- System
+UC6 -- System
+UC7 -- System
+UC8 -- System
+UC9 -- System
+@enduml

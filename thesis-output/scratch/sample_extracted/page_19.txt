@@ -1,0 +1,31 @@
+9 
+ 
+ 
+- Đăng ký/đăng nhập: Cho phép người dùng tạo tài khoản mới hoặc đăng 
+nhập vào hệ thống để trở thành người dùng chính thức và tham gia vào các giao 
+dịch.  
+• Về phía người dùng: 
+- Quản lý tài khoản cá nhân: Cho phép người dùng cập nhật thông tin cá 
+nhân, địa chỉ giao hàng và xem thống kê hồ sơ hoạt động của chính mình. 
+- Quản lý tin đăng bán: Cho phép người dùng tạo mới, chỉnh sửa thông tin 
+hoặc ẩn tin đăng bán đồ cũ. Tất cả các tin đăng mới đều phải trải qua trạng thái 
+chờ kiểm duyệt từ hệ thống trước khi được hiển thị. 
+- Thương lượng giá: Cho phép người mua gửi các đề nghị trả giá cho sản 
+phẩm. Người bán có quyền quản lý các lời đề nghị này bằng cách phản hồi bằng 
+một mức giá khác, chấp nhận hoặc từ chối. 
+- Thực hiện giao dịch: Cho phép người mua chọn "Mua ngay" đối với các 
+sản phẩm có giá cố định, hoặc hệ thống sẽ tự động tạo đơn hàng khi một đề nghị 
+thương lượng giá được người bán chấp nhận. 
+- Quản lý đơn hàng: Cho phép cả người mua và người bán theo dõi tiến trình 
+của đơn hàng, xác nhận khi giao dịch hoàn thành, hoặc thực hiện hủy đơn trong 
+các trường hợp hợp lệ. 
+- Đánh giá sau giao dịch: Cho phép người mua để lại điểm số và nhận xét 
+cho người bán sau khi đơn hàng đã chuyển sang trạng thái hoàn thành. 
+• Về phía Quản trị viên: 
+- Kiểm duyệt tin đăng: Cung cấp bảng điều khiển để quản trị viên xem xét, 
+phê duyệt hoặc từ chối các tin đăng mới từ người dùng nhằm đảm bảo nội dung 
+an toàn. 
+- Quản lý danh mục: Cho phép quản trị viên thêm mới, chỉnh sửa và cấu trúc 
+lại hệ thống cây danh mục sản phẩm của nền tảng. 
+- Quản lý người dùng: Cho phép tra cứu thông tin tài khoản và thực hiện các 
+biện pháp xử lý đối với những người dùng vi phạm chính sách. 

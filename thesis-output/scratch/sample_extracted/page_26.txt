@@ -1,0 +1,42 @@
+16 
+ 
+ 
+ 
+ 
+ 
+ 
+10a Hệ thống 
+ 
+Nếu tài khoản bị khóa/vô hiệu hóa, từ chối 
+đăng nhập và thông báo trạng thái tài khoản. 
+14a Hệ thống 
+ 
+Nếu email không tồn tại, thông báo “Email 
+không tồn tại trong hệ thống” và quay lại 
+bước 12. 
+14b Hệ thống 
+ 
+Nếu gửi OTP/email thất bại, thông báo 
+“Không thể gửi yêu cầu khôi phục, vui lòng 
+thử lại sau” và quay lại bước 12. 
+16a Hệ thống 
+ 
+Nếu OTP/token không hợp lệ hoặc hết hạn, 
+thông báo lỗi và quay lại bước 14. 
+16 Hệ thống 
+ 
+Nếu mật khẩu mới và xác nhận mật khẩu 
+không khớp, thông báo lỗi và yêu cầu nhập 
+lại tại bước 15. 
+ 
+Hậu điều 
+kiện 
+− Đăng ký thành công: tài khoản người dùng mới được tạo 
+trong hệ thống. 
+− Đăng nhập thành công: hệ thống thiết lập phiên xác thực theo 
+cơ chế token. 
+− Quên mật khẩu thành công: mật khẩu mới được cập nhật an 
+toàn (lưu dạng băm), người dùng có thể đăng nhập lại. 
+• Mô hình hóa phân rã: 
+ 
+Hình 2.4. Biểu đồ Use case phân rã chức năng "Xác thực người dùng" 

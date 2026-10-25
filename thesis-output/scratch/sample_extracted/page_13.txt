@@ -1,0 +1,24 @@
+3 
+ 
+ 
+CHƯƠNG 1. CƠ SỞ LÝ THUYẾT 
+1.1. Tổng quan về ReHub 
+1.1.1. Định nghĩa 
+ReHub là một nền tảng sàn thương mại điện tử C2C chuyên biệt cho giao 
+dịch đồ cũ trực tuyến. Hệ thống được xây dựng nhằm hỗ trợ người dùng đăng bán, 
+tìm kiếm, thương lượng giá, mua ngay, theo dõi đơn hàng và đánh giá sau giao 
+dịch một cách nhanh chóng, minh bạch và an toàn.  
+1.1.2. Đặc điểm 
+- Chuyên môn hóa lĩnh vực đồ cũ: tập trung vào giao dịch sản phẩm đã qua sử 
+dụng, tối ưu cho nhu cầu mua bán tiết kiệm và tái sử dụng. 
+- Mô hình giao dịch linh hoạt: hỗ trợ đồng thời “Mua ngay” và “Thương lượng 
+giá” giữa người mua và người bán. 
+- Phân quyền rõ ràng: người dùng thực hiện giao dịch; quản trị viên kế thừa 
+quyền người dùng và có thêm các chức năng quản trị hệ thống. 
+- Quy trình kiểm duyệt tin đăng: tin mới ở trạng thái chờ duyệt trước khi công 
+khai, góp phần nâng cao chất lượng nội dung. 
+- Thông báo xuyên suốt: hỗ trợ thông báo theo sự kiện như trả giá, chấp 
+nhận/từ chối, đơn hàng, đánh giá, kiểm duyệt. 
+1.1.3. Lợi ích 
+• Đối với người dùng: 
+Hình 1.1. Minh họa đề tài website sàn giao dịch đồ cũ 

@@ -6,7 +6,7 @@ Du lịch đang trở thành nhu cầu phổ biến trong đời sống, đặc 
 
 Sự phát triển của các mô hình ngôn ngữ lớn mở ra khả năng hỗ trợ lập kế hoạch bằng ngôn ngữ tự nhiên. Dù vậy, nếu chỉ sử dụng một chatbot thông thường, hệ thống dễ đưa ra địa điểm không có thật, thông tin lỗi thời hoặc tự ý thay đổi kế hoạch mà người dùng không kiểm soát được. Vì vậy cần một cách tiếp cận trong đó trí tuệ nhân tạo đóng vai trò tác tử (AI Agent): được phép đọc dữ liệu chuyến đi, gọi các công cụ nghiệp vụ và dịch vụ dữ liệu thực, nhưng mọi thay đổi chỉ được ghi vào kế hoạch khi người dùng chấp thuận.
 
-Xuất phát từ nhu cầu đó, đề tài “Xây dựng nền tảng lập kế hoạch và quản lý chuyến du lịch thông minh TripMind sử dụng AI Agent” được lựa chọn nhằm xây dựng một ứng dụng web giúp người dùng tạo chuyến đi, lập lịch trình theo ngày, quản lý ngân sách và danh sách chuẩn bị, đồng thời được trợ lý AI hỗ trợ đề xuất lịch trình dựa trên địa điểm thực, dữ liệu thời tiết và kinh nghiệm do cộng đồng chia sẻ.
+Xuất phát từ nhu cầu đó, đề tài “XÂY DỰNG ỨNG DỤNG WEB LẬP KẾ HOẠCH DU LỊCH THÔNG MINH TRIPMIND AI” được lựa chọn nhằm xây dựng một ứng dụng web giúp người dùng tạo chuyến đi, lập lịch trình theo ngày, quản lý ngân sách và danh sách chuẩn bị, đồng thời được trợ lý AI hỗ trợ đề xuất lịch trình dựa trên địa điểm thực, dữ liệu thời tiết và kinh nghiệm do cộng đồng chia sẻ.
 
 ## 2. Mục tiêu đề tài
 

@@ -5,6 +5,9 @@ import sys
 import zipfile
 from pathlib import Path
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 ROOT = Path(__file__).resolve().parent.parent
 DOCX = ROOT / "report" / "final-report.docx"
 

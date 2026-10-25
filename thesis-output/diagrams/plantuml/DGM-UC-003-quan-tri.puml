@@ -1,0 +1,37 @@
+@startuml DGM-UC-003-quan-tri
+title Biểu đồ Use Case phân hệ Quản trị viên
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName "Arial"
+skinparam defaultFontSize 12
+
+skinparam usecase {
+  BackgroundColor #FFF2CC
+  BorderColor #D6B656
+  FontSize 12
+}
+
+skinparam actor {
+  BackgroundColor #DAE8FC
+  BorderColor #6C8EBF
+}
+
+actor "Quản trị viên" as Admin
+actor "Dịch vụ LLM" as LLM <<External>>
+
+rectangle "Phân hệ Quản trị - TripMind AI" {
+  usecase "Quản lý tài khoản người dùng" as AD1
+  usecase "Quản lý chuyến đi toàn hệ thống" as AD2
+  usecase "Quản lý tri thức điểm đến" as AD3
+  usecase "Giám sát & Thống kê sử dụng AI" as AD4
+}
+
+Admin --> AD1
+Admin --> AD2
+Admin --> AD3
+Admin --> AD4
+
+AD3 --> LLM : <<trích xuất tri thức>>
+@enduml

@@ -1,0 +1,32 @@
+7 
+ 
+ 
+biệt, trang chi tiết còn hiển thị công khai hồ sơ của người bán. Hồ sơ của người 
+bán bao gồm điểm tin cậy, số sao đánh giá trung bình, tổng số lượt đánh giá và số 
+lượng đơn hàng đã hoàn thành để khách mua có thêm cơ sở ra quyết định. 
+Để mua sắm, thay vì mô hình giỏ hàng truyền thống, người mua trên ReHub 
+có thể chọn Mua ngay hoặc sử dụng tính năng Thương lượng giá nếu tin đăng cho 
+phép trả giá. Người mua có thể gửi một mức giá đề xuất cho sản phẩm. Về phía 
+người bán, họ có thể xem các lời đề nghị nhận được ở trạng thái chờ và quyết định 
+chấp nhận, từ chối, hoặc đưa ra một mức giá phản hồi khác. Hệ thống sẽ tự động 
+từ chối tất cả các lời đề nghị khác đang chờ xử lý cho cùng sản phẩm đó. 
+Khi người mua ch ọn mua ngay ho ặc khi ngư ời bán ch ấp nhận mức giá 
+thương lượng, hệ thống sẽ tự động tạo một đơn hàng với mức giá chốt cuối cùng. 
+Khách vãng lai sẽ không thể thực hiện giao dịch mà bắt buộc phải đăng ký hoặc 
+đăng nhập thông qua hệ thống bảo mật an toàn kèm cơ ch ế cấp mới token đăng 
+nhập. Quá trình này đư ợc liên kết với hồ sơ cá nhân của người dùng với đầy đủ 
+thông tin từ họ tên, số điện thoại, tiểu sử, đến địa chỉ giao hàng chi tiết gồm tỉnh 
+thành phố, quận huyện, phường xã và số nhà. Sau khi đơn hàng được tạo, tin đăng 
+tự động được đổi trạng thái thành đã bán để ẩn khỏi kết quả tìm kiếm. 
+Sau khi giao dịch được xác lập, người dùng có thể đăng nhập vào tài khoản 
+của mình để theo dõi lịch sử và trạng thái đơn hàng. Mỗi đơn hàng sẽ hiển thị tiến 
+trình cụ thể như đang chờ, đã hoàn thành hoặc đã hủy. Người mua có quyền xác 
+nhận hoàn thành đơn hàng khi giao dịch tốt đẹp, qua đó hệ thống sẽ cộng dồn số 
+đơn thành công cho người bán. Đồng thời, cả hai bên đều có thể hủy đơn nếu gặp 
+sự cố, trong trường hợp đơn bị hủy, tin đăng có thể được kích hoạt lại để tiếp tục 
+giao dịch. Điều này giúp cả người mua và người bán chủ động kiểm soát tiến trình 
+giao dịch của mình. 
+Chỉ sau khi đơn hàng chuy ển sang trạng thái hoàn thành, ngư ời mua mới 
+có thể để lại số sao từ 1 đến 5 và nh ận xét cho ngư ời bán. Mỗi đơn hàng mang 
+tính duy nhất và chỉ cho phép một lượt đánh giá. Hệ thống sẽ tự động tính toán lại 
+điểm tin cậy tổng hợp của người. 

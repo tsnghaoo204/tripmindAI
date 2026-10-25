@@ -1,0 +1,14 @@
+11 
+ 
+ 
+- Tối ưu hóa lưu trữ: Hệ thống phải tách biệt hoàn toàn máy chủ xử lý logic 
+và nơi lưu trữ tệp tin. Các tệp hình ảnh phải được lưu tại một hệ thống lưu trữ giúp 
+giảm tải cho máy chủ chính và dễ dàng nâng cấp. 
+2.3. Mô hình hóa và mô tả các chức năng 
+2.3.1. Mô hình hóa 
+2.3.1.1. Mô hình use case tổng quan 
+ 
+Hình 2.1. Biểu đồ Use case tổng quan 
+2.3.1.2. Mô hình use case phía người dùng 
+ 
+Hình 2.2. Biểu đồ Use case tổng quan phía người dùng 
